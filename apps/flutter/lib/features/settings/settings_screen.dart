@@ -11,7 +11,6 @@ class SettingsScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(authStateProvider).valueOrNull?.user;
-    final credits = ref.watch(creditsProvider).valueOrNull;
 
     return PageFormScaffold(
       child: Column(
@@ -35,11 +34,6 @@ class SettingsScreen extends ConsumerWidget {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('이메일'),
                     subtitle: Text(user?.email ?? '—'),
-                  ),
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('보유 크레딧'),
-                    subtitle: Text(credits?.toString() ?? '—'),
                   ),
                 ],
               ),

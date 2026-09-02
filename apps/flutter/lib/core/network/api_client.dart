@@ -141,6 +141,46 @@ class ApiClient {
     return productListFromGenerated(data.items);
   }
 
+  Future<List<CatalogProductModel>> catalogProducts({
+    String? q,
+    String? category,
+    String? flavor,
+    int? volumeMlMin,
+    int? volumeMlMax,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    final data = await _generatedCall(
+      () => _generated.getCatalogProductsApi().getCatalogProductsCatalogProductsGet(
+            q: q,
+            category: category,
+            flavor: flavor,
+            volumeMlMin: volumeMlMin,
+            volumeMlMax: volumeMlMax,
+            offset: offset,
+            limit: limit,
+          ),
+    );
+    return catalogProductListFromGenerated(data.items);
+  }
+
+  Future<CatalogProductDetailModel> catalogProduct(
+    String id, {
+    String? flavor,
+    int? volumeMlMin,
+    int? volumeMlMax,
+  }) async {
+    final data = await _generatedCall(
+      () => _generated.getCatalogProductsApi().getCatalogProductByIdCatalogProductsCatalogIdGet(
+            catalogId: id,
+            flavor: flavor,
+            volumeMlMin: volumeMlMin,
+            volumeMlMax: volumeMlMax,
+          ),
+    );
+    return catalogProductDetailFromGenerated(data);
+  }
+
   Future<ProductModel> product(String id) async {
     final data = await _generatedCall(
       () => _generated.getProductsApi().getProductByIdProductsProductIdGet(productId: id),
@@ -319,6 +359,10 @@ class ApiClient {
     required String category,
     String? description,
     String status = 'draft',
+    String? catalogProductId,
+    String? optionLabel,
+    int? volumeMl,
+    String? flavor,
   }) async {
     final data = await _generatedCall(
       () => _generated.getSellerApi().sellerCreateProductSellerProductsPost(
@@ -330,7 +374,11 @@ class ApiClient {
               ..description = description
               ..status = gen.SellerProductCreateRequestStatusEnum.valueOf(
                 status == 'published' ? 'published' : 'draft',
-              )),
+              )
+              ..catalogProductId = catalogProductId
+              ..optionLabel = optionLabel
+              ..volumeMl = volumeMl
+              ..flavor = flavor),
           ),
     );
     return productModelFromGenerated(data);

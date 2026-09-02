@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/format/price_format.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
@@ -86,7 +87,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                 return Card(
                   child: ListTile(
                     title: Text(plan.name),
-                    subtitle: Text('💎 ${plan.priceCredits} / ${plan.interval}'),
+                    subtitle: Text('${formatWon(plan.priceCredits)} / ${plan.interval}'),
                     trailing: plan.slug == 'free'
                         ? const Text('기본')
                         : FilledButton(

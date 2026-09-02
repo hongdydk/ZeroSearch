@@ -110,6 +110,14 @@ class SellerProductCreateRequest(BaseModel):
 
     status: ProductStatus = "draft"
 
+    catalog_product_id: str | None = Field(default=None, alias="catalogProductId")
+
+    option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
+
+    volume_ml: int | None = Field(default=None, alias="volumeMl", gt=0)
+
+    flavor: str | None = Field(default=None, max_length=50)
+
 
 
     model_config = {"populate_by_name": True}
@@ -133,6 +141,12 @@ class SellerProductUpdateRequest(BaseModel):
     image_url: str | None = Field(default=None, alias="imageUrl", max_length=500)
 
     status: ProductStatus | None = None
+
+    option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
+
+    volume_ml: int | None = Field(default=None, alias="volumeMl", gt=0)
+
+    flavor: str | None = Field(default=None, max_length=50)
 
 
 

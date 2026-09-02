@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
@@ -80,7 +81,7 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
                 child: ListTile(
                   title: Text(item.productTitle),
                   subtitle: Text(
-                    '${item.qty}개 · 💎 ${item.lineTotalCredits} · '
+                    '${item.qty}개 · ${formatWon(item.lineTotalCredits)} · '
                     '${fulfillmentStatusLabel(item.fulfillmentStatus)}',
                   ),
                   trailing: nextFulfillmentStatus(item.fulfillmentStatus) == null

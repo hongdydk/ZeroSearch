@@ -21,9 +21,11 @@ def _sample_seller() -> Seller:
 
 def _sample_product(seller: Seller | None = None) -> Product:
     seller = seller or _sample_seller()
+    catalog_id = uuid.uuid4()
     product = Product(
         id=uuid.uuid4(),
         seller_id=seller.id,
+        catalog_product_id=catalog_id,
         title="무선 이어폰",
         description="테스트 상품",
         price_credits=45,

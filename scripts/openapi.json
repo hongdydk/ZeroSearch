@@ -451,6 +451,243 @@
         "title": "CartUpdateRequest",
         "type": "object"
       },
+      "CatalogOfferItem": {
+        "properties": {
+          "flavor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "optionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optionlabel"
+          },
+          "priceCredits": {
+            "title": "Pricecredits",
+            "type": "integer"
+          },
+          "seller": {
+            "$ref": "#/components/schemas/SellerSummary"
+          },
+          "stock": {
+            "title": "Stock",
+            "type": "integer"
+          },
+          "volumeMl": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumeml"
+          }
+        },
+        "required": [
+          "id",
+          "priceCredits",
+          "stock",
+          "seller"
+        ],
+        "title": "CatalogOfferItem",
+        "type": "object"
+      },
+      "CatalogProductDetailResponse": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "offerCount": {
+            "title": "Offercount",
+            "type": "integer"
+          },
+          "offers": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogOfferItem"
+            },
+            "title": "Offers",
+            "type": "array"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "offerCount",
+          "offers"
+        ],
+        "title": "CatalogProductDetailResponse",
+        "type": "object"
+      },
+      "CatalogProductListItem": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "displayPriceLabel": {
+            "title": "Displaypricelabel",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "medianPriceCredits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medianpricecredits"
+          },
+          "medianUnitPrice": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medianunitprice"
+          },
+          "offerCount": {
+            "title": "Offercount",
+            "type": "integer"
+          },
+          "priceUnit": {
+            "enum": [
+              "ml",
+              "credits"
+            ],
+            "title": "Priceunit",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "offerCount",
+          "priceUnit",
+          "displayPriceLabel"
+        ],
+        "title": "CatalogProductListItem",
+        "type": "object"
+      },
+      "CatalogProductListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogProductListItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "CatalogProductListResponse",
+        "type": "object"
+      },
       "CheckoutResponse": {
         "properties": {
           "order": {
@@ -778,6 +1015,10 @@
       },
       "ProductResponse": {
         "properties": {
+          "catalogProductId": {
+            "title": "Catalogproductid",
+            "type": "string"
+          },
           "category": {
             "title": "Category",
             "type": "string"
@@ -805,6 +1046,17 @@
             ],
             "title": "Description"
           },
+          "flavor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -819,6 +1071,17 @@
               }
             ],
             "title": "Imageurl"
+          },
+          "optionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optionlabel"
           },
           "priceCredits": {
             "title": "Pricecredits",
@@ -844,6 +1107,17 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "volumeMl": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumeml"
           }
         },
         "required": [
@@ -852,6 +1126,7 @@
           "priceCredits",
           "stock",
           "category",
+          "catalogProductId",
           "seller"
         ],
         "title": "ProductResponse",
@@ -1012,6 +1287,17 @@
       },
       "SellerProductCreateRequest": {
         "properties": {
+          "catalogProductId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogproductid"
+          },
           "category": {
             "maxLength": 50,
             "minLength": 1,
@@ -1029,6 +1315,18 @@
             ],
             "title": "Description"
           },
+          "flavor": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor"
+          },
           "imageUrl": {
             "anyOf": [
               {
@@ -1040,6 +1338,18 @@
               }
             ],
             "title": "Imageurl"
+          },
+          "optionLabel": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optionlabel"
           },
           "priceCredits": {
             "exclusiveMinimum": 0.0,
@@ -1066,6 +1376,18 @@
             "minLength": 1,
             "title": "Title",
             "type": "string"
+          },
+          "volumeMl": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumeml"
           }
         },
         "required": [
@@ -1103,6 +1425,18 @@
             ],
             "title": "Description"
           },
+          "flavor": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor"
+          },
           "imageUrl": {
             "anyOf": [
               {
@@ -1114,6 +1448,18 @@
               }
             ],
             "title": "Imageurl"
+          },
+          "optionLabel": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optionlabel"
           },
           "priceCredits": {
             "anyOf": [
@@ -1167,6 +1513,18 @@
               }
             ],
             "title": "Title"
+          },
+          "volumeMl": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumeml"
           }
         },
         "title": "SellerProductUpdateRequest",
@@ -2065,6 +2423,237 @@
         "summary": "Register",
         "tags": [
           "auth"
+        ]
+      }
+    },
+    "/catalog-products": {
+      "get": {
+        "operationId": "get_catalog_products_catalog_products_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "flavor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Flavor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "volumeMlMin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Volumemlmin"
+            }
+          },
+          {
+            "in": "query",
+            "name": "volumeMlMax",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Volumemlmax"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogProductListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Catalog Products",
+        "tags": [
+          "catalog-products"
+        ]
+      }
+    },
+    "/catalog-products/{catalog_id}": {
+      "get": {
+        "operationId": "get_catalog_product_by_id_catalog_products__catalog_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "catalog_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Catalog Id",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "flavor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Flavor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "volumeMlMin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Volumemlmin"
+            }
+          },
+          {
+            "in": "query",
+            "name": "volumeMlMax",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Volumemlmax"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogProductDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Catalog Product By Id",
+        "tags": [
+          "catalog-products"
         ]
       }
     },

@@ -210,3 +210,71 @@ class SubscriptionModel {
   final String status;
   final DateTime currentPeriodEnd;
 }
+
+class CatalogProductModel {
+  CatalogProductModel({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.offerCount,
+    required this.priceUnit,
+    required this.displayPriceLabel,
+    this.description,
+    this.imageUrl,
+    this.medianUnitPrice,
+    this.medianPriceCredits,
+  });
+
+  final String id;
+  final String title;
+  final String category;
+  final int offerCount;
+  final String priceUnit;
+  final String displayPriceLabel;
+  final String? description;
+  final String? imageUrl;
+  final double? medianUnitPrice;
+  final int? medianPriceCredits;
+}
+
+class CatalogOfferModel {
+  CatalogOfferModel({
+    required this.id,
+    required this.priceCredits,
+    required this.stock,
+    required this.seller,
+    this.optionLabel,
+    this.flavor,
+    this.volumeMl,
+  });
+
+  final String id;
+  final String? optionLabel;
+  final String? flavor;
+  final int? volumeMl;
+  final int priceCredits;
+  final int stock;
+  final SellerSummaryModel seller;
+
+  bool get isOfficial => seller.sellerType == 'platform';
+}
+
+class CatalogProductDetailModel {
+  CatalogProductDetailModel({
+    required this.id,
+    required this.title,
+    required this.category,
+    required this.offerCount,
+    required this.offers,
+    this.description,
+    this.imageUrl,
+  });
+
+  final String id;
+  final String title;
+  final String category;
+  final int offerCount;
+  final List<CatalogOfferModel> offers;
+  final String? description;
+  final String? imageUrl;
+}

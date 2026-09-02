@@ -4,15 +4,17 @@
 
 ## 이 서비스가 하는 일
 
-- **검색·목록** — 카테고리 검색(예: 「생수」) → **브랜드별** 대표 카드(백산수, 평창수…), 카드에 **최저가**
+- **검색·목록** — 카테고리 검색(예: 「생수」) → **브랜드별** 대표 카드(백산수, 평창수…), 카드에 **단위당 대표가(중위)** — 최저가·「~」 없음
+- **옵션 필터** — 맛·용량 필터로 집계 대상 오퍼 좁히기
 - **상세** — 용량·판매자·가격 **한 줄 비교**, 숍 전체는 더보기
 - **마켓플레이스** — 공식·입점 판매자, 입점 신청·승인
 - **장바구니·주문** — 여러 가게 상품, 주문 줄별 가게·배송 상태
 - **관리자** — 입점 승인, 통계
 
+사업 모델은 **자체 마켓플레이스**(공식·입점)로 확정. 크롤링 가격비교 대안은 [프로젝트-컨셉](report/프로젝트-컨셉.md)에 검토 이력으로 기록.
+
 ## 아직 없는 것 / 범위 밖
 
-- 대표 상품·오퍼 분리 (목표 모델 — [docs/phase2-spec.md](./docs/phase2-spec.md) 참고)
 - 실 PG(토스), 웹훅
 - 판매자 정산·수수료
 - 멤버십 (레거시 스텁만 존재할 수 있음)
@@ -48,8 +50,9 @@ docker compose up -d
 ```bash
 cd apps/api
 cp .env.example .env   # 최초 1회
-alembic upgrade head
+python -m alembic upgrade head
 python seed.py
+python -m scripts.import_dummyjson_catalog   # optional — DummyJSON demo catalog (~30 products)
 cd ../..
 pnpm install           # 최초 1회
 pnpm dev:api           # http://localhost:8001
@@ -78,6 +81,8 @@ pnpm dev:flutter       # http://localhost:8080
 
 목표 주소: `https://app.anoveli.com/mall/` · API: `https://mall-api.anoveli.com`
 
+**자동 배포:** `main` push → GitHub Actions ([deploy/README.md](./deploy/README.md) §5) — EC2 API + S3 Flutter `mall/`
+
 ## 시드·개발 계정
 
 | 용도 | 이메일 | 비밀번호 |
@@ -85,7 +90,8 @@ pnpm dev:flutter       # http://localhost:8080
 | 관리자 | `admin@mall.local` | `admin-dev-only` |
 
 - 신규 가입 크레딧 보너스: `SIGNUP_CREDIT_BONUS`(기본 100)
-- 시드: 관리자 + 상품 약 8개 (시연용 생수류·대표 상품 데이터는 추후 확장)
+- 시드: 관리자 + 레거시 상품 8개 + **생수 데모**(백산수·평창수·제주삼다수, 다중 오퍼)
+- DummyJSON 추가 카탈로그: `cd apps/api && python -m scripts.import_dummyjson_catalog` (기본 30개, USD×10→크레딧)
 
 ## 개발 명령 (루트)
 

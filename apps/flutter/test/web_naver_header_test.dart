@@ -108,7 +108,7 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    expect(find.text('Shopping Mall'), findsOneWidget);
+    expect(find.text('제로 서치'), findsOneWidget);
     expect(find.text('MY'), findsNothing);
     expect(find.byIcon(Icons.shopping_cart_outlined), findsOneWidget);
     expect(find.byIcon(Icons.arrow_drop_down), findsNothing);
@@ -154,7 +154,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
 
     expect(find.byType(AppBar), findsNothing);
-    expect(find.text('Shopping Mall'), findsOneWidget);
+    expect(find.text('제로 서치'), findsOneWidget);
     expect(find.text('상품명·카테고리 검색'), findsOneWidget);
     expect(find.text('Test Product'), findsWidgets);
   });

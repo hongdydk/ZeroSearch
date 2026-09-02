@@ -139,6 +139,30 @@
       margin-bottom: 16px;
     }
 
+    .filter-chips {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 16px;
+    }
+
+    .filter-chips button {
+      border: 1px solid var(--line);
+      background: #fff;
+      padding: 6px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+    }
+
+    .filter-chips button.active {
+      background: #dbeafe;
+      color: var(--brand);
+      border-color: #93c5fd;
+      font-weight: 600;
+    }
+
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
@@ -367,13 +391,19 @@
     <main>
       <!-- 검색·목록 -->
       <section id="screen-search" class="screen active">
-        <div class="note">“생수” 검색 — <strong>브랜드(제품명)별 1장</strong>. 카드에는 연결 오퍼 <strong>최저가</strong>만. 용량·판매자는 상세에서.</div>
+        <div class="note">“생수” 검색 — <strong>브랜드(제품명)별 1장</strong>. 카드에는 <strong>L당 대표가(보통)</strong>만. 최저가·「~」 없음. 용량·맛·판매자는 상세에서.</div>
+        <div class="filter-chips" aria-label="옵션 필터">
+          <button type="button" class="active">전체</button>
+          <button type="button">레몬</button>
+          <button type="button">자몽</button>
+          <button type="button">2L 이상</button>
+        </div>
         <div class="grid">
           <article class="card" onclick="showScreen('detail')">
             <div class="thumb">💧</div>
             <div class="card-body">
               <p class="card-title">백산수</p>
-              <p class="card-meta">8,900원~ · 판매 7건</p>
+              <p class="card-meta">L당 520원(보통) · 판매 7건</p>
               <p class="card-meta"><span class="badge official">공식</span><span class="badge merchant">입점</span></p>
             </div>
           </article>
@@ -381,14 +411,14 @@
             <div class="thumb">💧</div>
             <div class="card-body">
               <p class="card-title">평창수</p>
-              <p class="card-meta">9,200원~ · 판매 5건</p>
+              <p class="card-meta">L당 540원(보통) · 판매 5건</p>
             </div>
           </article>
           <article class="card">
             <div class="thumb">💧</div>
             <div class="card-body">
               <p class="card-title">제주삼다수</p>
-              <p class="card-meta">10,500원~ · 판매 4건</p>
+              <p class="card-meta">L당 580원(보통) · 판매 4건</p>
             </div>
           </article>
         </div>
@@ -516,8 +546,8 @@
           </div>
           <div class="panel">
             <h4>제로 서치 (브랜드 1장 → 상세 한 줄)</h4>
-            <div class="mini-card" style="border-color:#93c5fd;background:#eff6ff;"><strong>백산수</strong> · 8,900원~</div>
-            <div class="mini-card" style="border-color:#93c5fd;background:#eff6ff;"><strong>평창수</strong> · 9,200원~</div>
+            <div class="mini-card" style="border-color:#93c5fd;background:#eff6ff;"><strong>백산수</strong> · L당 520원(보통)</div>
+            <div class="mini-card" style="border-color:#93c5fd;background:#eff6ff;"><strong>평창수</strong> · L당 540원(보통)</div>
             <div class="mini-card">상세: 용량 · 판매자 · 가격 한 줄 비교</div>
             <div class="mini-card">더보기로 나머지 판매자</div>
           </div>

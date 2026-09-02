@@ -197,3 +197,46 @@ Map<String, dynamic> dbResetResponseToMap(gen.DbResetResponse response) => {
       ),
       'message': response.message,
     };
+
+CatalogProductModel catalogProductModelFromGenerated(gen.CatalogProductListItem item) =>
+    CatalogProductModel(
+      id: item.id,
+      title: item.title,
+      category: item.category,
+      description: item.description,
+      imageUrl: item.imageUrl,
+      offerCount: item.offerCount,
+      medianUnitPrice: item.medianUnitPrice?.toDouble(),
+      medianPriceCredits: item.medianPriceCredits,
+      priceUnit: gen.serializers.serialize(
+            item.priceUnit,
+            specifiedType: const FullType(gen.CatalogProductListItemPriceUnitEnum),
+          ) as String,
+      displayPriceLabel: item.displayPriceLabel,
+    );
+
+List<CatalogProductModel> catalogProductListFromGenerated(
+  BuiltList<gen.CatalogProductListItem> items,
+) =>
+    items.map(catalogProductModelFromGenerated).toList();
+
+CatalogOfferModel catalogOfferFromGenerated(gen.CatalogOfferItem offer) => CatalogOfferModel(
+      id: offer.id,
+      optionLabel: offer.optionLabel,
+      flavor: offer.flavor,
+      volumeMl: offer.volumeMl,
+      priceCredits: offer.priceCredits,
+      stock: offer.stock,
+      seller: sellerSummaryFromGenerated(offer.seller),
+    );
+
+CatalogProductDetailModel catalogProductDetailFromGenerated(gen.CatalogProductDetailResponse detail) =>
+    CatalogProductDetailModel(
+      id: detail.id,
+      title: detail.title,
+      category: detail.category,
+      description: detail.description,
+      imageUrl: detail.imageUrl,
+      offerCount: detail.offerCount,
+      offers: detail.offers.map(catalogOfferFromGenerated).toList(),
+    );

@@ -6,6 +6,7 @@ import '../../core/layout/ui_platform.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/routing/app_back_navigation.dart';
 import '../../core/routing/app_router.dart';
+import 'web_content_frame.dart';
 import 'web/web_naver_header.dart';
 
 class AdaptiveShell extends ConsumerWidget {
@@ -33,15 +34,18 @@ class WebShell extends ConsumerWidget {
     final compact = isCompactWeb(context);
 
     return Scaffold(
-      body: Column(
-        children: [
-          WebNaverHeader(
-            location: location,
-            isAdmin: isAdmin,
-            compact: compact,
-          ),
-          Expanded(child: child),
-        ],
+      backgroundColor: mallWebCanvasColor,
+      body: MallWebCanvas(
+        child: Column(
+          children: [
+            WebNaverHeader(
+              location: location,
+              isAdmin: isAdmin,
+              compact: compact,
+            ),
+            Expanded(child: child),
+          ],
+        ),
       ),
     );
   }

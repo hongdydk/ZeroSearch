@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Product, Seller
+from app.models import CatalogProduct, Product, Seller
 from app.schemas.product import ProductResponse
 from app.schemas.seller import SellerProductCreateRequest, SellerProductUpdateRequest, SellerSummary
 
@@ -19,6 +19,10 @@ def _product_response(product: Product) -> ProductResponse:
         category=product.category,
         image_url=product.image_url,
         status=product.status,  # type: ignore[arg-type]
+        catalog_product_id=str(product.catalog_product_id),
+        option_label=product.option_label,
+        volume_ml=product.volume_ml,
+        flavor=product.flavor,
         seller=SellerSummary(
             id=str(product.seller.id),
             shop_name=product.seller.shop_name,
@@ -89,16 +93,48 @@ def get_seller_product(db: Session, seller: Seller, product_id: UUID) -> Product
     return product
 
 
+def _resolve_catalog_product(
+    db: Session, payload: SellerProductCreateRequest
+) -> CatalogProduct:
+    if payload.catalog_product_id:
+        catalog = db.scalar(
+            select(CatalogProduct).where(CatalogProduct.id == UUID(payload.catalog_product_id))
+        )
+        if catalog is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 상품을 찾을 수 없습니다.")
+        return catalog
+
+    catalog = db.scalar(select(CatalogProduct).where(CatalogProduct.title == payload.title))
+    if catalog is not None:
+        return catalog
+
+    catalog = CatalogProduct(
+        title=payload.title,
+        category=payload.category,
+        description=payload.description,
+        image_url=payload.image_url,
+        price_unit="each",
+    )
+    db.add(catalog)
+    db.flush()
+    return catalog
+
+
 def create_seller_product(db: Session, seller: Seller, payload: SellerProductCreateRequest) -> Product:
+    catalog = _resolve_catalog_product(db, payload)
     product = Product(
         seller_id=seller.id,
+        catalog_product_id=catalog.id,
         title=payload.title,
         description=payload.description,
         price_credits=payload.price_credits,
         stock=payload.stock,
         category=payload.category,
-        image_url=payload.image_url,
+        image_url=payload.image_url or catalog.image_url,
         status=payload.status,
+        option_label=payload.option_label,
+        volume_ml=payload.volume_ml,
+        flavor=payload.flavor,
     )
     db.add(product)
     db.flush()
@@ -124,6 +160,12 @@ def update_seller_product(
         product.image_url = payload.image_url
     if payload.status is not None:
         product.status = payload.status
+    if payload.option_label is not None:
+        product.option_label = payload.option_label
+    if payload.volume_ml is not None:
+        product.volume_ml = payload.volume_ml
+    if payload.flavor is not None:
+        product.flavor = payload.flavor
     db.flush()
     return product
 

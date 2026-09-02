@@ -40,6 +40,14 @@ class ProductResponse(BaseModel):
 
     status: ProductStatus = "published"
 
+    catalog_product_id: str = Field(alias="catalogProductId")
+
+    option_label: str | None = Field(default=None, alias="optionLabel")
+
+    volume_ml: int | None = Field(default=None, alias="volumeMl")
+
+    flavor: str | None = None
+
     seller: SellerSummary
 
     created_at: datetime | None = Field(default=None, alias="createdAt")

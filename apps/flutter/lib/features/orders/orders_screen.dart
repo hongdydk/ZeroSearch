@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
@@ -61,7 +62,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                   child: ExpansionTile(
                     title: Text('주문 #${order.id.substring(0, 8)}'),
                     subtitle: Text(
-                      '${_statusLabel(order.status)} · 💎 ${order.totalCredits}',
+                      '${_statusLabel(order.status)} · ${formatWon(order.totalCredits)}',
                     ),
                     children: order.items
                         .map(
@@ -73,7 +74,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                               '${item.shopName} · '
                               '${fulfillmentStatusLabel(item.fulfillmentStatus)}',
                             ),
-                            trailing: Text('${item.qty} × 💎${item.unitPriceCredits}'),
+                            trailing: Text(formatWonLine(item.unitPriceCredits, item.qty)),
                           ),
                         )
                         .toList(),

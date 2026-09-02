@@ -2,17 +2,20 @@
 
 **SSOT** — 엔티티·API·Flutter 라우트·DoD.
 
-**제품:** [제로 서치](../report/프로젝트-컨셉.md) — 검색·목록 **중복을 줄인다**. **브랜드(제품명)당 대표 1장** + 카드 **최저가**, 상세는 **오퍼 한 줄 비교**.
+**제품:** [제로 서치](../report/프로젝트-컨셉.md) — 검색·목록 **중복을 줄인다**. **브랜드(제품명)당 대표 1장** + 카드 **단위당 대표가(중위)**, 상세는 **오퍼 한 줄 비교**.
+
+**사업 모델:** [프로젝트-컨셉 § 사업 모델 방향](../report/프로젝트-컨셉.md#사업-모델-방향) — **자체 몰(B) 확정**. 크롤링 가격비교(A)는 검토했으나 Phase 2 범위 아님.
 
 ## 목표
 
 1. 입점·공식 판매자를 한 마켓플레이스로 통합한다.
 2. **검색·목록** — 카테고리 검색(예: 「생수」) 결과는 **브랜드별 대표 상품**(백산수, 평창수…). 오퍼 수만큼 카드를 늘리지 않는다.
-3. 목록 카드에는 연결 오퍼 **최저가**(`min_price_credits`)를 노출한다.
-4. **상세** — 선택한 대표 상품의 오퍼(용량·가격·가게·배송)를 한 줄 비교.
-5. 주문 줄에 `seller_id`, 배송 상태·주체를 남긴다.
+3. 목록 카드에는 연결 오퍼 **단위당 대표가(중위, median)** 만 노출한다. **최저가·「~」 표기 없음.**
+4. **옵션 필터** — `flavor`, `volume_ml_min/max`로 집계 대상 오퍼를 좁힌다.
+5. **상세** — 선택한 대표 상품의 오퍼(맛·용량·가격·가게·배송)를 한 줄 비교. 개별 최저가는 **상세 오퍼 줄**에서만 확인.
+6. 주문 줄에 `seller_id`, 배송 상태·주체를 남긴다.
 
-현재 코드가 `products` 한 테이블만 쓰는 경우, Plan에서 **대표 상품(`catalog_products`) + 오퍼(`products` 또는 `offers`)** 분리 마이그레이션을 명시한다.
+현재 코드는 **대표 상품(`catalog_products`) + 오퍼(`products`)** 분리.
 
 ## 엔티티
 
@@ -33,14 +36,19 @@
 | `category` | 검색·필터용 카테고리. 예: `생수` — **title과 구분** |
 | `description`, `image_url` | 대표 설명·이미지 |
 | `search_keywords` | 추가 검색어 (브랜드 별칭 등) |
+| `price_unit` | UI 라벨용 — `ml` / `each` |
 
-목록 응답(집계): `offer_count`, `min_price_credits` — 하위 오퍼에서 계산, DB 컬럼 필수 아님.
+목록 응답(집계): `offer_count`, `median_unit_price`(또는 `median_price_credits`), `price_unit`, `display_price_label` — 하위 오퍼에서 계산, DB 컬럼 필수 아님. **`min_price_credits` 목록 응답·카드 UI에 노출하지 않음.**
+
+**집계 규칙:** 공개 오퍼(`published` + seller `active`)만. `volume_ml > 0` 오퍼가 있으면 `unit_price = price_credits / volume_ml` 목록의 **median** → 카드 유일 가격. 없으면 `price_credits` **median** (전자·패션 fallback).
 
 ### 변경: `products` (오퍼)
 
 - `catalog_product_id` FK — 어느 대표 상품에 속하는지
 - `seller_id` FK NOT NULL
 - `option_label` — 용량 등 (예: `500ml × 20`)
+- `volume_ml` — nullable, 팩 총 ml (500×20 → 10000)
+- `flavor` — nullable (예: `레몬`, `자몽`)
 - `status`: `draft` / `published` / `archived`
 - 공개: `published` + 판매자 `active`
 
@@ -56,11 +64,11 @@
 
 | Method | Path | 설명 |
 |--------|------|------|
-| GET | `/catalog-products` | **대표 상품** 목록·검색. `q=생수` → 백산수·평창수 등. 각 row에 `min_price_credits` |
+| GET | `/catalog-products` | **대표 상품** 목록·검색. `q=생수&category=생수&flavor=레몬&volumeMlMin=2000`. 각 row에 **median 대표가만** |
 | GET | `/catalog-products/{id}` | 대표 상품 + **오퍼 한 줄** 목록 |
-| GET | `/products/{id}` | (과도기) 단일 오퍼 상세 — 분리 후 `/offers/{id}` 등으로 정리 |
+| GET | `/products/{id}` | (과도기) 단일 오퍼 — 장바구니·기존 링크 |
 
-과도기: 기존 `GET /products`는 Plan 승인 전까지 유지 가능. 제로 서치 DoD는 **`/catalog-products` 기준**.
+과도기: 기존 `GET /products`는 장바구니 호환용 유지. 제로 서치 DoD는 **`/catalog-products` 기준**.
 
 ### 판매자 (`active` seller)
 
@@ -88,8 +96,9 @@
 
 | Path | 화면 |
 |------|------|
-| `/` | **대표 상품** 카탈로그·검색 |
-| `/catalog/:id` 또는 `/products/:id` | 상세 — **오퍼 한 줄 비교**, 더보기 |
+| `/` | **대표 상품** 카탈로그·검색·옵션 필터 |
+| `/catalog/:id` | 상세 — **오퍼 한 줄 비교**, 더보기 |
+| `/products/:id` | (과도기) 단일 오퍼 — 장바구니 |
 | `/cart` | 장바구니 (가게별 묶음) |
 | `/orders` | 주문 — 줄별 가게·배송 |
 | `/seller` | 판매자 대시보드 |
@@ -101,8 +110,9 @@
 
 ## DoD
 
-- 「생수」 검색 → **백산수·평창수** 등 브랜드별 카드 (백산수 오퍼 12개여도 카드 1장, **최저가** 표시)
-- 상세에서 용량·가격·판매자(공식/입점·배송) **한 줄 비교**
+- 「생수」 검색 → **백산수·평창수** 등 브랜드별 카드 (백산수 오퍼 12개여도 카드 1장, **L당 median 대표가만** — 최저가 미노출)
+- `flavor=레몬` 필터 시 해당 오퍼만 반영된 집계·상세
+- 상세에서 맛·용량·가격·판매자(공식/입점·배송) **한 줄 비교**
 - 입점 신청 → 승인 → 오퍼 등록 → 주문에 `seller_id` 반영
 - 공식·입점 혼합 장바구니·결제 (크레딧 스텁 또는 토스 Plan 범위)
 - `fulfillment_status` 전이 + 구매자 주문 화면 폴링

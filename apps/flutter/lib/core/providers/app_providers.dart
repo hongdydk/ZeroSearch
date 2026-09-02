@@ -11,6 +11,11 @@ final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
 /// 홈 카탈로그 검색어 — 웹 헤더·카탈로그 화면 공유.
 final catalogSearchProvider = StateProvider<String>((ref) => '');
 
+/// 맛·용량 옵션 필터 — catalog_screen 본문 전용.
+final catalogFlavorFilterProvider = StateProvider<String?>((ref) => null);
+final catalogVolumeMinFilterProvider = StateProvider<int?>((ref) => null);
+final catalogVolumeMaxFilterProvider = StateProvider<int?>((ref) => null);
+
 final authStateProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<AuthState>>((ref) {
   return AuthNotifier(
@@ -98,6 +103,32 @@ final creditsProvider = FutureProvider.autoDispose<int?>((ref) async {
 
 final productsProvider = FutureProvider.autoDispose<List<ProductModel>>((ref) async {
   return ref.watch(apiClientProvider).products();
+});
+
+final catalogProductsProvider = FutureProvider.autoDispose<List<CatalogProductModel>>((ref) async {
+  final q = ref.watch(catalogSearchProvider).trim();
+  final flavor = ref.watch(catalogFlavorFilterProvider);
+  final volumeMin = ref.watch(catalogVolumeMinFilterProvider);
+  final volumeMax = ref.watch(catalogVolumeMaxFilterProvider);
+  return ref.watch(apiClientProvider).catalogProducts(
+        q: q.isEmpty ? null : q,
+        flavor: flavor,
+        volumeMlMin: volumeMin,
+        volumeMlMax: volumeMax,
+      );
+});
+
+final catalogProductDetailProvider =
+    FutureProvider.autoDispose.family<CatalogProductDetailModel, String>((ref, id) async {
+  final flavor = ref.watch(catalogFlavorFilterProvider);
+  final volumeMin = ref.watch(catalogVolumeMinFilterProvider);
+  final volumeMax = ref.watch(catalogVolumeMaxFilterProvider);
+  return ref.watch(apiClientProvider).catalogProduct(
+        id,
+        flavor: flavor,
+        volumeMlMin: volumeMin,
+        volumeMlMax: volumeMax,
+      );
 });
 
 final cartProvider = FutureProvider.autoDispose<CartModel>((ref) async {

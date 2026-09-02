@@ -17,11 +17,11 @@ class MallTokens extends ThemeExtension<MallTokens> {
   final double contentMaxWidth;
 
   static const web = MallTokens(
-    productCardAspectRatio: 1,
+    productCardAspectRatio: 0.78,
     listRowPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
     navHeight: 56,
-    productGridColumns: 4,
-    contentMaxWidth: 680,
+    productGridColumns: 3,
+    contentMaxWidth: 960,
   );
 
   static const app = MallTokens(

@@ -7,11 +7,12 @@ class AppTheme {
   static ThemeData forPlatform() => isWebUi ? web() : mall();
 
   static ThemeData web() {
-    const seed = Color(0xFF03C75A);
+    const seed = Color(0xFF2563EB);
     return ThemeData(
       colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light),
-      scaffoldBackgroundColor: const Color(0xFFF5F6F8),
+      scaffoldBackgroundColor: mallWebCanvasColor,
       useMaterial3: true,
+      dividerColor: const Color(0xFFE5E7EB),
       appBarTheme: const AppBarTheme(
         centerTitle: false,
         elevation: 0,
@@ -21,10 +22,12 @@ class AppTheme {
       ),
       cardTheme: CardThemeData(
         elevation: 0,
+        color: Colors.white,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(4),
-          side: BorderSide(color: Colors.grey.shade200),
+          borderRadius: BorderRadius.circular(12),
+          side: const BorderSide(color: Color(0xFFE5E7EB)),
         ),
+        shadowColor: const Color(0x14000000),
       ),
       inputDecorationTheme: const InputDecorationTheme(
         border: OutlineInputBorder(),

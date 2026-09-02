@@ -4,6 +4,8 @@ import 'package:go_router/go_router.dart';
 
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/format/price_format.dart';
+import '../../core/layout/ui_platform.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/product_image.dart';
 import '../../shared/widgets/seller_badge.dart';
@@ -60,7 +62,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         final product = snapshot.data!;
 
         return PageFormScaffold(
-          maxWidth: 720,
+          maxWidth: isWebUi ? webContentMaxWidth : 720,
+          padding: EdgeInsets.all(isWebUi ? 20 : 16),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -83,7 +86,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
               ),
               const SizedBox(height: 8),
               Text(
-                '💎 ${product.priceCredits}',
+                formatWon(product.priceCredits),
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),

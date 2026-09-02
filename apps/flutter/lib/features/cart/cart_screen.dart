@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/format/price_format.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
@@ -20,7 +21,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     try {
       await ref.read(apiClientProvider).updateCartItem(productId, qty);
       ref.invalidate(cartProvider);
-      ref.invalidate(creditsProvider);
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -46,7 +46,6 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     try {
       await ref.read(apiClientProvider).checkout();
       ref.invalidate(cartProvider);
-      ref.invalidate(creditsProvider);
       ref.invalidate(ordersProvider);
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -97,7 +96,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 (item) => Card(
                   child: ListTile(
                     title: Text(item.productTitle),
-                    subtitle: Text('💎 ${item.priceCredits} × ${item.qty}'),
+                    subtitle: Text(formatWonLine(item.priceCredits, item.qty)),
                     trailing: Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
@@ -123,13 +122,13 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
               const SizedBox(height: 16),
               Text(
-                '합계: 💎 ${cart.totalCredits}',
+                '합계: ${formatWon(cart.totalCredits)}',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 16),
               FilledButton(
                 onPressed: _checkingOut ? null : _checkout,
-                child: Text(_checkingOut ? '결제 중…' : '크레딧으로 주문하기'),
+                child: Text(_checkingOut ? '결제 중…' : '주문하기'),
               ),
             ],
           );

@@ -6,7 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
 from app.database import SessionLocal
 from app.logging_config import setup_logging
-from app.routers import admin, auth, cart, credits, health, membership, orders, products, seller
+from app.routers import admin, auth, cart, catalog_products, credits, health, membership, orders, products, seller
 from seed import ensure_admin_user, ensure_catalog_seed
 
 _settings = get_settings()
@@ -46,6 +46,7 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(credits.router)
 app.include_router(products.router)
+app.include_router(catalog_products.router)
 app.include_router(cart.router)
 app.include_router(orders.router)
 app.include_router(membership.router)
