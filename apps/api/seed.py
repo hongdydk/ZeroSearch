@@ -7,81 +7,25 @@ Optional DummyJSON demo catalog (after seed): ``python -m scripts.import_dummyjs
 
 import argparse
 
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import SessionLocal
 from app.deps import hash_password
-from app.models import CatalogProduct, MembershipPlan, Product, Seller, User
+from app.models import CartItem, CatalogProduct, MembershipPlan, Product, Seller, User
 from app.services.sellers import ensure_platform_seller
 
-LEGACY_PRODUCTS = [
-    {
-        "title": "무선 이어폰",
-        "description": "노이즈 캔슬링 블루투스 이어폰",
-        "price_credits": 45,
-        "stock": 50,
-        "category": "electronics",
-        "image_url": "/images/earbuds.png",
-    },
-    {
-        "title": "스마트 워치",
-        "description": "건강 모니터링 스마트워치",
-        "price_credits": 80,
-        "stock": 30,
-        "category": "electronics",
-        "image_url": "/images/watch.png",
-    },
-    {
-        "title": "면 티셔츠",
-        "description": "편안한 기본 면 티셔츠",
-        "price_credits": 15,
-        "stock": 100,
-        "category": "fashion",
-        "image_url": "/images/tshirt.png",
-    },
-    {
-        "title": "데님 자켓",
-        "description": "클래식 데님 자켓",
-        "price_credits": 35,
-        "stock": 40,
-        "category": "fashion",
-        "image_url": "/images/jacket.png",
-    },
-    {
-        "title": "에코백",
-        "description": "친환경 캔버스 에코백",
-        "price_credits": 10,
-        "stock": 200,
-        "category": "accessories",
-        "image_url": "/images/ecobag.png",
-    },
-    {
-        "title": "텀블러",
-        "description": "보온·보냉 스테인리스 텀블러",
-        "price_credits": 12,
-        "stock": 80,
-        "category": "accessories",
-        "image_url": "/images/tumbler.png",
-    },
-    {
-        "title": "노트북 파우치",
-        "description": "15인치 노트북 슬림 파우치",
-        "price_credits": 20,
-        "stock": 60,
-        "category": "accessories",
-        "image_url": "/images/pouch.png",
-    },
-    {
-        "title": "USB-C 허브",
-        "description": "7-in-1 USB-C 멀티 허브",
-        "price_credits": 25,
-        "stock": 45,
-        "category": "electronics",
-        "image_url": "/images/hub.png",
-    },
-]
+LEGACY_CATALOG_TITLES = (
+    "무선 이어폰",
+    "스마트 워치",
+    "면 티셔츠",
+    "데님 자켓",
+    "에코백",
+    "텀블러",
+    "노트북 파우치",
+    "USB-C 허브",
+)
 
 BEVERAGE_CATALOGS = [
     {
@@ -216,6 +160,26 @@ def _ensure_catalog(db: Session, data: dict) -> CatalogProduct:
     return catalog
 
 
+def purge_legacy_catalog(db: Session) -> int:
+    """Remove Phase-1 legacy demo catalogs (8 items) and their offers."""
+    removed = 0
+    for title in LEGACY_CATALOG_TITLES:
+        catalog = db.scalar(select(CatalogProduct).where(CatalogProduct.title == title))
+        if catalog is None:
+            continue
+        offer_ids = db.scalars(
+            select(Product.id).where(Product.catalog_product_id == catalog.id)
+        ).all()
+        if offer_ids:
+            db.execute(delete(CartItem).where(CartItem.product_id.in_(offer_ids)))
+            db.execute(delete(Product).where(Product.catalog_product_id == catalog.id))
+        db.delete(catalog)
+        removed += 1
+    if removed:
+        db.flush()
+    return removed
+
+
 def ensure_catalog_seed(db: Session) -> None:
     admin_user = db.scalar(select(User).where(User.is_admin.is_(True)))
     if admin_user is None:
@@ -226,30 +190,13 @@ def ensure_catalog_seed(db: Session) -> None:
     platform_seller = ensure_platform_seller(db, admin_user)
     merchant_seller = ensure_merchant_seller(db)
 
+    purge_legacy_catalog(db)
+
     products_without_seller = db.scalars(select(Product).where(Product.seller_id.is_(None))).all()
     for product in products_without_seller:
         product.seller_id = platform_seller.id
         if not product.status:
             product.status = "published"
-
-    product_count = db.scalar(select(func.count()).select_from(Product)) or 0
-
-    if product_count == 0:
-        for data in LEGACY_PRODUCTS:
-            catalog = _ensure_catalog(db, {**data, "price_unit": "each"})
-            db.add(
-                Product(
-                    seller_id=platform_seller.id,
-                    catalog_product_id=catalog.id,
-                    title=data["title"],
-                    description=data["description"],
-                    price_credits=data["price_credits"],
-                    stock=data["stock"],
-                    category=data["category"],
-                    image_url=data["image_url"],
-                    status="published",
-                )
-            )
 
     baisansu = db.scalar(select(CatalogProduct).where(CatalogProduct.title == "백산수"))
     if baisansu is None:
