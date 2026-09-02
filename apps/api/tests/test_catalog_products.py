@@ -136,6 +136,19 @@ def test_list_catalog_products_flavor_filter(client):
     assert kwargs["volume_ml_min"] == 2000
 
 
+def test_list_catalog_products_empty_volume_filters(client):
+    override_db(MagicMock())
+
+    with patch("app.routers.catalog_products.list_catalog_products", return_value=([], 0)) as mock_list:
+        response = client.get("/catalog-products?volumeMlMin=&volumeMlMax=")
+
+    assert response.status_code == 200
+    mock_list.assert_called_once()
+    _, kwargs = mock_list.call_args
+    assert kwargs["volume_ml_min"] is None
+    assert kwargs["volume_ml_max"] is None
+
+
 def test_get_catalog_product_detail(client):
     catalog_id = uuid.uuid4()
     override_db(MagicMock())
