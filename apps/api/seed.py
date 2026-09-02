@@ -7,26 +7,17 @@ Optional DummyJSON demo catalog (after seed): ``python -m scripts.import_dummyjs
 
 import argparse
 
-from sqlalchemy import delete, func, select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import SessionLocal
 from app.deps import hash_password
 from app.models import CartItem, CatalogProduct, MembershipPlan, Product, Seller, User
+from app.services.catalog_cleanup import purge_catalogs_without_display_image
 from app.services.sellers import ensure_platform_seller
 
-LEGACY_CATALOG_TITLES = (
-    "무선 이어폰",
-    "스마트 워치",
-    "면 티셔츠",
-    "데님 자켓",
-    "에코백",
-    "텀블러",
-    "노트북 파우치",
-    "USB-C 허브",
-)
-
+# Optional local demo — not auto-seeded (images are /images/* paths; use import_dummyjson or add CDN URLs).
 BEVERAGE_CATALOGS = [
     {
         "title": "백산수",
@@ -160,24 +151,48 @@ def _ensure_catalog(db: Session, data: dict) -> CatalogProduct:
     return catalog
 
 
-def purge_legacy_catalog(db: Session) -> int:
-    """Remove Phase-1 legacy demo catalogs (8 items) and their offers."""
-    removed = 0
-    for title in LEGACY_CATALOG_TITLES:
-        catalog = db.scalar(select(CatalogProduct).where(CatalogProduct.title == title))
+def seed_beverage_demo(db: Session) -> None:
+    """Seed 생수 데모 (수동 실행용). image_url은 /images/* — 웹 배포 전 CDN URL로 바꿀 것."""
+    admin_user = db.scalar(select(User).where(User.is_admin.is_(True)))
+    if admin_user is None:
+        admin_user = ensure_admin_user(db)
+    if admin_user is None:
+        return
+
+    platform_seller = ensure_platform_seller(db, admin_user)
+    merchant_seller = ensure_merchant_seller(db)
+
+    for data in BEVERAGE_CATALOGS:
+        _ensure_catalog(db, data)
+
+    db.flush()
+
+    catalogs_by_title = {c.title: c for c in db.scalars(select(CatalogProduct)).all()}
+    sellers = {"platform": platform_seller, "merchant": merchant_seller}
+
+    for offer in BEVERAGE_OFFERS:
+        catalog = catalogs_by_title.get(offer["catalog_title"])
         if catalog is None:
             continue
-        offer_ids = db.scalars(
-            select(Product.id).where(Product.catalog_product_id == catalog.id)
-        ).all()
-        if offer_ids:
-            db.execute(delete(CartItem).where(CartItem.product_id.in_(offer_ids)))
-            db.execute(delete(Product).where(Product.catalog_product_id == catalog.id))
-        db.delete(catalog)
-        removed += 1
-    if removed:
-        db.flush()
-    return removed
+        seller = sellers[offer["seller"]]
+        db.add(
+            Product(
+                seller_id=seller.id,
+                catalog_product_id=catalog.id,
+                title=catalog.title,
+                description=catalog.description,
+                price_credits=offer["price_credits"],
+                stock=offer["stock"],
+                category=catalog.category,
+                image_url=catalog.image_url,
+                status="published",
+                option_label=offer["option_label"],
+                volume_ml=offer["volume_ml"],
+                flavor=offer["flavor"],
+            )
+        )
+
+    db.flush()
 
 
 def ensure_catalog_seed(db: Session) -> None:
@@ -190,43 +205,13 @@ def ensure_catalog_seed(db: Session) -> None:
     platform_seller = ensure_platform_seller(db, admin_user)
     merchant_seller = ensure_merchant_seller(db)
 
-    purge_legacy_catalog(db)
+    purge_catalogs_without_display_image(db)
 
     products_without_seller = db.scalars(select(Product).where(Product.seller_id.is_(None))).all()
     for product in products_without_seller:
         product.seller_id = platform_seller.id
         if not product.status:
             product.status = "published"
-
-    baisansu = db.scalar(select(CatalogProduct).where(CatalogProduct.title == "백산수"))
-    if baisansu is None:
-        for data in BEVERAGE_CATALOGS:
-            _ensure_catalog(db, data)
-
-        db.flush()
-
-        catalogs_by_title = {c.title: c for c in db.scalars(select(CatalogProduct)).all()}
-        sellers = {"platform": platform_seller, "merchant": merchant_seller}
-
-        for offer in BEVERAGE_OFFERS:
-            catalog = catalogs_by_title[offer["catalog_title"]]
-            seller = sellers[offer["seller"]]
-            db.add(
-                Product(
-                    seller_id=seller.id,
-                    catalog_product_id=catalog.id,
-                    title=catalog.title,
-                    description=catalog.description,
-                    price_credits=offer["price_credits"],
-                    stock=offer["stock"],
-                    category=catalog.category,
-                    image_url=catalog.image_url,
-                    status="published",
-                    option_label=offer["option_label"],
-                    volume_ml=offer["volume_ml"],
-                    flavor=offer["flavor"],
-                )
-            )
 
     plan_count = db.scalar(select(func.count()).select_from(MembershipPlan)) or 0
     if plan_count == 0:

@@ -16,7 +16,8 @@ from app.models import (
     Subscription,
     User,
 )
-from seed import ensure_admin_user, ensure_catalog_seed, purge_legacy_catalog
+from app.services.catalog_cleanup import purge_catalogs_without_display_image
+from seed import ensure_admin_user, ensure_catalog_seed
 
 logger = logging.getLogger(__name__)
 
@@ -42,26 +43,26 @@ def truncate_data(db: Session, *, keep_users: bool) -> None:
 def run_db_reset(db: Session, mode: str) -> str:
     if mode == "seed":
         ensure_admin_user(db)
-        purge_legacy_catalog(db)
+        purge_catalogs_without_display_image(db)
         ensure_catalog_seed(db)
         db.commit()
-        return "Seed data ensured (admin user, platform seller, beverage catalog, membership plans). Legacy demo removed."
+        return "Seed data ensured (admin, sellers, membership). Catalogs without display image removed."
 
     if mode == "truncate_except_users":
         truncate_data(db, keep_users=True)
         ensure_admin_user(db)
-        purge_legacy_catalog(db)
+        purge_catalogs_without_display_image(db)
         ensure_catalog_seed(db)
         db.commit()
-        return "Cleared mall data; kept users; admin and beverage catalog re-seeded. Legacy demo removed."
+        return "Cleared mall data; kept users; re-seeded admin/sellers. Image-less catalogs removed."
 
     if mode == "truncate_all":
         truncate_data(db, keep_users=False)
         ensure_admin_user(db)
-        purge_legacy_catalog(db)
+        purge_catalogs_without_display_image(db)
         ensure_catalog_seed(db)
         db.commit()
-        return "Cleared all data; admin and beverage catalog re-created. Legacy demo removed."
+        return "Cleared all data; re-seeded admin/sellers. Image-less catalogs removed."
 
     raise ValueError(f"Unknown reset mode: {mode}")
 
