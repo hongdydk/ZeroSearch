@@ -86,6 +86,17 @@ jobs:
           API_BASE_URL: ${{ vars.MALL_API_BASE_URL }}
         run: bash scripts/ci-build-flutter-web.sh
 
+      - name: Check AWS deploy variables
+        run: |
+          if [ -z "${{ vars.AWS_DEPLOY_ROLE_ARN }}" ]; then
+            echo "::error::Set repository variable AWS_DEPLOY_ROLE_ARN on hongdydk/zerosearch"
+            exit 1
+          fi
+          if [ -z "${{ vars.S3_BUCKET }}" ]; then
+            echo "::error::Set repository variable S3_BUCKET on hongdydk/zerosearch"
+            exit 1
+          fi
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v4
         with:
