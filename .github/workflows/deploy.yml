@@ -78,6 +78,9 @@ jobs:
         with:
           python-version: "3.11"
 
+      - name: Install API dependencies (OpenAPI export)
+        run: pip install -r apps/api/requirements.txt
+
       - name: Build Flutter web
         env:
           API_BASE_URL: ${{ vars.MALL_API_BASE_URL }}
