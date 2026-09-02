@@ -1,0 +1,11 @@
+---
+description: Git 관례 — 브랜치(main), 커밋 메시지(한국어), 푸시·PR
+alwaysApply: true
+---
+
+# Git 관례
+
+- 기본 브랜치 **`main`**. `master` 신규 생성·push 금지. 원격·로컬 어긋나면 push 전 정리.
+- **커밋·push는 사용자 명시 요청 시만.** 메시지는 **한국어**, 1~2문장, 무엇보다 왜.
+- `.env`·credentials 커밋 금지. `--force`·hook skip·`main` force-push는 사용자 명시 OK 시만.
+- PR 제목·Summary도 한국어 우선.

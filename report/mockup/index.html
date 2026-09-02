@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Shopping Mall — 구현 예상 화면 목업</title>
+  <style>
+    :root {
+      --bg: #f4f5f7;
+      --surface: #fff;
+      --line: #e5e7eb;
+      --text: #111827;
+      --muted: #6b7280;
+      --brand: #2563eb;
+      --official: #0f766e;
+      --merchant: #7c3aed;
+      --radius: 12px;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Pretendard", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .app {
+      max-width: 960px;
+      margin: 0 auto;
+      min-height: 100vh;
+      background: var(--surface);
+      box-shadow: var(--shadow);
+    }
+
+    header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 20px;
+      border-bottom: 1px solid var(--line);
+      position: sticky;
+      top: 0;
+      background: var(--surface);
+      z-index: 10;
+    }
+
+    .brand {
+      font-weight: 700;
+      color: var(--brand);
+      white-space: nowrap;
+    }
+
+    .search {
+      flex: 1;
+      display: flex;
+      gap: 8px;
+    }
+
+    .search input {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      font-size: 14px;
+    }
+
+    .search button,
+    .btn {
+      border: none;
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 14px;
+      cursor: pointer;
+      background: var(--brand);
+      color: #fff;
+    }
+
+    .btn.secondary {
+      background: #eef2ff;
+      color: var(--brand);
+    }
+
+    .btn.ghost {
+      background: transparent;
+      color: var(--text);
+      border: 1px solid var(--line);
+    }
+
+    .header-links {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      font-size: 14px;
+      color: var(--muted);
+      white-space: nowrap;
+    }
+
+    nav.tabs {
+      display: flex;
+      gap: 4px;
+      padding: 10px 20px;
+      border-bottom: 1px solid var(--line);
+      background: #fafafa;
+      overflow-x: auto;
+    }
+
+    nav.tabs button {
+      border: none;
+      background: transparent;
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 13px;
+      color: var(--muted);
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    nav.tabs button.active {
+      background: #dbeafe;
+      color: var(--brand);
+      font-weight: 600;
+    }
+
+    main { padding: 20px; }
+
+    .screen { display: none; }
+    .screen.active { display: block; }
+
+    .note {
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1e40af;
+      padding: 10px 12px;
+      border-radius: 8px;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+      gap: 14px;
+    }
+
+    .card {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      overflow: hidden;
+      background: #fff;
+      box-shadow: var(--shadow);
+      cursor: pointer;
+    }
+
+    .thumb {
+      height: 140px;
+      background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+      display: grid;
+      place-items: center;
+      font-size: 42px;
+    }
+
+    .card-body { padding: 12px; }
+    .card-title { font-weight: 600; margin: 0 0 4px; }
+    .card-meta { font-size: 12px; color: var(--muted); }
+
+    .badge {
+      display: inline-block;
+      font-size: 11px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      margin-right: 4px;
+      font-weight: 600;
+    }
+
+    .badge.official { background: #ccfbf1; color: var(--official); }
+    .badge.merchant { background: #ede9fe; color: var(--merchant); }
+    .badge.ship-platform { background: #ecfeff; color: #0e7490; }
+    .badge.ship-seller { background: #fef3c7; color: #b45309; }
+
+    .compare-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+    }
+
+    .compare-table th,
+    .compare-table td {
+      border-bottom: 1px solid var(--line);
+      padding: 12px 10px;
+      text-align: left;
+      vertical-align: middle;
+    }
+
+    .compare-table th {
+      font-size: 12px;
+      color: var(--muted);
+      font-weight: 600;
+      background: #fafafa;
+    }
+
+    .compare-table tr:hover { background: #f9fafb; }
+    .compare-table tr.selected { background: #eff6ff; }
+
+    .price { font-weight: 700; }
+
+    .detail-head {
+      display: flex;
+      gap: 16px;
+      margin-bottom: 20px;
+      align-items: flex-start;
+    }
+
+    .detail-thumb {
+      width: 160px;
+      height: 160px;
+      border-radius: var(--radius);
+      background: linear-gradient(135deg, #dbeafe, #e0f2fe);
+      display: grid;
+      place-items: center;
+      font-size: 56px;
+      flex-shrink: 0;
+    }
+
+    .detail-title { font-size: 24px; margin: 0 0 8px; }
+    .detail-desc { color: var(--muted); font-size: 14px; margin: 0; }
+
+    .section-title {
+      font-size: 16px;
+      font-weight: 700;
+      margin: 24px 0 10px;
+    }
+
+    .cart-group {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+
+    .cart-group-head {
+      padding: 10px 14px;
+      background: #fafafa;
+      font-size: 13px;
+      font-weight: 600;
+      border-bottom: 1px solid var(--line);
+    }
+
+    .cart-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 14px;
+      border-bottom: 1px solid var(--line);
+      font-size: 14px;
+    }
+
+    .cart-item:last-child { border-bottom: none; }
+
+    .cart-foot {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 0 0;
+      border-top: 1px solid var(--line);
+      margin-top: 16px;
+    }
+
+    .total { font-size: 18px; font-weight: 700; }
+
+    .order-line {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 14px;
+      margin-bottom: 10px;
+    }
+
+    .steps {
+      display: flex;
+      gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 10px;
+    }
+
+    .step {
+      font-size: 12px;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: #f3f4f6;
+      color: var(--muted);
+    }
+
+    .step.done {
+      background: #dbeafe;
+      color: var(--brand);
+      font-weight: 600;
+    }
+
+    .compare-demo {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+      margin-top: 12px;
+    }
+
+    .compare-demo .panel {
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      padding: 12px;
+      background: #fafafa;
+    }
+
+    .compare-demo h4 {
+      margin: 0 0 10px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .mini-card {
+      border: 1px solid var(--line);
+      border-radius: 8px;
+      padding: 8px;
+      margin-bottom: 6px;
+      font-size: 12px;
+      background: #fff;
+    }
+
+    .footer-note {
+      margin-top: 24px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+    }
+
+    @media (max-width: 720px) {
+      .header-links span { display: none; }
+      .compare-demo { grid-template-columns: 1fr; }
+      .detail-head { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div class="brand">Shopping Mall</div>
+      <form class="search" onsubmit="return false;">
+        <input type="search" value="생수" aria-label="검색" />
+        <button type="button" onclick="showScreen('search')">검색</button>
+      </form>
+      <div class="header-links">
+        <button class="btn ghost" type="button" onclick="showScreen('cart')">장바구니</button>
+        <span>로그인</span>
+        <span>≡</span>
+      </div>
+    </header>
+
+    <nav class="tabs" aria-label="화면 전환">
+      <button class="active" data-screen="search" type="button">검색·목록</button>
+      <button data-screen="detail" type="button">상품 상세</button>
+      <button data-screen="cart" type="button">장바구니</button>
+      <button data-screen="order" type="button">주문</button>
+      <button data-screen="concept" type="button">비교</button>
+    </nav>
+
+    <main>
+      <!-- 검색·목록 -->
+      <section id="screen-search" class="screen active">
+        <div class="note">“생수” 검색 — <strong>브랜드(제품명)별 1장</strong>. 카드에는 연결 오퍼 <strong>최저가</strong>만. 용량·판매자는 상세에서.</div>
+        <div class="grid">
+          <article class="card" onclick="showScreen('detail')">
+            <div class="thumb">💧</div>
+            <div class="card-body">
+              <p class="card-title">백산수</p>
+              <p class="card-meta">8,900원~ · 판매 7건</p>
+              <p class="card-meta"><span class="badge official">공식</span><span class="badge merchant">입점</span></p>
+            </div>
+          </article>
+          <article class="card">
+            <div class="thumb">💧</div>
+            <div class="card-body">
+              <p class="card-title">평창수</p>
+              <p class="card-meta">9,200원~ · 판매 5건</p>
+            </div>
+          </article>
+          <article class="card">
+            <div class="thumb">💧</div>
+            <div class="card-body">
+              <p class="card-title">제주삼다수</p>
+              <p class="card-meta">10,500원~ · 판매 4건</p>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <!-- 상품 상세 -->
+      <section id="screen-detail" class="screen">
+        <div class="note">상세는 <strong>한 줄 비교</strong>. 가게를 카드로 여러 장 깔지 않습니다.</div>
+        <div class="detail-head">
+          <div class="detail-thumb">💧</div>
+          <div>
+            <h1 class="detail-title">백산수</h1>
+            <p class="detail-desc">같은 브랜드의 용량·판매자·가격을 한눈에 비교하고 담습니다.</p>
+          </div>
+        </div>
+
+        <h2 class="section-title">판매 옵션</h2>
+        <table class="compare-table">
+          <thead>
+            <tr>
+              <th>용량</th>
+              <th>판매자</th>
+              <th>배송</th>
+              <th>가격</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr class="selected">
+              <td>500ml × 20</td>
+              <td><span class="badge official">공식 스토어</span></td>
+              <td><span class="badge ship-platform">자사배송</span></td>
+              <td class="price">12,000원</td>
+              <td><button class="btn secondary" type="button">담기</button></td>
+            </tr>
+            <tr>
+              <td>2L × 6</td>
+              <td><span class="badge merchant">청정마트</span></td>
+              <td><span class="badge ship-seller">판매자배송</span></td>
+              <td class="price">9,800원</td>
+              <td><button class="btn secondary" type="button">담기</button></td>
+            </tr>
+            <tr>
+              <td>500ml × 24</td>
+              <td><span class="badge merchant">산들가게</span></td>
+              <td><span class="badge ship-seller">판매자배송</span></td>
+              <td class="price">11,500원</td>
+              <td><button class="btn secondary" type="button">담기</button></td>
+            </tr>
+          </tbody>
+        </table>
+        <p style="font-size:13px;color:var(--muted);margin-top:8px;">전체 판매자 12곳 · <a href="#">더보기</a></p>
+      </section>
+
+      <!-- 장바구니 -->
+      <section id="screen-cart" class="screen">
+        <div class="note">가게가 달라도 장바구니는 하나입니다. 가게별로 묶어서 보여 줍니다.</div>
+
+        <div class="cart-group">
+          <div class="cart-group-head">공식 스토어 · 자사배송</div>
+          <div class="cart-item">
+            <div>
+              <div>백산수 500ml × 20</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">수량 1</div>
+            </div>
+            <div class="price">12,000원</div>
+          </div>
+        </div>
+
+        <div class="cart-group">
+          <div class="cart-group-head">청정마트 · 판매자배송</div>
+          <div class="cart-item">
+            <div>
+              <div>백산수 2L × 6</div>
+              <div style="font-size:12px;color:var(--muted);margin-top:4px;">수량 1</div>
+            </div>
+            <div class="price">9,800원</div>
+          </div>
+        </div>
+
+        <div class="cart-foot">
+          <div class="total">합계 21,800원</div>
+          <button class="btn" type="button" onclick="showScreen('order')">결제하기</button>
+        </div>
+      </section>
+
+      <!-- 주문 -->
+      <section id="screen-order" class="screen">
+        <div class="note">주문은 <strong>줄 단위</strong>로 판매자·배송 상태가 보입니다.</div>
+
+        <div class="order-line">
+          <div><strong>백산수 500ml × 20</strong> · 공식 스토어</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px;">12,000원 · 자사배송</div>
+          <div class="steps">
+            <span class="step done">결제완료</span>
+            <span class="step done">상품준비</span>
+            <span class="step">발송</span>
+            <span class="step">배송완료</span>
+          </div>
+        </div>
+
+        <div class="order-line">
+          <div><strong>백산수 2L × 6</strong> · 청정마트</div>
+          <div style="font-size:13px;color:var(--muted);margin-top:4px;">9,800원 · 판매자배송</div>
+          <div class="steps">
+            <span class="step done">결제완료</span>
+            <span class="step">상품준비</span>
+            <span class="step">발송</span>
+            <span class="step">배송완료</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- 비교 -->
+      <section id="screen-concept" class="screen">
+        <div class="note">기획 차이를 한눈에 보여 주는 비교 화면입니다.</div>
+        <div class="compare-demo">
+          <div class="panel">
+            <h4>일반 가격비교 (숍 N개 나열)</h4>
+            <div class="mini-card">백산수 500ml · A마트 · 11,900원</div>
+            <div class="mini-card">백산수 500ml · B스토어 · 12,100원</div>
+            <div class="mini-card">백산수 2L · C상회 · 9,800원</div>
+            <div class="mini-card">평창수 500ml · D샵 · 11,500원</div>
+            <div class="mini-card">…</div>
+          </div>
+          <div class="panel">
+            <h4>제로 서치 (브랜드 1장 → 상세 한 줄)</h4>
+            <div class="mini-card" style="border-color:#93c5fd;background:#eff6ff;"><strong>백산수</strong> · 8,900원~</div>
+            <div class="mini-card" style="border-color:#93c5fd;background:#eff6ff;"><strong>평창수</strong> · 9,200원~</div>
+            <div class="mini-card">상세: 용량 · 판매자 · 가격 한 줄 비교</div>
+            <div class="mini-card">더보기로 나머지 판매자</div>
+          </div>
+        </div>
+      </section>
+
+      <p class="footer-note">구현 예상 화면 목업 · 기획서용 정적 HTML</p>
+    </main>
+  </div>
+
+  <script>
+    function showScreen(name) {
+      document.querySelectorAll('.screen').forEach((el) => el.classList.remove('active'));
+      document.querySelectorAll('nav.tabs button').forEach((btn) => btn.classList.remove('active'));
+      document.getElementById('screen-' + name).classList.add('active');
+      const tab = document.querySelector(`nav.tabs button[data-screen="${name}"]`);
+      if (tab) tab.classList.add('active');
+    }
+
+    document.querySelectorAll('nav.tabs button').forEach((btn) => {
+      btn.addEventListener('click', () => showScreen(btn.dataset.screen));
+    });
+  </script>
+</body>
+</html>

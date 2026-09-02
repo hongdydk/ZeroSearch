@@ -1,0 +1,62 @@
+# EC2 prod — /opt/shopping-mall 에서 실행.
+# 아노벨리(/opt/anoveli :8000)와 공존. API는 호스트 8001 → 컨테이너 8000.
+#
+#   docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: mall-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: mall
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-mall}
+      POSTGRES_DB: mall
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mall -d mall"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    networks:
+      - internal
+
+  api:
+    build: ./apps/api
+    container_name: mall-api
+    restart: unless-stopped
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+    # Prod secrets: repo-root .env.prod (--env-file)
+    ports:
+      - "8001:8000"
+    volumes:
+      - api_logs:/var/log/shopping-mall
+    environment:
+      DATABASE_URL: postgresql+psycopg://mall:${POSTGRES_PASSWORD:-mall}@postgres:5432/mall
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET required}
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://app.anoveli.com}
+      ALLOW_DB_RESET: ${ALLOW_DB_RESET:-false}
+      ADMIN_EMAIL: ${ADMIN_EMAIL:-}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:-}
+      SIGNUP_CREDIT_BONUS: ${SIGNUP_CREDIT_BONUS:-100}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      LOG_FORMAT: ${LOG_FORMAT:-json}
+      LOG_FILE: /var/log/shopping-mall/api.log
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - internal
+
+networks:
+  internal:
+    driver: bridge
+
+volumes:
+  postgres_data:
+  api_logs:

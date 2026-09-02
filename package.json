@@ -1,0 +1,18 @@
+{
+  "name": "shopping-mall",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Shopping mall monorepo",
+  "scripts": {
+    "dev:api": "pnpm --filter @shopping-mall/api dev",
+    "dev:flutter": "cd apps/flutter && flutter run -d chrome --web-port=8080 --dart-define=API_BASE_URL=http://localhost:8001",
+    "build": "pnpm -r build",
+    "typecheck": "pnpm -r typecheck",
+    "codegen:openapi": "python scripts/export_openapi.py",
+    "codegen:flutter": "pnpm codegen:openapi && powershell -ExecutionPolicy Bypass -File scripts/codegen-flutter-full.ps1"
+  },
+  "engines": {
+    "node": ">=20",
+    "pnpm": ">=9"
+  }
+}

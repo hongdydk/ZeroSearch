@@ -1,0 +1,19 @@
+---
+description: Phase 로드맵 — phase 스펙 SSOT 및 구현 계획 허용 경로
+alwaysApply: true
+---
+
+# Phase 로드맵
+
+- 로드맵·구현 전 plan에 **활성 phase 스펙**을 명시한다. 범위·용어·라우트·DoD의 SSOT는 해당 `docs/phaseN-spec.md`.
+- 승인된 plan에 고정: 활성 phase, 짧은 DoD, 허용 변경 경로.
+- 구현 전 요청이 해당 phase에 속하는지 확인한다. **라우트·엔티티 목록은 phase 스펙 본문 SSOT** — 규칙에 복사하지 않는다.
+- phase를 넘거나 plan에 없는 경로는 구현하지 말고 plan 확장을 요청한다.
+
+## Phase 요약
+
+| Phase | 범위 | 스펙 |
+|-------|------|------|
+| **1** (완료) | 쇼핑몰 골격 — 상품·장바구니·크레딧 주문 | `docs/phase1-spec.md` |
+| **2** (활성) | 제로 서치 — 대표 상품 목록·오퍼·입점·공식 스토어 | `docs/phase2-spec.md` |
+| **3** (추후) | 실 PG(토스) | `docs/phase3-spec.md` |

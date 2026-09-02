@@ -1,0 +1,12 @@
+{
+  "include": [
+    "apps/api/app",
+    "apps/api/tests",
+    "apps/api/main.py",
+    "apps/api/alembic"
+  ],
+  "extraPaths": ["apps/api"],
+  "venvPath": "apps/api",
+  "venv": ".venv",
+  "pythonVersion": "3.14"
+}

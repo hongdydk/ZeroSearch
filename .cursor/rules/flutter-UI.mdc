@@ -1,0 +1,25 @@
+---
+description: Flutter UI·헤더 IA 규칙
+globs:
+  - apps/flutter/**
+---
+
+# Flutter UI 규칙
+
+라우팅·API는 [flutter-관례.mdc](flutter-관례.mdc). **헤더·몰 IA**만 다룬다. 셸·헤더 SSOT: `lib/shared/widgets/adaptive_shell.dart`, `lib/shared/widgets/web/web_naver_header.dart`.
+
+## 글로벌 헤더
+
+- **웹** (`WebNaverHeader`): brand · 검색(홈) · 장바구니 · 로그인/크레딧 · **≡ 전체 메뉴** SSOT.
+- `주문`·`멤버십`·`설정`·`관리자`·`로그아웃`은 **≡ 메뉴**에만. MY 드롭다운·≡ 홈 항목 금지.
+- **앱** (`AdaptiveShell`): 하단 탭 **홈 / 장바구니 / 주문 / 멤버십 / MY**.
+- 좁은 웹도 넓은 웹과 동일 헤더 IA (compact 레이아웃). legacy AppBar·Drawer 금지.
+
+## 페이지 본문
+
+- 콘텐츠 탭·필터는 **페이지 본문**만. 글로벌 AppBar에 탭·세컨더리 nav 금지.
+- 상품 상세(`/products/:id`)는 drill-down — `context.push`로 스택에 쌓는다.
+
+## 설정
+
+- `/settings` — 섹션별 `Card` 그룹. 계정 메뉴와 중복 nav 금지. 미구현은 `disabled`·안내 문구.

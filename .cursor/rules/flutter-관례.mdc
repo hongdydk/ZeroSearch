@@ -1,0 +1,28 @@
+---
+description: Flutter 클라이언트 관례 — go_router·API codegen·네비게이션
+globs:
+  - apps/flutter/**
+---
+
+# Flutter 관례
+
+## 라우팅·API
+
+- path 라우팅(`go_router`)·라우트 등록은 `lib/core/routing/app_router.dart` SSOT. 페이지 추가·변경 시 동일 패턴 유지.
+- API base URL은 `--dart-define=API_BASE_URL=...` (`lib/core/config/api_config.dart`). JWT는 `TokenStorage`·Dio interceptor 경로만 사용.
+- API 페이로드·모델은 OpenAPI codegen(`lib/api/generated/`) 우선. 수기 `lib/core/models/models.dart`·`api_client.dart`는 점진 이전 중 — UI만 땜질하지 않는다.
+- phase 경계: [phase-로드맵.mdc](phase-로드맵.mdc). 헤더·몰 IA: [flutter-UI.mdc](flutter-UI.mdc).
+
+## OpenAPI codegen 워크플로
+
+1. `apps/api/app/schemas/*.py` 수정
+2. `python scripts/export_openapi.py` → `scripts/openapi.json`
+3. `bash scripts/generate-flutter-api.sh` (또는 Windows: `generate-flutter-api.ps1`) → `lib/api/generated/` (로컬 생성, gitignore)
+4. `ApiClient`는 facade 유지 — generated 호출 후 `api_mappers.dart`로 앱 모델 변환. 수기 경로와 불일치 시 같은 작업에서 동기화.
+
+## 네비게이션 (`app_back_navigation.dart` SSOT)
+
+- **`context.push` / `openDetailRoute`**: drill-down — 홈→상품 상세 등. 스택에 쌓아 시스템 뒤로가기가 동작하게 한다.
+- **`context.go`**: 의도적 **교체** — 하단 탭 전환, 로그인 후 홈 등. 스택을 비우거나 탭 루트로 맞출 때만.
+- **시스템 뒤로가기**: `AdaptiveShell`의 `PopScope(canPop: false)` + `handleAppBackNavigation`. 스택 pop 가능하면 pop, 아니면 `/` 등 탭 루트로 go, 홈·로그인에서만 앱 종료.
+- 새 화면 추가 시 push/go 중 하나를 명시적으로 선택. 탭 루트 목록 변경 시 `isShellTabRoot`도 함께 갱신.

@@ -1,0 +1,13 @@
+---
+description: API 관례 — FastAPI 레이어 분리·마이그레이션
+globs:
+  - apps/api/**
+---
+
+# API 관례
+
+- 레이어 분리: `routers/`(얇게) → `services/`(로직) → `models/` + `schemas/` + `alembic/versions/`. 동작 변경 시 `tests/` 함께.
+- 같은 영역은 **기존 router/schema/service 확장 우선**. router만 고치고 schema·service·tests 누락 금지.
+- 영속 필드 변경은 model + migration 동시. 스키마 드리프트 숨기지 않는다.
+- DB·크레딧·주문·멤버십 로직은 router가 아닌 `services/`에 둔다.
+- phase 경계: [phase-로드맵.mdc](phase-로드맵.mdc).

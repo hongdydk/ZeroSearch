@@ -1,0 +1,53 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+venv/
+*.egg-info/
+dist/
+build/
+
+# Environment
+.env
+.env.*
+!.env.example
+!.env.prod.example
+
+# Build outputs
+.next/
+out/
+dist/
+*.tsbuildinfo
+
+# Logs & debug
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS & IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+/flutter/
+*.swp
+
+# OpenAPI codegen output (regenerate via scripts/generate-flutter-api.ps1)
+apps/flutter/lib/api/generated/
+
+# Test & coverage
+.coverage
+htmlcov/
+.pytest_cache/
+coverage/
+
+# Docker (local overrides)
+docker-compose.override.yml
+
+# Local cloudflared binary (scripts/start-ollama-tunnel.ps1 downloads it)
+tools/cloudflared/cloudflared.exe

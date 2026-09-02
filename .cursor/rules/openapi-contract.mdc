@@ -1,0 +1,10 @@
+---
+description: OpenAPI and Flutter codegen contract
+alwaysApply: false
+---
+# OpenAPI / generated client contract
+
+- SSOT: apps/api/app/schemas/ -> scripts/export_openapi.py -> scripts/openapi.json -> apps/flutter/lib/api/generated/
+- After API schema changes: pnpm codegen:flutter from repo root
+- Do not hand-edit lib/api/generated/ except via scripts/fix-generated-dart-parts.*
+- Generated pub package: shopping_mall_api
