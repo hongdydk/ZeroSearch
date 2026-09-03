@@ -43,7 +43,13 @@ class _LoggedInTokenStorage extends TokenStorage {
   Future<String?> read() async => 'test-token';
 
   @override
+  Future<String?> readPortal() async => 'buyer';
+
+  @override
   Future<void> write(String token) async {}
+
+  @override
+  Future<void> writePortal(String portal) async {}
 
   @override
   Future<void> clear() async {}
@@ -54,7 +60,13 @@ class _LoggedOutTokenStorage extends TokenStorage {
   Future<String?> read() async => null;
 
   @override
+  Future<String?> readPortal() async => null;
+
+  @override
   Future<void> write(String token) async {}
+
+  @override
+  Future<void> writePortal(String portal) async {}
 
   @override
   Future<void> clear() async {}
@@ -73,7 +85,7 @@ Widget _headerHarness({required bool loggedIn}) {
       home: Scaffold(
         body: Column(
           children: [
-            const WebNaverHeader(location: '/', isAdmin: false),
+            const WebNaverHeader(location: '/'),
             const Expanded(child: SizedBox()),
           ],
         ),
@@ -110,7 +122,7 @@ void main() {
 
     expect(find.text('제로 서치'), findsOneWidget);
     expect(find.text('MY'), findsNothing);
-    expect(find.byIcon(Icons.shopping_cart_outlined), findsOneWidget);
+    expect(find.text('장바구니'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_drop_down), findsNothing);
   });
 
@@ -123,13 +135,15 @@ void main() {
     await tester.pump();
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byIcon(Icons.apps));
+    await tester.tap(find.text('≡'));
     await tester.pumpAndSettle();
 
     expect(find.widgetWithText(PopupMenuItem<String>, '홈'), findsNothing);
     expect(find.widgetWithText(PopupMenuItem<String>, '주문'), findsOneWidget);
     expect(find.widgetWithText(PopupMenuItem<String>, '멤버십'), findsOneWidget);
     expect(find.widgetWithText(PopupMenuItem<String>, '설정'), findsOneWidget);
+    expect(find.widgetWithText(PopupMenuItem<String>, '판매자 센터'), findsNothing);
+    expect(find.widgetWithText(PopupMenuItem<String>, '관리자'), findsNothing);
     expect(find.widgetWithText(PopupMenuItem<String>, '로그아웃'), findsOneWidget);
   });
 

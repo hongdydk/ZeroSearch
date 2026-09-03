@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../auth/login_portal.dart';
 import '../models/models.dart';
 import '../network/api_client.dart';
 import '../storage/token_storage.dart';
@@ -25,12 +26,19 @@ final authStateProvider =
 });
 
 class AuthState {
-  const AuthState({this.user, this.token});
+  const AuthState({
+    this.user,
+    this.token,
+    this.portal = LoginPortal.buyer,
+  });
 
   final UserModel? user;
   final String? token;
+  final LoginPortal portal;
 
   bool get isLoggedIn => token != null && token!.isNotEmpty;
+
+  bool isPortal(LoginPortal value) => isLoggedIn && portal == value;
 }
 
 class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
@@ -48,34 +56,46 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
         state = const AsyncValue.data(AuthState());
         return;
       }
+      final portal = LoginPortal.parse(await _tokens.readPortal());
       final user = await _api.me();
-      state = AsyncValue.data(AuthState(user: user, token: token));
+      state = AsyncValue.data(AuthState(user: user, token: token, portal: portal));
     } catch (e) {
       await _tokens.clear();
       state = const AsyncValue.data(AuthState());
     }
   }
 
-  Future<void> login(String email, String password) async {
+  Future<void> login(
+    String email,
+    String password, {
+    LoginPortal portal = LoginPortal.buyer,
+  }) async {
     state = const AsyncValue.loading();
     try {
-      final token = await _api.login(email, password);
+      final token = await _api.login(email, password, portal: portal);
       await _tokens.write(token);
+      await _tokens.writePortal(portal.name);
       final user = await _api.me();
-      state = AsyncValue.data(AuthState(user: user, token: token));
+      state = AsyncValue.data(AuthState(user: user, token: token, portal: portal));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
     }
   }
 
-  Future<void> register(String email, String password, {String? displayName}) async {
+  Future<void> register(
+    String email,
+    String password, {
+    String? displayName,
+    LoginPortal portal = LoginPortal.buyer,
+  }) async {
     state = const AsyncValue.loading();
     try {
       final token = await _api.register(email, password, displayName: displayName);
       await _tokens.write(token);
+      await _tokens.writePortal(portal.name);
       final user = await _api.me();
-      state = AsyncValue.data(AuthState(user: user, token: token));
+      state = AsyncValue.data(AuthState(user: user, token: token, portal: portal));
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
@@ -91,7 +111,9 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
     final current = state.valueOrNull;
     if (current?.token == null) return;
     final user = await _api.me();
-    state = AsyncValue.data(AuthState(user: user, token: current!.token));
+    state = AsyncValue.data(
+      AuthState(user: user, token: current!.token, portal: current.portal),
+    );
   }
 }
 

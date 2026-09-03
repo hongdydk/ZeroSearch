@@ -49,6 +49,9 @@ def login(payload: LoginRequest, db: Annotated[Session, Depends(get_db)]) -> Tok
     if user is None or not verify_password(payload.password, user.password_hash):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="이메일 또는 비밀번호가 올바르지 않습니다.")
 
+    if payload.portal == "admin" and not user.is_admin:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="관리자 계정이 아닙니다.")
+
     return TokenResponse(access_token=create_access_token(user.id), token_type="bearer")
 
 

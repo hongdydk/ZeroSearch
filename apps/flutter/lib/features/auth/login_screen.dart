@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/login_portal.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.portal = LoginPortal.buyer});
+
+  final LoginPortal portal;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -35,8 +38,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref.read(authStateProvider.notifier).login(
             _email.text.trim(),
             _password.text,
+            portal: widget.portal,
           );
-      if (mounted) context.go('/');
+      if (mounted) context.go(widget.portal.homePath);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -48,13 +52,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final portal = widget.portal;
     return PageFormScaffold(
       maxWidth: 400,
       padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Text('로그인', style: Theme.of(context).textTheme.headlineMedium),
+          Text(portal.loginTitle, style: Theme.of(context).textTheme.headlineMedium),
+          if (portal == LoginPortal.seller) ...[
+            const SizedBox(height: 8),
+            Text(
+              '입점 신청은 로그인 후 이 화면에서 진행합니다.',
+              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+            ),
+          ],
           const SizedBox(height: 16),
           TextField(
             controller: _email,
@@ -77,10 +91,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             onPressed: _loading ? null : _submit,
             child: Text(_loading ? '로그인 중…' : '로그인'),
           ),
-          TextButton(
-            onPressed: () => context.go('/register'),
-            child: const Text('회원가입'),
-          ),
+          if (portal != LoginPortal.admin)
+            TextButton(
+              onPressed: () => context.go(
+                portal == LoginPortal.seller ? '/register?next=/seller' : '/register',
+              ),
+              child: const Text('회원가입'),
+            ),
         ],
       ),
     );

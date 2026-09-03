@@ -781,6 +781,16 @@
           "password": {
             "title": "Password",
             "type": "string"
+          },
+          "portal": {
+            "default": "buyer",
+            "enum": [
+              "buyer",
+              "seller",
+              "admin"
+            ],
+            "title": "Portal",
+            "type": "string"
           }
         },
         "required": [
@@ -2485,7 +2495,6 @@
             "schema": {
               "anyOf": [
                 {
-                  "minimum": 0,
                   "type": "integer"
                 },
                 {
@@ -2502,7 +2511,6 @@
             "schema": {
               "anyOf": [
                 {
-                  "minimum": 0,
                   "type": "integer"
                 },
                 {
@@ -2601,7 +2609,6 @@
             "schema": {
               "anyOf": [
                 {
-                  "minimum": 0,
                   "type": "integer"
                 },
                 {
@@ -2618,7 +2625,6 @@
             "schema": {
               "anyOf": [
                 {
-                  "minimum": 0,
                   "type": "integer"
                 },
                 {

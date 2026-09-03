@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import 'package:built_value/serializer.dart';
 import 'package:shopping_mall_api/shopping_mall_api.dart' as gen;
 
+import '../auth/login_portal.dart';
 import '../config/api_config.dart';
 import '../models/models.dart';
 import '../storage/token_storage.dart';
@@ -96,12 +97,17 @@ class ApiClient {
     return ApiException(message, statusCode: status, detail: detail);
   }
 
-  Future<String> login(String email, String password) async {
+  Future<String> login(
+    String email,
+    String password, {
+    LoginPortal portal = LoginPortal.buyer,
+  }) async {
     final data = await _generatedCall(
       () => _generated.getAuthApi().loginAuthLoginPost(
             loginRequest: gen.LoginRequest((b) => b
               ..email = email
-              ..password = password),
+              ..password = password
+              ..portal = portal.name),
           ),
     );
     return data.accessToken;

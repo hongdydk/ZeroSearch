@@ -2,12 +2,15 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/login_portal.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
-  const RegisterScreen({super.key});
+  const RegisterScreen({super.key, this.next});
+
+  final String? next;
 
   @override
   ConsumerState<RegisterScreen> createState() => _RegisterScreenState();
@@ -19,6 +22,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _name = TextEditingController();
   String? _error;
   bool _loading = false;
+
+  LoginPortal get _portal =>
+      widget.next == '/seller' ? LoginPortal.seller : LoginPortal.buyer;
+
+  String get _afterPath => widget.next == '/seller' ? '/seller' : '/';
+
+  String get _loginPath =>
+      widget.next == '/seller' ? '/seller' : '/login';
 
   @override
   void dispose() {
@@ -38,8 +49,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             _email.text.trim(),
             _password.text,
             displayName: _name.text.trim().isEmpty ? null : _name.text.trim(),
+            portal: _portal,
           );
-      if (mounted) context.go('/');
+      if (mounted) context.go(_afterPath);
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {
@@ -77,7 +89,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             onPressed: _loading ? null : _submit,
             child: Text(_loading ? '가입 중…' : '가입'),
           ),
-          TextButton(onPressed: () => context.go('/login'), child: const Text('로그인')),
+          TextButton(onPressed: () => context.go(_loginPath), child: const Text('로그인')),
         ],
       ),
     );

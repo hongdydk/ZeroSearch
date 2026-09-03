@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
@@ -57,26 +56,6 @@ class SettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
-          Card(
-            child: ListTile(
-              leading: const Icon(Icons.storefront_outlined),
-              title: const Text('판매자 센터'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => context.go('/seller'),
-            ),
-          ),
-          if (user?.isAdmin == true) ...[
-            const SizedBox(height: 16),
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.admin_panel_settings_outlined),
-                title: const Text('관리자'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.go('/admin'),
-              ),
-            ),
-          ],
         ],
       ),
     );

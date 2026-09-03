@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/layout/ui_platform.dart';
-import '../../core/providers/app_providers.dart';
 import '../../core/routing/app_back_navigation.dart';
 import '../../core/routing/app_router.dart';
 import 'web_content_frame.dart';
@@ -28,9 +27,7 @@ class WebShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final auth = ref.watch(authStateProvider).valueOrNull;
     final location = _webShellLocation(context);
-    final isAdmin = auth?.user?.isAdmin == true;
     final compact = isCompactWeb(context);
 
     return Scaffold(
@@ -40,7 +37,6 @@ class WebShell extends ConsumerWidget {
           children: [
             WebNaverHeader(
               location: location,
-              isAdmin: isAdmin,
               compact: compact,
             ),
             Expanded(child: child),
@@ -69,7 +65,7 @@ class MallShell extends ConsumerWidget {
     if (location.startsWith('/cart')) return 1;
     if (location.startsWith('/orders')) return 2;
     if (location.startsWith('/membership')) return 3;
-    if (location.startsWith('/settings') || location.startsWith('/admin')) return 4;
+    if (location.startsWith('/settings')) return 4;
     return 0;
   }
 

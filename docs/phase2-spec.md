@@ -101,12 +101,15 @@
 | `/products/:id` | (과도기) 단일 오퍼 — 장바구니 |
 | `/cart` | 장바구니 (가게별 묶음) |
 | `/orders` | 주문 — 줄별 가게·배송 |
-| `/seller` | 판매자 대시보드 |
+| `/login` | 구매자 로그인 |
+| `/seller` | 판매자 로그인부터 · 대시보드 |
 | `/seller/products` | 내 오퍼 |
 | `/seller/orders` | 내 주문 줄 |
-| `/admin` | 입점 승인 |
+| `/admin` | 관리자 로그인부터 · 입점 승인 |
 
 화면 목업: [report/mockup/index.html](../report/mockup/index.html)
+
+**로그인 (현재):** 역할별 진입. 구매자 `/login`, 판매자는 `/seller`에서·관리자는 `/admin`에서 **각각 로그인부터**. 몰 ≡·설정에 판매자·관리자 바로가기 없음. 도메인 분리 아님. SSOT: [report/프로젝트-컨셉.md](../report/프로젝트-컨셉.md) 「역할별 로그인」.
 
 ## DoD
 
@@ -120,4 +123,4 @@
 
 ## 배포
 
-AWS: Flutter(S3·CloudFront), FastAPI(EC2), RDS(PostgreSQL). 주소 `https://app.anoveli.com/mall/`
+AWS: Flutter(S3·Cloudflare), FastAPI(EC2), RDS(PostgreSQL). 주소 `https://mall.anoveli.com/`

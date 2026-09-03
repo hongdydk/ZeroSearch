@@ -11,7 +11,9 @@ bool isShellTabRoot(String location) {
       location == '/membership' ||
       location == '/settings' ||
       location == '/login' ||
-      location == '/register';
+      location == '/register' ||
+      location == '/seller' ||
+      location == '/admin';
 }
 
 /// Android 시스템 뒤로가기 / iOS 스와이프 백 공통 처리.
@@ -25,6 +27,8 @@ void handleAppBackNavigation(BuildContext context) {
 
   if (location != '/' &&
       location != '/login' &&
+      location != '/seller' &&
+      location != '/admin' &&
       isShellTabRoot(location)) {
     router.go('/');
     return;
@@ -32,6 +36,15 @@ void handleAppBackNavigation(BuildContext context) {
 
   if (router.canPop()) {
     router.pop();
+    return;
+  }
+
+  if (location.startsWith('/seller/')) {
+    router.go('/seller');
+    return;
+  }
+  if (location.startsWith('/admin/')) {
+    router.go('/admin');
     return;
   }
 

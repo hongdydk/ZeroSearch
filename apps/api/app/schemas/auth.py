@@ -1,6 +1,6 @@
 import re
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 
 from email_validator import EmailNotValidError, validate_email
 from pydantic import AfterValidator, BaseModel, Field
@@ -32,6 +32,7 @@ class RegisterRequest(BaseModel):
 class LoginRequest(BaseModel):
     email: DevEmail
     password: str
+    portal: Literal["buyer", "seller", "admin"] = "buyer"
 
 
 class TokenResponse(BaseModel):

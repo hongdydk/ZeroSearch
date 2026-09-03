@@ -9,12 +9,10 @@ class WebNaverHeader extends ConsumerWidget {
   const WebNaverHeader({
     super.key,
     required this.location,
-    required this.isAdmin,
     this.compact = false,
   });
 
   final String location;
-  final bool isAdmin;
   final bool compact;
 
   bool get _isHome => location == '/';
@@ -36,7 +34,7 @@ class WebNaverHeader extends ConsumerWidget {
                 ? Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      _TopRow(auth: auth, isAdmin: isAdmin, showSearch: false),
+                      _TopRow(auth: auth, showSearch: false),
                       if (_isHome) ...[
                         const SizedBox(height: 10),
                         _CatalogSearchField(
@@ -48,7 +46,6 @@ class WebNaverHeader extends ConsumerWidget {
                   )
                 : _TopRow(
                     auth: auth,
-                    isAdmin: isAdmin,
                     showSearch: _isHome,
                     search: _isHome
                         ? _CatalogSearchField(
@@ -69,13 +66,11 @@ class WebNaverHeader extends ConsumerWidget {
 class _TopRow extends ConsumerWidget {
   const _TopRow({
     required this.auth,
-    required this.isAdmin,
     required this.showSearch,
     this.search,
   });
 
   final AuthState? auth;
-  final bool isAdmin;
   final bool showSearch;
   final Widget? search;
 
@@ -101,7 +96,7 @@ class _TopRow extends ConsumerWidget {
         ),
         _AuthBlock(auth: auth),
         const SizedBox(width: 4),
-        _ServicesMenu(auth: auth, isAdmin: isAdmin),
+        _ServicesMenu(auth: auth),
       ],
     );
   }
@@ -247,10 +242,9 @@ class _LoggedInBlock extends StatelessWidget {
 }
 
 class _ServicesMenu extends ConsumerWidget {
-  const _ServicesMenu({required this.auth, required this.isAdmin});
+  const _ServicesMenu({required this.auth});
 
   final AuthState? auth;
-  final bool isAdmin;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -266,9 +260,7 @@ class _ServicesMenu extends ConsumerWidget {
       itemBuilder: (context) => [
         const PopupMenuItem(value: '/orders', child: Text('주문')),
         const PopupMenuItem(value: '/membership', child: Text('멤버십')),
-        const PopupMenuItem(value: '/seller', child: Text('판매자 센터')),
         const PopupMenuItem(value: '/settings', child: Text('설정')),
-        if (isAdmin) const PopupMenuItem(value: '/admin', child: Text('관리자')),
         if (auth?.isLoggedIn == true)
           const PopupMenuItem(value: 'logout', child: Text('로그아웃')),
       ],

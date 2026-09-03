@@ -52,6 +52,55 @@ def test_login_invalid_credentials(client):
     assert response.status_code == 401
 
 
+def test_login_admin_portal_rejects_non_admin(client):
+    mock_db = MagicMock()
+    override_db(mock_db)
+    mock_db.scalar.return_value = make_user(email="buyer@mall.local", is_admin=False)
+
+    with patch("app.routers.auth.verify_password", return_value=True):
+        response = client.post(
+            "/auth/login",
+            json={"email": "buyer@mall.local", "password": "secret12", "portal": "admin"},
+        )
+
+    assert response.status_code == 403
+    assert "관리자" in response.json()["detail"]
+
+
+def test_login_admin_portal_accepts_admin(client):
+    mock_db = MagicMock()
+    override_db(mock_db)
+    mock_db.scalar.return_value = make_user(email="admin@mall.local", is_admin=True)
+
+    with patch("app.routers.auth.verify_password", return_value=True), patch(
+        "app.routers.auth.create_access_token", return_value="admin-token"
+    ):
+        response = client.post(
+            "/auth/login",
+            json={"email": "admin@mall.local", "password": "secret12", "portal": "admin"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["accessToken"] == "admin-token"
+
+
+def test_login_seller_portal_accepts_buyer(client):
+    mock_db = MagicMock()
+    override_db(mock_db)
+    mock_db.scalar.return_value = make_user(email="buyer@mall.local", is_admin=False)
+
+    with patch("app.routers.auth.verify_password", return_value=True), patch(
+        "app.routers.auth.create_access_token", return_value="seller-token"
+    ):
+        response = client.post(
+            "/auth/login",
+            json={"email": "buyer@mall.local", "password": "secret12", "portal": "seller"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["accessToken"] == "seller-token"
+
+
 def test_me_requires_auth(client):
     response = client.get("/auth/me")
     assert response.status_code == 401
