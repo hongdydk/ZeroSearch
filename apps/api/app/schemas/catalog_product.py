@@ -84,3 +84,7 @@ class CatalogImportResponse(BaseModel):
     upserted: int
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class CatalogImportTextRequest(BaseModel):
+    csv: str = Field(min_length=1, max_length=4 * 1024 * 1024)

@@ -483,6 +483,21 @@
         "title": "CatalogImportResponse",
         "type": "object"
       },
+      "CatalogImportTextRequest": {
+        "properties": {
+          "csv": {
+            "maxLength": 4194304,
+            "minLength": 1,
+            "title": "Csv",
+            "type": "string"
+          }
+        },
+        "required": [
+          "csv"
+        ],
+        "title": "CatalogImportTextRequest",
+        "type": "object"
+      },
       "CatalogOfferItem": {
         "properties": {
           "flavor": {
@@ -1961,6 +1976,52 @@
           }
         ],
         "summary": "Import Catalog",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/import-text": {
+      "post": {
+        "operationId": "import_catalog_text_admin_catalog_import_text_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogImportTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Catalog Text",
         "tags": [
           "admin"
         ]

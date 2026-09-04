@@ -26,7 +26,7 @@ from app.schemas.seller import (
     AdminOrderItemResponse,
     SellerOrderItemStatusUpdate,
 )
-from app.schemas.catalog_product import CatalogImportResponse
+from app.schemas.catalog_product import CatalogImportResponse, CatalogImportTextRequest
 from app.services.admin_db import RESET_CONFIRM, get_admin_stats, run_db_reset
 from app.services.catalog_import import import_catalog_csv
 from app.services.credits import grant_credits
@@ -69,6 +69,17 @@ async def import_catalog(
             detail="파일이 너무 큽니다. data/aihub-catalog.csv만 올리세요.",
         )
     result = import_catalog_csv(db, content)
+    db.commit()
+    return CatalogImportResponse(**result)
+
+
+@router.post("/catalog/import-text", response_model=CatalogImportResponse)
+def import_catalog_text(
+    payload: CatalogImportTextRequest,
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CatalogImportResponse:
+    result = import_catalog_csv(db, payload.csv.encode("utf-8"))
     db.commit()
     return CatalogImportResponse(**result)
 

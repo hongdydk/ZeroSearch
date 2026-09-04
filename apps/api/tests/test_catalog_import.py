@@ -56,6 +56,29 @@ def test_admin_catalog_import_rejects_large_file(client):
     assert "너무 큽니다" in response.json()["detail"]
 
 
+def test_admin_catalog_import_text(client):
+    admin = make_user(is_admin=True)
+    override_current_user(admin)
+    mock_db = MagicMock()
+    override_db(mock_db)
+    csv = "대분류,중분류,소분류,품목명,제조사,용량\n김,김치류,김치,나박김치,(주)거풍,100g\n"
+
+    with patch(
+        "app.routers.admin.import_catalog_csv",
+        return_value={"source_rows": 1, "upserted": 1},
+    ) as mock_import:
+        response = client.post(
+            "/admin/catalog/import-text",
+            json={"csv": csv},
+            headers={"Authorization": "Bearer fake"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["upserted"] == 1
+    mock_import.assert_called_once()
+    mock_db.commit.assert_called_once()
+
+
 def test_seller_catalog_search_requires_query(client):
     import uuid
     from datetime import UTC, datetime

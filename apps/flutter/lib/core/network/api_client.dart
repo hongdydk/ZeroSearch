@@ -341,7 +341,6 @@ class ApiClient {
         'admin/db/reset',
         data: {'confirm': 'RESET', 'mode': mode},
         options: Options(
-          sendTimeout: const Duration(minutes: 1),
           receiveTimeout: const Duration(minutes: 15),
         ),
       );
@@ -435,15 +434,11 @@ class ApiClient {
         final start = i * _importChunkRows;
         final end = (start + _importChunkRows).clamp(0, dataLines.length);
         final csv = ([header, ...dataLines.sublist(start, end)]).join('\n');
-        final form = FormData.fromMap({
-          'file': MultipartFile.fromBytes(utf8.encode(csv), filename: filename),
-        });
         onSendProgress?.call(i / chunkCount);
         final response = await _dio.post<Map<String, dynamic>>(
-          'admin/catalog/import',
-          data: form,
+          'admin/catalog/import-text',
+          data: {'csv': csv},
           options: Options(
-            sendTimeout: const Duration(minutes: 2),
             receiveTimeout: const Duration(minutes: 2),
           ),
         );
