@@ -389,14 +389,29 @@ class ApiClient {
     }
   }
 
-  Future<({int sourceRows, int upserted})> adminImportCatalog(List<int> bytes, String filename) async {
+  Future<({int sourceRows, int upserted})> adminImportCatalog(
+    List<int> bytes,
+    String filename, {
+    void Function(double fraction)? onSendProgress,
+    void Function()? onProcessing,
+  }) async {
     try {
+      var processingNotified = false;
       final form = FormData.fromMap({
         'file': MultipartFile.fromBytes(bytes, filename: filename),
       });
       final response = await _dio.post<Map<String, dynamic>>(
         'admin/catalog/import',
         data: form,
+        onSendProgress: (sent, total) {
+          if (total <= 0) return;
+          final fraction = (sent / total).clamp(0.0, 1.0);
+          onSendProgress?.call(fraction);
+          if (fraction >= 1.0 && !processingNotified) {
+            processingNotified = true;
+            onProcessing?.call();
+          }
+        },
         options: Options(
           sendTimeout: const Duration(minutes: 10),
           receiveTimeout: const Duration(minutes: 15),

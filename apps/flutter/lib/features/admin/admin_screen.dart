@@ -44,6 +44,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   Timer? _pollTimer;
 
+  bool _importing = false;
+
+  bool _importProcessing = false;
+
+  double _importSend = 0;
+
+  String? _importFileName;
+
+  String? _importResult;
+
   @override
 
   void initState() {
@@ -178,6 +188,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   Future<void> _importCatalog() async {
 
+    if (_importing) return;
+
     final picked = await FilePicker.platform.pickFiles(
 
       type: FileType.custom,
@@ -194,7 +206,21 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
     if (bytes == null || file == null) return;
 
-    setState(() => _message = '업로드 중… 몇 분 걸릴 수 있습니다.');
+    setState(() {
+
+      _importing = true;
+
+      _importProcessing = false;
+
+      _importSend = 0;
+
+      _importFileName = file.name;
+
+      _importResult = null;
+
+      _message = null;
+
+    });
 
     try {
 
@@ -204,13 +230,49 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
             file.name,
 
+            onSendProgress: (fraction) {
+
+              if (!mounted) return;
+
+              setState(() => _importSend = fraction);
+
+            },
+
+            onProcessing: () {
+
+              if (!mounted) return;
+
+              setState(() {
+
+                _importSend = 1;
+
+                _importProcessing = true;
+
+              });
+
+            },
+
           );
 
-      setState(() => _message = '반영 ${result.upserted}건 (원본 ${result.sourceRows}줄)');
+      if (!mounted) return;
+
+      final text = '반영 ${result.upserted}건 (원본 ${result.sourceRows}줄)';
+
+      setState(() => _importResult = text);
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
 
     } on ApiException catch (e) {
 
-      setState(() => _message = e.message);
+      if (!mounted) return;
+
+      setState(() => _importResult = e.message);
+
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+
+    } finally {
+
+      if (mounted) setState(() => _importing = false);
 
     }
 
@@ -378,17 +440,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
       const Divider(),
 
-      Text('카탈로그 CSV', style: Theme.of(context).textTheme.titleMedium),
+      _CatalogImportPanel(
 
-      const Text('data/mfds-catalog.csv 를 올리면 대표 상품이 채워집니다. 구매자 목록에는 오퍼가 있는 카드만 나옵니다.'),
+        importing: _importing,
 
-      const SizedBox(height: 8),
+        processing: _importProcessing,
 
-      FilledButton(
+        sendProgress: _importSend,
 
-        onPressed: _importCatalog,
+        fileName: _importFileName,
 
-        child: const Text('CSV 업로드'),
+        resultText: _importResult,
+
+        onUpload: _importCatalog,
 
       ),
 
@@ -523,5 +587,79 @@ class _StatCell extends StatelessWidget {
   }
 
 }
+
+class _CatalogImportPanel extends StatelessWidget {
+  const _CatalogImportPanel({
+    required this.importing,
+    required this.processing,
+    required this.sendProgress,
+    required this.onUpload,
+    this.fileName,
+    this.resultText,
+  });
+
+  final bool importing;
+  final bool processing;
+  final double sendProgress;
+  final String? fileName;
+  final String? resultText;
+  final VoidCallback onUpload;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final percent = (sendProgress * 100).round().clamp(0, 100);
+    final status = importing
+        ? (processing
+            ? '서버에 반영하는 중 — 창을 닫지 마세요. 몇 분 걸릴 수 있습니다.'
+            : '파일 전송 중 $percent%')
+        : (resultText ?? 'data/mfds-catalog.csv 를 올리면 대표 상품이 채워집니다. 구매자 목록에는 오퍼가 있는 카드만 나옵니다.');
+
+    return Card(
+      color: importing ? const Color(0xFFEFF6FF) : null,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('카탈로그 CSV', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            if (fileName != null)
+              Text(fileName!, style: theme.textTheme.bodySmall),
+            if (importing) ...[
+              const SizedBox(height: 8),
+              Text(
+                '$percent%',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.displaySmall?.copyWith(fontWeight: FontWeight.w700),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                processing ? '서버에 반영하는 중 — 창을 닫지 마세요.' : '파일 전송 중',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 12),
+              LinearProgressIndicator(value: sendProgress.clamp(0.0, 1.0)),
+            ] else
+              Text(status),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: importing ? null : onUpload,
+              icon: importing
+                  ? const SizedBox(
+                      width: 16,
+                      height: 16,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : const Icon(Icons.upload_file),
+              label: Text(importing ? '업로드 중 $percent%' : 'CSV 업로드'),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 
 
