@@ -44,6 +44,37 @@ def _iter_rows(text: str) -> Iterable[dict]:
         }
 
 
+def _merge_volume_options(*groups: list[str]) -> list[str]:
+    seen: set[str] = set()
+    merged: list[str] = []
+    for group in groups:
+        for item in group:
+            if item in seen:
+                continue
+            seen.add(item)
+            merged.append(item)
+    return merged
+
+
+def _dedupe_rows(rows: Iterable[dict]) -> list[dict]:
+    merged: dict[tuple[str, str, str], dict] = {}
+    for row in rows:
+        key = (row["manufacturer"], row["category"], row["title"])
+        prev = merged.get(key)
+        if prev is None:
+            merged[key] = row
+            continue
+        prev["volume_options"] = _merge_volume_options(
+            prev.get("volume_options") or [],
+            row.get("volume_options") or [],
+        )
+        if not prev.get("category_major"):
+            prev["category_major"] = row.get("category_major")
+        if not prev.get("category_mid"):
+            prev["category_mid"] = row.get("category_mid")
+    return list(merged.values())
+
+
 def import_catalog_csv(db: Session, content: bytes) -> dict[str, int]:
     text = content.decode("utf-8-sig")
     upserted = 0
@@ -67,8 +98,9 @@ def import_catalog_csv(db: Session, content: bytes) -> dict[str, int]:
         upserted += len(batch)
         batch = []
 
-    for row in _iter_rows(text):
-        source_rows += 1
+    raw_rows = list(_iter_rows(text))
+    source_rows = len(raw_rows)
+    for row in _dedupe_rows(raw_rows):
         batch.append(row)
         if len(batch) >= BATCH:
             flush()

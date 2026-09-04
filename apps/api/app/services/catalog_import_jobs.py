@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import threading
 import uuid
 from typing import Any
@@ -9,6 +10,7 @@ from sqlalchemy import text
 from app.database import SessionLocal
 from app.services.catalog_import import import_catalog_csv
 
+logger = logging.getLogger(__name__)
 _jobs: dict[str, dict[str, Any]] = {}
 _lock = threading.Lock()
 
@@ -51,6 +53,7 @@ def _run_import_job(job_id: str, csv_text: str) -> None:
         _update(job_id, status="done", source_rows=result["source_rows"], upserted=result["upserted"])
     except Exception as exc:
         db.rollback()
+        logger.exception("catalog import job %s failed", job_id)
         _update(job_id, status="error", error=_job_error_message(exc))
     finally:
         db.close()
@@ -60,4 +63,6 @@ def _job_error_message(exc: Exception) -> str:
     text_exc = str(exc).lower()
     if "lock timeout" in text_exc or "canceling statement" in text_exc:
         return "다른 작업이 끝나지 않았습니다. 초기화가 끝나면 다시 올리세요."
+    if "cannot affect row a second time" in text_exc:
+        return "같은 품목이 두 줄이라 반영하지 못했습니다."
     return "카탈로그 반영에 실패했습니다."
