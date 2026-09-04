@@ -27,10 +27,20 @@ def delete_catalog_and_offers(db: Session, catalog: CatalogProduct) -> None:
 
 
 def purge_catalogs_without_display_image(db: Session) -> int:
-    """Remove catalogs whose image_url is missing or not loadable on deployed web."""
+    """Remove catalogs with local `/images/...` paths that cannot load on web.
+
+    Missing `image_url` is kept — 식약처 CSV 카드는 이미지가 없다.
+    """
+    catalogs = db.scalars(
+        select(CatalogProduct).where(
+            CatalogProduct.image_url.isnot(None),
+            CatalogProduct.image_url.like("/%"),
+        )
+    ).all()
     removed = 0
-    for catalog in db.scalars(select(CatalogProduct)).all():
-        if catalog_image_is_displayable(catalog.image_url):
+    for catalog in catalogs:
+        url = (catalog.image_url or "").strip()
+        if catalog_image_is_displayable(url) or not url.startswith("/"):
             continue
         delete_catalog_and_offers(db, catalog)
         removed += 1

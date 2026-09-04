@@ -20,6 +20,12 @@ def test_purge_catalogs_without_display_image_removes_relative_paths():
         category="electronics",
         image_url="https://cdn.dummyjson.com/x.webp",
     )
+    mfds = CatalogProduct(
+        id=uuid4(),
+        title="배추김치",
+        category="김치",
+        image_url=None,
+    )
     drop = CatalogProduct(
         id=uuid4(),
         title="Water",
@@ -28,7 +34,7 @@ def test_purge_catalogs_without_display_image_removes_relative_paths():
     )
     db = MagicMock()
     db.scalars.return_value.all.side_effect = [
-        [keep, drop],
+        [keep, mfds, drop],
         [],
     ]
 

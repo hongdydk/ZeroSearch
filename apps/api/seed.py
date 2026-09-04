@@ -14,7 +14,6 @@ from app.config import get_settings
 from app.database import SessionLocal
 from app.deps import hash_password
 from app.models import CartItem, CatalogProduct, MembershipPlan, Product, Seller, User
-from app.services.catalog_cleanup import purge_catalogs_without_display_image
 from app.services.sellers import ensure_platform_seller
 
 # Optional local demo — not auto-seeded (images are /images/* paths; use import_dummyjson or add CDN URLs).
@@ -204,8 +203,6 @@ def ensure_catalog_seed(db: Session) -> None:
 
     platform_seller = ensure_platform_seller(db, admin_user)
     merchant_seller = ensure_merchant_seller(db)
-
-    purge_catalogs_without_display_image(db)
 
     products_without_seller = db.scalars(select(Product).where(Product.seller_id.is_(None))).all()
     for product in products_without_seller:
