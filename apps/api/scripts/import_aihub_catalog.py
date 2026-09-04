@@ -18,7 +18,15 @@ from pathlib import Path
 from app.database import SessionLocal
 from app.services.catalog_import import import_catalog_csv
 
-REPO_DEFAULT = Path(__file__).resolve().parents[3] / "data" / "aihub-catalog.csv"
+
+def _default_csv_path() -> Path:
+    """Repo checkout uses data/; Docker deploy mounts /import/aihub-catalog.csv."""
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        candidate = parent / "data" / "aihub-catalog.csv"
+        if candidate.is_file():
+            return candidate
+    return Path("/import/aihub-catalog.csv")
 
 
 def main() -> None:
@@ -27,7 +35,7 @@ def main() -> None:
         "csv_path",
         type=Path,
         nargs="?",
-        default=REPO_DEFAULT,
+        default=_default_csv_path(),
         help="path to aihub-catalog.csv",
     )
     args = parser.parse_args()
