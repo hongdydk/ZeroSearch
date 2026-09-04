@@ -88,3 +88,13 @@ class CatalogImportResponse(BaseModel):
 
 class CatalogImportTextRequest(BaseModel):
     csv: str = Field(min_length=1, max_length=4 * 1024 * 1024)
+
+
+class CatalogImportJobResponse(BaseModel):
+    job_id: str = Field(alias="jobId")
+    status: Literal["running", "done", "error"]
+    source_rows: int = Field(default=0, alias="sourceRows")
+    upserted: int = 0
+    error: str | None = None
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}

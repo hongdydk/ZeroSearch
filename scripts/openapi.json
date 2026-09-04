@@ -465,6 +465,50 @@
         "title": "CartUpdateRequest",
         "type": "object"
       },
+      "CatalogImportJobResponse": {
+        "properties": {
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          },
+          "jobId": {
+            "title": "Jobid",
+            "type": "string"
+          },
+          "sourceRows": {
+            "default": 0,
+            "title": "Sourcerows",
+            "type": "integer"
+          },
+          "status": {
+            "enum": [
+              "running",
+              "done",
+              "error"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "upserted": {
+            "default": 0,
+            "title": "Upserted",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "jobId",
+          "status"
+        ],
+        "title": "CatalogImportJobResponse",
+        "type": "object"
+      },
       "CatalogImportResponse": {
         "properties": {
           "sourceRows": {
@@ -1976,6 +2020,100 @@
           }
         ],
         "summary": "Import Catalog",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/import-jobs": {
+      "post": {
+        "operationId": "create_catalog_import_job_admin_catalog_import_jobs_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogImportTextRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogImportJobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Catalog Import Job",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/import-jobs/{job_id}": {
+      "get": {
+        "operationId": "read_catalog_import_job_admin_catalog_import_jobs__job_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogImportJobResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Catalog Import Job",
         "tags": [
           "admin"
         ]

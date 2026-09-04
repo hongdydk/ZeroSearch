@@ -392,7 +392,6 @@ class ApiClient {
 
   static const _importMaxBytes = 4 * 1024 * 1024;
   static const _importMaxRows = 20000;
-  static const _importChunkRows = 400;
 
   Future<({int sourceRows, int upserted})> adminImportCatalog(
     List<int> bytes,
@@ -413,7 +412,6 @@ class ApiClient {
     if (lines.isEmpty) {
       throw ApiException('빈 파일입니다.');
     }
-    final header = lines.first;
     final dataLines = [
       for (final line in lines.skip(1))
         if (line.trim().isNotEmpty) line,
@@ -425,35 +423,55 @@ class ApiClient {
       throw ApiException('데이터 행이 없습니다.');
     }
 
-    var sourceRows = 0;
-    var upserted = 0;
-    final chunkCount = (dataLines.length / _importChunkRows).ceil();
-    onProcessing?.call();
+    onSendProgress?.call(0);
     try {
-      for (var i = 0; i < chunkCount; i++) {
-        final start = i * _importChunkRows;
-        final end = (start + _importChunkRows).clamp(0, dataLines.length);
-        final csv = ([header, ...dataLines.sublist(start, end)]).join('\n');
-        onSendProgress?.call(i / chunkCount);
-        final response = await _dio.post<Map<String, dynamic>>(
-          'admin/catalog/import-text',
-          data: {'csv': csv},
-          options: Options(
-            receiveTimeout: const Duration(minutes: 2),
-          ),
-        );
-        final data = response.data ?? {};
-        sourceRows += data['sourceRows'] as int? ?? 0;
-        upserted += data['upserted'] as int? ?? 0;
-        onSendProgress?.call((i + 1) / chunkCount);
+      final started = await _dio.post<Map<String, dynamic>>(
+        'admin/catalog/import-jobs',
+        data: {'csv': text},
+      );
+      final jobId = started.data?['jobId'] as String?;
+      if (jobId == null || jobId.isEmpty) {
+        throw ApiException('가져오기 작업을 시작하지 못했습니다.');
       }
-      return (sourceRows: sourceRows, upserted: upserted);
+      onProcessing?.call();
+      onSendProgress?.call(0.15);
+
+      var pulse = 0.15;
+      final deadline = DateTime.now().add(const Duration(minutes: 10));
+      while (DateTime.now().isBefore(deadline)) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        final polled = await _dio.get<Map<String, dynamic>>(
+          'admin/catalog/import-jobs/$jobId',
+        );
+        final data = polled.data ?? {};
+        final status = data['status'] as String? ?? '';
+        final sourceRows = data['sourceRows'] as int? ?? 0;
+        final upserted = data['upserted'] as int? ?? 0;
+        if (sourceRows > 0) {
+          onSendProgress?.call((upserted / sourceRows).clamp(0.15, 0.99));
+        } else {
+          pulse = (pulse + 0.05).clamp(0.15, 0.9);
+          onSendProgress?.call(pulse);
+        }
+        if (status == 'done') {
+          onSendProgress?.call(1);
+          return (sourceRows: sourceRows, upserted: upserted);
+        }
+        if (status == 'error') {
+          throw ApiException(
+            data['error'] as String? ?? '카탈로그 반영에 실패했습니다.',
+          );
+        }
+      }
+      throw ApiException('반영이 너무 오래 걸립니다. 초기화가 끝나면 다시 올리세요.');
+    } on ApiException {
+      rethrow;
     } on DioException catch (e) {
       final mapped = _apiExceptionFromDio(e);
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.unknown) {
         throw ApiException(
-          '업로드 연결이 끊겼습니다. data/aihub-catalog.csv만 다시 올리세요.',
+          '업로드 연결이 끊겼습니다. 초기화가 끝난 뒤 data/aihub-catalog.csv만 다시 올리세요.',
         );
       }
       throw mapped;

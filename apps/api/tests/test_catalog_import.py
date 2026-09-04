@@ -79,6 +79,47 @@ def test_admin_catalog_import_text(client):
     mock_db.commit.assert_called_once()
 
 
+class _ImmediateThread:
+    def __init__(self, target, args=(), daemon=False):
+        self._target = target
+        self._args = args
+
+    def start(self):
+        self._target(*self._args)
+
+
+def test_admin_catalog_import_job(client):
+    admin = make_user(is_admin=True)
+    override_current_user(admin)
+    mock_db = MagicMock()
+    csv = "대분류,중분류,소분류,품목명,제조사,용량\n김,김치류,김치,나박김치,(주)거풍,100g\n"
+
+    with (
+        patch("app.services.catalog_import_jobs.threading.Thread", _ImmediateThread),
+        patch("app.services.catalog_import_jobs.SessionLocal", return_value=mock_db),
+        patch(
+            "app.services.catalog_import_jobs.import_catalog_csv",
+            return_value={"source_rows": 1, "upserted": 1},
+        ),
+    ):
+        created = client.post(
+            "/admin/catalog/import-jobs",
+            json={"csv": csv},
+            headers={"Authorization": "Bearer fake"},
+        )
+        assert created.status_code == 200
+        job_id = created.json()["jobId"]
+        polled = client.get(
+            f"/admin/catalog/import-jobs/{job_id}",
+            headers={"Authorization": "Bearer fake"},
+        )
+
+    assert polled.status_code == 200
+    assert polled.json()["status"] == "done"
+    assert polled.json()["upserted"] == 1
+    mock_db.commit.assert_called_once()
+
+
 def test_seller_catalog_search_requires_query(client):
     import uuid
     from datetime import UTC, datetime

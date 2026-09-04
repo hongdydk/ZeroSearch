@@ -26,9 +26,14 @@ from app.schemas.seller import (
     AdminOrderItemResponse,
     SellerOrderItemStatusUpdate,
 )
-from app.schemas.catalog_product import CatalogImportResponse, CatalogImportTextRequest
+from app.schemas.catalog_product import (
+    CatalogImportJobResponse,
+    CatalogImportResponse,
+    CatalogImportTextRequest,
+)
 from app.services.admin_db import RESET_CONFIRM, get_admin_stats, run_db_reset
 from app.services.catalog_import import import_catalog_csv
+from app.services.catalog_import_jobs import get_job, start_import_job
 from app.services.credits import grant_credits
 from app.services.seller_orders import (
     list_admin_order_items,
@@ -82,6 +87,25 @@ def import_catalog_text(
     result = import_catalog_csv(db, payload.csv.encode("utf-8"))
     db.commit()
     return CatalogImportResponse(**result)
+
+
+@router.post("/catalog/import-jobs", response_model=CatalogImportJobResponse)
+def create_catalog_import_job(
+    payload: CatalogImportTextRequest,
+    _: Annotated[User, Depends(require_admin)],
+) -> CatalogImportJobResponse:
+    return CatalogImportJobResponse(**start_import_job(payload.csv))
+
+
+@router.get("/catalog/import-jobs/{job_id}", response_model=CatalogImportJobResponse)
+def read_catalog_import_job(
+    job_id: UUID,
+    _: Annotated[User, Depends(require_admin)],
+) -> CatalogImportJobResponse:
+    job = get_job(str(job_id))
+    if job is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="가져오기 작업을 찾을 수 없습니다.")
+    return CatalogImportJobResponse(**job)
 
 
 @router.get("/users", response_model=AdminUserListResponse)
