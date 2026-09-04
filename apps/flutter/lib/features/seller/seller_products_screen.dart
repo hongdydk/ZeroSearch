@@ -5,6 +5,7 @@ import '../../core/format/price_format.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/app_providers.dart';
+import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 class SellerProductsScreen extends ConsumerStatefulWidget {
@@ -14,7 +15,7 @@ class SellerProductsScreen extends ConsumerStatefulWidget {
   ConsumerState<SellerProductsScreen> createState() => _SellerProductsScreenState();
 }
 
-class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
+class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> with AsyncBusyState {
   List<ProductModel> _products = [];
   bool _loading = true;
 
@@ -39,12 +40,13 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
   }
 
   Future<void> _openRegister() async {
+    if (isBusy('register')) return;
     final picked = await showDialog<CatalogProductModel>(
       context: context,
       builder: (ctx) => const _CatalogSearchDialog(),
     );
     if (picked == null || !mounted) return;
-    await _registerOffer(picked);
+    await runBusy('register', () => _registerOffer(picked));
   }
 
   Future<void> _registerOffer(CatalogProductModel catalog) async {
@@ -142,9 +144,9 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen> {
             children: [
               Expanded(child: Text('내 오퍼', style: Theme.of(context).textTheme.headlineSmall)),
               FilledButton.icon(
-                onPressed: _openRegister,
-                icon: const Icon(Icons.add),
-                label: const Text('등록'),
+                onPressed: isBusy('register') ? null : _openRegister,
+                icon: isBusy('register') ? busyProgress() : const Icon(Icons.add),
+                label: Text(isBusy('register') ? '등록 중…' : '등록'),
               ),
             ],
           ),
@@ -196,7 +198,7 @@ class _CatalogSearchDialogState extends ConsumerState<_CatalogSearchDialog> {
 
   Future<void> _search() async {
     final q = _q.text.trim();
-    if (q.isEmpty) return;
+    if (q.isEmpty || _loading) return;
     setState(() => _loading = true);
     try {
       final items = await ref.read(apiClientProvider).sellerSearchCatalog(q: q);
@@ -225,12 +227,15 @@ class _CatalogSearchDialogState extends ConsumerState<_CatalogSearchDialog> {
                 labelText: '품목·제조사·분류',
                 hintText: '김치, 만두, 풀무원',
               ),
-              onSubmitted: (_) => _search(),
+              onSubmitted: _loading ? null : (_) => _search(),
             ),
             const SizedBox(height: 8),
             Align(
               alignment: Alignment.centerRight,
-              child: FilledButton(onPressed: _search, child: const Text('검색')),
+              child: FilledButton(
+                onPressed: _loading ? null : _search,
+                child: Text(_loading ? '검색 중…' : '검색'),
+              ),
             ),
             const SizedBox(height: 8),
             Expanded(

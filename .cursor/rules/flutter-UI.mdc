@@ -22,6 +22,7 @@ globs:
 
 ## 페이지 본문
 
+- API를 치는 버튼은 응답이 오기 전에 `onPressed: null`로 막고 스피너·진행 문구를 보여 준다. 가드는 `lib/shared/widgets/async_busy.dart` (`AsyncBusyState`·`busyProgress`).
 - 콘텐츠 탭·필터는 **페이지 본문**만. 글로벌 AppBar에 탭·세컨더리 nav 금지.
 - 상품 상세(`/products/:id`)는 drill-down — `context.push`로 스택에 쌓는다.
 

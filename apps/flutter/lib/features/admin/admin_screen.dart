@@ -10,6 +10,7 @@ import '../../core/layout/ui_platform.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
+import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 
@@ -28,7 +29,7 @@ class AdminScreen extends ConsumerStatefulWidget {
 
 
 
-class _AdminScreenState extends ConsumerState<AdminScreen> {
+class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
   Map<String, dynamic>? _stats;
 
@@ -44,8 +45,6 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   Timer? _pollTimer;
 
-  bool _importing = false;
-
   bool _importProcessing = false;
 
   double _importSend = 0;
@@ -54,7 +53,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   String? _importResult;
 
-  bool _resetting = false;
+  bool get _resetting => isBusy('reset');
+
+  bool get _pageLocked => isBusy('reset') || isBusy('import');
 
   @override
 
@@ -135,27 +136,18 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
 
   Future<void> _advanceOrder(SellerOrderItemModel item) async {
-
     final next = nextFulfillmentStatus(item.fulfillmentStatus);
-
     if (next == null) return;
-
-    try {
-
-      await ref.read(apiClientProvider).adminUpdateOrderStatus(item.id, next);
-
-      await _loadOrders(silent: true);
-
-    } on ApiException catch (e) {
-
-      if (mounted) {
-
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-
+    await runBusy('order:${item.id}', () async {
+      try {
+        await ref.read(apiClientProvider).adminUpdateOrderStatus(item.id, next);
+        await _loadOrders(silent: true);
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        }
       }
-
-    }
-
+    });
   }
 
 
@@ -165,7 +157,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
   }
 
   Future<void> _reset() async {
-    if (_resetting) return;
+    if (_pageLocked) return;
     final wipe = _resetMode != 'seed';
     if (wipe) {
       final ok = await showDialog<bool>(
@@ -186,73 +178,76 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       if (ok != true) return;
     }
 
-    setState(() {
-      _resetting = true;
-      _message = _resetBusyLabel();
+    await runBusy('reset', () async {
+      setState(() => _message = _resetBusyLabel());
+      try {
+        final res = await ref.read(apiClientProvider).adminDbReset(_resetMode);
+        final text = res['message'] as String? ?? '완료했습니다.';
+        if (!mounted) return;
+        setState(() => _message = text);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+        await _load();
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        setState(() => _message = e.message);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      } catch (e) {
+        if (!mounted) return;
+        const text = '초기화에 실패했습니다.';
+        setState(() => _message = text);
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text(text)));
+      }
     });
-    try {
-      final res = await ref.read(apiClientProvider).adminDbReset(_resetMode);
-      final text = res['message'] as String? ?? '완료했습니다.';
-      if (!mounted) return;
-      setState(() => _message = text);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-      await _load();
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      setState(() => _message = e.message);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-    } catch (e) {
-      if (!mounted) return;
-      final text = '초기화에 실패했습니다.';
-      setState(() => _message = text);
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-    } finally {
-      if (mounted) setState(() => _resetting = false);
-    }
   }
 
   Future<void> _approveSeller(String sellerId) async {
-    try {
-      await ref.read(apiClientProvider).adminApproveSeller(sellerId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('입점을 승인했습니다.')));
-      await _load();
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    await runBusy('approve:$sellerId', () async {
+      try {
+        await ref.read(apiClientProvider).adminApproveSeller(sellerId);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('입점을 승인했습니다.')));
+        await _load();
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        }
       }
-    }
+    });
   }
 
   Future<void> _promoteUser(String userId) async {
-    try {
-      await ref.read(apiClientProvider).adminPromote(userId);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('관리자로 올렸습니다.')));
-      await _load();
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    await runBusy('user:$userId', () async {
+      try {
+        await ref.read(apiClientProvider).adminPromote(userId);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('관리자로 올렸습니다.')));
+        await _load();
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        }
       }
-    }
+    });
   }
 
   Future<void> _grantCredits(String userId) async {
-    try {
-      await ref.read(apiClientProvider).adminGrantCredits(userId, 100);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('크레딧 100을 지급했습니다.')));
-      await _load();
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    await runBusy('user:$userId', () async {
+      try {
+        await ref.read(apiClientProvider).adminGrantCredits(userId, 100);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('크레딧 100을 지급했습니다.')));
+        await _load();
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        }
       }
-    }
+    });
   }
 
   Future<void> _importCatalog() async {
 
-    if (_importing) return;
+    if (_pageLocked) return;
 
     final picked = await FilePicker.platform.pickFiles(
 
@@ -270,76 +265,40 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
     if (bytes == null || file == null) return;
 
-    setState(() {
-
-      _importing = true;
-
-      _importProcessing = false;
-
-      _importSend = 0;
-
-      _importFileName = file.name;
-
-      _importResult = null;
-
-      _message = null;
-
+    await runBusy('import', () async {
+      setState(() {
+        _importProcessing = false;
+        _importSend = 0;
+        _importFileName = file.name;
+        _importResult = null;
+        _message = null;
+      });
+      try {
+        final result = await ref.read(apiClientProvider).adminImportCatalog(
+              bytes,
+              file.name,
+              onSendProgress: (fraction) {
+                if (!mounted) return;
+                setState(() => _importSend = fraction);
+              },
+              onProcessing: () {
+                if (!mounted) return;
+                setState(() {
+                  _importSend = 1;
+                  _importProcessing = true;
+                });
+              },
+            );
+        if (!mounted) return;
+        final text = '반영 ${result.upserted}건 (원본 ${result.sourceRows}줄)';
+        setState(() => _importResult = text);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        setState(() => _importResult = e.message);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
     });
-
-    try {
-
-      final result = await ref.read(apiClientProvider).adminImportCatalog(
-
-            bytes,
-
-            file.name,
-
-            onSendProgress: (fraction) {
-
-              if (!mounted) return;
-
-              setState(() => _importSend = fraction);
-
-            },
-
-            onProcessing: () {
-
-              if (!mounted) return;
-
-              setState(() {
-
-                _importSend = 1;
-
-                _importProcessing = true;
-
-              });
-
-            },
-
-          );
-
-      if (!mounted) return;
-
-      final text = '반영 ${result.upserted}건 (원본 ${result.sourceRows}줄)';
-
-      setState(() => _importResult = text);
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
-
-    } on ApiException catch (e) {
-
-      if (!mounted) return;
-
-      setState(() => _importResult = e.message);
-
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-
-    } finally {
-
-      if (mounted) setState(() => _importing = false);
-
-    }
-
   }
 
 
@@ -440,9 +399,9 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
             trailing: FilledButton(
 
-              onPressed: () => _approveSeller(s.id),
+              onPressed: _pageLocked || isBusy('approve:${s.id}') ? null : () => _approveSeller(s.id),
 
-              child: const Text('승인'),
+              child: isBusy('approve:${s.id}') ? busyProgress() : const Text('승인'),
 
             ),
 
@@ -490,9 +449,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
                   : TextButton(
 
-                      onPressed: () => _advanceOrder(item),
+                      onPressed: _pageLocked || isBusy('order:${item.id}') ? null : () => _advanceOrder(item),
 
-                      child: Text(nextFulfillmentActionLabel(item.fulfillmentStatus)),
+                      child: isBusy('order:${item.id}')
+                          ? busyProgress()
+                          : Text(nextFulfillmentActionLabel(item.fulfillmentStatus)),
 
                     ),
 
@@ -506,7 +467,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
       _CatalogImportPanel(
 
-        importing: _importing,
+        importing: isBusy('import'),
+        locked: _pageLocked,
 
         processing: _importProcessing,
 
@@ -535,10 +497,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           DropdownMenuItem(value: 'truncate_except_users', child: Text('사용자 제외 초기화 (카탈로그 삭제)')),
           DropdownMenuItem(value: 'truncate_all', child: Text('전체 초기화')),
         ],
-        onChanged: _resetting ? null : (v) => setState(() => _resetMode = v ?? 'seed'),
+        onChanged: _pageLocked ? null : (v) => setState(() => _resetMode = v ?? 'seed'),
       ),
       FilledButton.icon(
-        onPressed: _resetting ? null : _reset,
+        onPressed: _pageLocked ? null : _reset,
         icon: _resetting
             ? const SizedBox(
                 width: 16,
@@ -573,17 +535,21 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
               IconButton(
 
-                icon: const Icon(Icons.star),
+                icon: isBusy('user:${u['id']}') ? busyProgress() : const Icon(Icons.star),
 
-                onPressed: () => _promoteUser(u['id'] as String),
+                onPressed: _pageLocked || isBusy('user:${u['id']}')
+                    ? null
+                    : () => _promoteUser(u['id'] as String),
 
               ),
 
               IconButton(
 
-                icon: const Icon(Icons.monetization_on),
+                icon: isBusy('user:${u['id']}') ? busyProgress() : const Icon(Icons.monetization_on),
 
-                onPressed: () => _grantCredits(u['id'] as String),
+                onPressed: _pageLocked || isBusy('user:${u['id']}')
+                    ? null
+                    : () => _grantCredits(u['id'] as String),
 
               ),
 
@@ -663,12 +629,14 @@ class _CatalogImportPanel extends StatelessWidget {
     required this.processing,
     required this.sendProgress,
     required this.onUpload,
+    this.locked = false,
     this.fileName,
     this.resultText,
   });
 
   final bool importing;
   final bool processing;
+  final bool locked;
   final double sendProgress;
   final String? fileName;
   final String? resultText;
@@ -713,14 +681,8 @@ class _CatalogImportPanel extends StatelessWidget {
               Text(status),
             const SizedBox(height: 12),
             FilledButton.icon(
-              onPressed: importing ? null : onUpload,
-              icon: importing
-                  ? const SizedBox(
-                      width: 16,
-                      height: 16,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
-                  : const Icon(Icons.upload_file),
+              onPressed: importing || locked ? null : onUpload,
+              icon: importing ? busyProgress() : const Icon(Icons.upload_file),
               label: Text(importing ? '업로드 중 $percent%' : 'CSV 업로드'),
             ),
           ],

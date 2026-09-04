@@ -8,6 +8,7 @@ import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
+import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 class SellerOrdersScreen extends ConsumerStatefulWidget {
@@ -17,7 +18,7 @@ class SellerOrdersScreen extends ConsumerStatefulWidget {
   ConsumerState<SellerOrdersScreen> createState() => _SellerOrdersScreenState();
 }
 
-class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
+class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> with AsyncBusyState {
   List<SellerOrderItemModel> _items = [];
   bool _loading = true;
   Timer? _pollTimer;
@@ -52,15 +53,16 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
   Future<void> _advance(SellerOrderItemModel item) async {
     final next = nextFulfillmentStatus(item.fulfillmentStatus);
     if (next == null) return;
-
-    try {
-      await ref.read(apiClientProvider).sellerUpdateOrderStatus(item.id, next);
-      await _load(silent: true);
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    await runBusy('order:${item.id}', () async {
+      try {
+        await ref.read(apiClientProvider).sellerUpdateOrderStatus(item.id, next);
+        await _load(silent: true);
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+        }
       }
-    }
+    });
   }
 
   @override
@@ -87,8 +89,10 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen> {
                   trailing: nextFulfillmentStatus(item.fulfillmentStatus) == null
                       ? null
                       : TextButton(
-                          onPressed: () => _advance(item),
-                          child: Text(nextFulfillmentActionLabel(item.fulfillmentStatus)),
+                          onPressed: isBusy('order:${item.id}') ? null : () => _advance(item),
+                          child: isBusy('order:${item.id}')
+                              ? busyProgress()
+                              : Text(nextFulfillmentActionLabel(item.fulfillmentStatus)),
                         ),
                 ),
               ),

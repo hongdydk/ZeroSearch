@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/format/price_format.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
+import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 class CartScreen extends ConsumerStatefulWidget {
@@ -14,31 +15,35 @@ class CartScreen extends ConsumerStatefulWidget {
   ConsumerState<CartScreen> createState() => _CartScreenState();
 }
 
-class _CartScreenState extends ConsumerState<CartScreen> {
+class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
   bool _checkingOut = false;
 
   Future<void> _updateQty(String productId, int qty) async {
-    try {
-      await ref.read(apiClientProvider).updateCartItem(productId, qty);
-      ref.invalidate(cartProvider);
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
-      );
-    }
+    await runBusy('cart:$productId', () async {
+      try {
+        await ref.read(apiClientProvider).updateCartItem(productId, qty);
+        ref.invalidate(cartProvider);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
+        );
+      }
+    });
   }
 
   Future<void> _remove(String productId) async {
-    try {
-      await ref.read(apiClientProvider).removeFromCart(productId);
-      ref.invalidate(cartProvider);
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
-      );
-    }
+    await runBusy('cart:$productId', () async {
+      try {
+        await ref.read(apiClientProvider).removeFromCart(productId);
+        ref.invalidate(cartProvider);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
+        );
+      }
+    });
   }
 
   Future<void> _checkout() async {
@@ -93,32 +98,37 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               Text('장바구니', style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 16),
               ...cart.items.map(
-                (item) => Card(
-                  child: ListTile(
-                    title: Text(item.productTitle),
-                    subtitle: Text(formatWonLine(item.priceCredits, item.qty)),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.remove),
-                          onPressed: item.qty > 1
-                              ? () => _updateQty(item.productId, item.qty - 1)
-                              : null,
-                        ),
-                        Text('${item.qty}'),
-                        IconButton(
-                          icon: const Icon(Icons.add),
-                          onPressed: () => _updateQty(item.productId, item.qty + 1),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.delete_outline),
-                          onPressed: () => _remove(item.productId),
-                        ),
-                      ],
+                (item) {
+                  final rowBusy = isBusy('cart:${item.productId}') || _checkingOut;
+                  return Card(
+                    child: ListTile(
+                      title: Text(item.productTitle),
+                      subtitle: Text(formatWonLine(item.priceCredits, item.qty)),
+                      trailing: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          IconButton(
+                            icon: const Icon(Icons.remove),
+                            onPressed: rowBusy || item.qty <= 1
+                                ? null
+                                : () => _updateQty(item.productId, item.qty - 1),
+                          ),
+                          Text('${item.qty}'),
+                          IconButton(
+                            icon: const Icon(Icons.add),
+                            onPressed: rowBusy
+                                ? null
+                                : () => _updateQty(item.productId, item.qty + 1),
+                          ),
+                          IconButton(
+                            icon: rowBusy ? busyProgress() : const Icon(Icons.delete_outline),
+                            onPressed: rowBusy ? null : () => _remove(item.productId),
+                          ),
+                        ],
+                      ),
                     ),
-                  ),
-                ),
+                  );
+                },
               ),
               const SizedBox(height: 16),
               Text(
@@ -127,7 +137,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
               ),
               const SizedBox(height: 16),
               FilledButton(
-                onPressed: _checkingOut ? null : _checkout,
+                onPressed: _checkingOut || isBusy() ? null : _checkout,
                 child: Text(_checkingOut ? '결제 중…' : '주문하기'),
               ),
             ],

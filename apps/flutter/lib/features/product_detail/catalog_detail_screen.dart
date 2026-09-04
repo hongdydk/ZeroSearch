@@ -24,6 +24,7 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
   String? _loadingOfferId;
 
   Future<void> _addToCart(String offerId) async {
+    if (_loadingOfferId != null) return;
     final auth = ref.read(authStateProvider).valueOrNull;
     if (auth?.isLoggedIn != true) {
       if (!mounted) return;
@@ -143,7 +144,9 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
                         ),
                         const SizedBox(width: 8),
                         FilledButton(
-                          onPressed: loading || offer.stock < 1 ? null : () => _addToCart(offer.id),
+                          onPressed: _loadingOfferId != null || offer.stock < 1
+                              ? null
+                              : () => _addToCart(offer.id),
                           child: loading
                               ? const SizedBox(
                                   width: 16,

@@ -17,6 +17,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
   String? _subscribingSlug;
 
   Future<void> _subscribe(String slug) async {
+    if (_subscribingSlug != null) return;
     setState(() => _subscribingSlug = slug);
     try {
       await ref.read(apiClientProvider).subscribe(slug);
@@ -91,7 +92,7 @@ class _MembershipScreenState extends ConsumerState<MembershipScreen> {
                     trailing: plan.slug == 'free'
                         ? const Text('기본')
                         : FilledButton(
-                            onPressed: loading ? null : () => _subscribe(plan.slug),
+                            onPressed: _subscribingSlug != null ? null : () => _subscribe(plan.slug),
                             child: Text(loading ? '처리 중…' : '구독'),
                           ),
                   ),
