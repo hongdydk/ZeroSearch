@@ -142,8 +142,8 @@ void main() {
     expect(find.widgetWithText(PopupMenuItem<String>, '주문'), findsOneWidget);
     expect(find.widgetWithText(PopupMenuItem<String>, '멤버십'), findsOneWidget);
     expect(find.widgetWithText(PopupMenuItem<String>, '설정'), findsOneWidget);
-    expect(find.widgetWithText(PopupMenuItem<String>, '판매자 센터'), findsNothing);
-    expect(find.widgetWithText(PopupMenuItem<String>, '관리자'), findsNothing);
+    expect(find.widgetWithText(PopupMenuItem<String>, '판매자 센터'), findsOneWidget);
+    expect(find.widgetWithText(PopupMenuItem<String>, '관리자'), findsOneWidget);
     expect(find.widgetWithText(PopupMenuItem<String>, '로그아웃'), findsOneWidget);
   });
 

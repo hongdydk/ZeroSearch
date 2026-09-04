@@ -98,6 +98,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               child: const Text('회원가입'),
             ),
+          if (portal == LoginPortal.buyer) ...[
+            TextButton(
+              onPressed: () => context.go('/seller'),
+              child: const Text('판매자 센터'),
+            ),
+            TextButton(
+              onPressed: () => context.go('/admin'),
+              child: const Text('관리자'),
+            ),
+          ],
         ],
       ),
     );

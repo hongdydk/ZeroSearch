@@ -261,6 +261,9 @@ class _ServicesMenu extends ConsumerWidget {
         const PopupMenuItem(value: '/orders', child: Text('주문')),
         const PopupMenuItem(value: '/membership', child: Text('멤버십')),
         const PopupMenuItem(value: '/settings', child: Text('설정')),
+        const PopupMenuDivider(),
+        const PopupMenuItem(value: '/seller', child: Text('판매자 센터')),
+        const PopupMenuItem(value: '/admin', child: Text('관리자')),
         if (auth?.isLoggedIn == true)
           const PopupMenuItem(value: 'logout', child: Text('로그아웃')),
       ],
