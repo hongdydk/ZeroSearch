@@ -647,10 +647,9 @@ class _CatalogImportPanel extends StatelessWidget {
     final theme = Theme.of(context);
     final percent = (sendProgress * 100).round().clamp(0, 100);
     final status = importing
-        ? (processing
-            ? '서버에 반영하는 중 — 창을 닫지 마세요. 몇 분 걸릴 수 있습니다.'
-            : '파일 전송 중 $percent%')
-        : (resultText ?? 'data/aihub-catalog.csv 를 올리면 대표 상품이 채워집니다. 구매자 목록에는 오퍼가 있는 카드만 나옵니다.');
+        ? '카탈로그에 넣는 중 $percent% — 창을 닫지 마세요.'
+        : (resultText ??
+            'data/aihub-catalog.csv만 올리세요. 식약처 원본·mfds 30만 줄은 여기서 올리면 연결이 끊깁니다.');
 
     return Card(
       color: importing ? const Color(0xFFEFF6FF) : null,
@@ -672,7 +671,7 @@ class _CatalogImportPanel extends StatelessWidget {
               ),
               const SizedBox(height: 4),
               Text(
-                processing ? '서버에 반영하는 중 — 창을 닫지 마세요.' : '파일 전송 중',
+                '카탈로그에 넣는 중 — 창을 닫지 마세요.',
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 12),

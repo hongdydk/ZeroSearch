@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:dio/dio.dart';
 import 'package:built_value/serializer.dart';
 import 'package:shopping_mall_api/shopping_mall_api.dart' as gen;
@@ -78,9 +80,10 @@ class ApiClient {
         e.type == DioExceptionType.connectionTimeout) {
       return ApiException('요청 시간이 초과되었습니다. 잠시 후 다시 시도하세요.');
     }
-    if (e.type == DioExceptionType.connectionError) {
+    if (e.type == DioExceptionType.connectionError ||
+        e.type == DioExceptionType.unknown) {
       return ApiException(
-        'API 서버에 연결할 수 없습니다 (${ApiConfig.baseUrl}). 서버가 실행 중인지 확인하세요.',
+        '연결이 끊겼습니다. 서버가 꺼진 것은 아닐 수 있습니다. 요청이 길면 다시 시도하세요.',
       );
     }
     final status = e.response?.statusCode;
@@ -388,41 +391,77 @@ class ApiClient {
     }
   }
 
+  static const _importMaxBytes = 4 * 1024 * 1024;
+  static const _importMaxRows = 20000;
+  static const _importChunkRows = 400;
+
   Future<({int sourceRows, int upserted})> adminImportCatalog(
     List<int> bytes,
     String filename, {
     void Function(double fraction)? onSendProgress,
     void Function()? onProcessing,
   }) async {
+    if (bytes.length > _importMaxBytes) {
+      throw ApiException('파일이 너무 큽니다. data/aihub-catalog.csv만 올리세요.');
+    }
+    late final String text;
     try {
-      var processingNotified = false;
-      final form = FormData.fromMap({
-        'file': MultipartFile.fromBytes(bytes, filename: filename),
-      });
-      final response = await _dio.post<Map<String, dynamic>>(
-        'admin/catalog/import',
-        data: form,
-        onSendProgress: (sent, total) {
-          if (total <= 0) return;
-          final fraction = (sent / total).clamp(0.0, 1.0);
-          onSendProgress?.call(fraction);
-          if (fraction >= 1.0 && !processingNotified) {
-            processingNotified = true;
-            onProcessing?.call();
-          }
-        },
-        options: Options(
-          sendTimeout: const Duration(minutes: 10),
-          receiveTimeout: const Duration(minutes: 15),
-        ),
-      );
-      final data = response.data ?? {};
-      return (
-        sourceRows: data['sourceRows'] as int? ?? 0,
-        upserted: data['upserted'] as int? ?? 0,
-      );
+      text = utf8.decode(bytes);
+    } on FormatException {
+      throw ApiException('CSV는 UTF-8이어야 합니다.');
+    }
+    final lines = const LineSplitter().convert(text);
+    if (lines.isEmpty) {
+      throw ApiException('빈 파일입니다.');
+    }
+    final header = lines.first;
+    final dataLines = [
+      for (final line in lines.skip(1))
+        if (line.trim().isNotEmpty) line,
+    ];
+    if (dataLines.length > _importMaxRows) {
+      throw ApiException('행이 너무 많습니다. data/aihub-catalog.csv만 올리세요.');
+    }
+    if (dataLines.isEmpty) {
+      throw ApiException('데이터 행이 없습니다.');
+    }
+
+    var sourceRows = 0;
+    var upserted = 0;
+    final chunkCount = (dataLines.length / _importChunkRows).ceil();
+    onProcessing?.call();
+    try {
+      for (var i = 0; i < chunkCount; i++) {
+        final start = i * _importChunkRows;
+        final end = (start + _importChunkRows).clamp(0, dataLines.length);
+        final csv = ([header, ...dataLines.sublist(start, end)]).join('\n');
+        final form = FormData.fromMap({
+          'file': MultipartFile.fromBytes(utf8.encode(csv), filename: filename),
+        });
+        onSendProgress?.call(i / chunkCount);
+        final response = await _dio.post<Map<String, dynamic>>(
+          'admin/catalog/import',
+          data: form,
+          options: Options(
+            sendTimeout: const Duration(minutes: 2),
+            receiveTimeout: const Duration(minutes: 2),
+          ),
+        );
+        final data = response.data ?? {};
+        sourceRows += data['sourceRows'] as int? ?? 0;
+        upserted += data['upserted'] as int? ?? 0;
+        onSendProgress?.call((i + 1) / chunkCount);
+      }
+      return (sourceRows: sourceRows, upserted: upserted);
     } on DioException catch (e) {
-      throw _apiExceptionFromDio(e);
+      final mapped = _apiExceptionFromDio(e);
+      if (e.type == DioExceptionType.connectionError ||
+          e.type == DioExceptionType.unknown) {
+        throw ApiException(
+          '업로드 연결이 끊겼습니다. data/aihub-catalog.csv만 다시 올리세요.',
+        );
+      }
+      throw mapped;
     }
   }
 

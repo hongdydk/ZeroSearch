@@ -40,6 +40,22 @@ def test_admin_catalog_import(client):
     mock_db.commit.assert_called_once()
 
 
+def test_admin_catalog_import_rejects_large_file(client):
+    admin = make_user(is_admin=True)
+    override_current_user(admin)
+    override_db(MagicMock())
+    huge = b"x" * (4 * 1024 * 1024 + 1)
+
+    response = client.post(
+        "/admin/catalog/import",
+        files={"file": ("big.csv", huge, "text/csv")},
+        headers={"Authorization": "Bearer fake"},
+    )
+
+    assert response.status_code == 400
+    assert "너무 큽니다" in response.json()["detail"]
+
+
 def test_seller_catalog_search_requires_query(client):
     import uuid
     from datetime import UTC, datetime

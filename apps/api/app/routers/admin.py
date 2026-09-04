@@ -49,6 +49,9 @@ def admin_stats(
     return AdminStatsResponse(**stats)
 
 
+_MAX_CATALOG_CSV_BYTES = 4 * 1024 * 1024
+
+
 @router.post("/catalog/import", response_model=CatalogImportResponse)
 async def import_catalog(
     _: Annotated[User, Depends(require_admin)],
@@ -60,6 +63,11 @@ async def import_catalog(
     content = await file.read()
     if not content:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="빈 파일입니다.")
+    if len(content) > _MAX_CATALOG_CSV_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="파일이 너무 큽니다. data/aihub-catalog.csv만 올리세요.",
+        )
     result = import_catalog_csv(db, content)
     db.commit()
     return CatalogImportResponse(**result)
