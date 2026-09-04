@@ -12,8 +12,8 @@ class MallInfoBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: const Color(0xFFEFF6FF),
-        border: Border.all(color: const Color(0xFFBFDBFE)),
+        color: const Color(0xFFEFF5F5),
+        border: Border.all(color: const Color(0xFFB7D0D1)),
         borderRadius: BorderRadius.circular(8),
       ),
       child: Text(
@@ -21,7 +21,7 @@ class MallInfoBanner extends StatelessWidget {
         style: const TextStyle(
           fontSize: 13,
           height: 1.45,
-          color: Color(0xFF1E40AF),
+          color: Color(0xFF074A4E),
         ),
       ),
     );

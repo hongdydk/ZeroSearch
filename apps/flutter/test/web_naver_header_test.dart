@@ -22,18 +22,35 @@ class _HeaderTestApiClient extends ApiClient {
       );
 
   @override
-  Future<List<ProductModel>> products({int offset = 0, int limit = 50}) async => [
-        ProductModel(
-          id: 'prod-1',
-          title: 'Test Product',
-          priceCredits: 100,
-          stock: 5,
-          category: '테스트',
-          seller: SellerSummaryModel(
-            id: 'seller-1',
-            shopName: 'Test Shop',
-            sellerType: 'merchant',
-          ),
+  Future<List<CatalogProductModel>> catalogProducts({
+    String? q,
+    String? category,
+    String? flavor,
+    int? volumeMlMin,
+    int? volumeMlMax,
+    int offset = 0,
+    int limit = 50,
+  }) async =>
+      [
+        CatalogProductModel(
+          id: 'cat-1',
+          title: '백산수',
+          manufacturer: '농심',
+          category: '생수',
+          offerCount: 3,
+          priceUnit: 'ml',
+          displayPriceLabel: 'L당 420',
+          medianUnitPrice: 0.42,
+        ),
+        CatalogProductModel(
+          id: 'cat-2',
+          title: '떡갈비',
+          manufacturer: '농심',
+          category: '떡갈비',
+          offerCount: 2,
+          priceUnit: 'credits',
+          displayPriceLabel: '890',
+          medianPriceCredits: 890,
         ),
       ];
 }
@@ -169,7 +186,8 @@ void main() {
 
     expect(find.byType(AppBar), findsNothing);
     expect(find.text('제로 서치'), findsOneWidget);
-    expect(find.text('상품명·카테고리 검색'), findsOneWidget);
-    expect(find.text('Test Product'), findsWidgets);
+    expect(find.text('밥, 떡, 쌀…'), findsOneWidget);
+    expect(find.text('식탁'), findsWidgets);
+    expect(find.text('생수'), findsWidgets);
   });
 }

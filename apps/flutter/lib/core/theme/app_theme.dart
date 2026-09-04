@@ -4,12 +4,21 @@ import '../layout/ui_platform.dart';
 import 'mall_tokens.dart';
 
 class AppTheme {
+  static const Color brandTeal = Color(0xFF074A4E);
+  static const Color priceBurgundy = Color(0xFF872022);
+
   static ThemeData forPlatform() => isWebUi ? web() : mall();
 
   static ThemeData web() {
-    const seed = Color(0xFF2563EB);
+    final scheme = ColorScheme.fromSeed(
+      seedColor: brandTeal,
+      brightness: Brightness.light,
+    ).copyWith(
+      primary: brandTeal,
+      tertiary: priceBurgundy,
+    );
     return ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light),
+      colorScheme: scheme,
       scaffoldBackgroundColor: mallWebCanvasColor,
       useMaterial3: true,
       dividerColor: const Color(0xFFE5E7EB),
@@ -40,9 +49,16 @@ class AppTheme {
   }
 
   static ThemeData mall() {
-    const seed = Color(0xFF2563EB);
+    final scheme = ColorScheme.fromSeed(
+      seedColor: brandTeal,
+      brightness: Brightness.light,
+    ).copyWith(
+      primary: brandTeal,
+      tertiary: priceBurgundy,
+    );
     return ThemeData(
-      colorScheme: ColorScheme.fromSeed(seedColor: seed, brightness: Brightness.light),
+      colorScheme: scheme,
+      scaffoldBackgroundColor: Colors.white,
       useMaterial3: true,
       appBarTheme: const AppBarTheme(centerTitle: false),
       inputDecorationTheme: const InputDecorationTheme(

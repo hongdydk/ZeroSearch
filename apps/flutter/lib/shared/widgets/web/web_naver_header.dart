@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/providers/app_providers.dart';
+import '../../../core/theme/app_theme.dart';
 
 /// 목업(report/mockup) 헤더 — brand · 검색 · 장바구니 · 로그인 · ≡
 class WebNaverHeader extends ConsumerWidget {
@@ -17,14 +18,15 @@ class WebNaverHeader extends ConsumerWidget {
 
   bool get _isHome => location == '/';
 
+  static const _onTealMuted = Color(0xFFD5E2E0);
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authStateProvider).valueOrNull;
-    final theme = Theme.of(context);
     final hPad = compact ? 12.0 : 20.0;
 
     return ColoredBox(
-      color: Colors.white,
+      color: AppTheme.brandTeal,
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -56,7 +58,6 @@ class WebNaverHeader extends ConsumerWidget {
                         : null,
                   ),
           ),
-          Divider(height: 1, thickness: 1, color: theme.dividerColor),
         ],
       ),
     );
@@ -79,7 +80,11 @@ class _TopRow extends ConsumerWidget {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
-        _BrandBlock(onBrandTap: () => context.go('/')),
+        _BrandBlock(onBrandTap: () {
+          ref.read(catalogSearchProvider.notifier).state = '';
+          ref.read(catalogCategoryProvider.notifier).state = null;
+          context.go('/');
+        }),
         if (showSearch && search != null) ...[
           const SizedBox(width: 12),
           Expanded(child: search!),
@@ -89,7 +94,7 @@ class _TopRow extends ConsumerWidget {
         TextButton(
           onPressed: () => context.go('/cart'),
           style: TextButton.styleFrom(
-            foregroundColor: const Color(0xFF6B7280),
+            foregroundColor: WebNaverHeader._onTealMuted,
             padding: const EdgeInsets.symmetric(horizontal: 10),
           ),
           child: const Text('장바구니'),
@@ -112,13 +117,13 @@ class _BrandBlock extends StatelessWidget {
     return InkWell(
       onTap: onBrandTap,
       borderRadius: BorderRadius.circular(4),
-      child: Text(
+      child: const Text(
         '제로 서치',
         style: TextStyle(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           letterSpacing: -0.3,
-          color: Theme.of(context).colorScheme.primary,
+          color: Colors.white,
         ),
       ),
     );
@@ -163,37 +168,33 @@ class _CatalogSearchFieldState extends State<_CatalogSearchField> {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: TextField(
-            controller: _controller,
-            decoration: InputDecoration(
-              hintText: '상품명·카테고리 검색',
-              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              enabledBorder: OutlineInputBorder(
-                borderSide: const BorderSide(color: Color(0xFFE5E7EB)),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              focusedBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Theme.of(context).colorScheme.primary),
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onChanged: widget.onChanged,
-            onSubmitted: widget.onChanged,
-          ),
+    return TextField(
+      controller: _controller,
+      style: const TextStyle(color: Colors.white, fontSize: 14),
+      cursorColor: Colors.white,
+      decoration: InputDecoration(
+        hintText: '밥, 떡, 쌀…',
+        hintStyle: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 14),
+        prefixIcon: Icon(Icons.search, color: Colors.white.withValues(alpha: 0.85), size: 20),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        filled: true,
+        fillColor: Colors.white.withValues(alpha: 0.14),
+        isDense: true,
+        enabledBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+          borderRadius: BorderRadius.circular(999),
         ),
-        const SizedBox(width: 8),
-        FilledButton(
-          onPressed: () => widget.onChanged(_controller.text),
-          style: FilledButton.styleFrom(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-          ),
-          child: const Text('검색'),
+        focusedBorder: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.7)),
+          borderRadius: BorderRadius.circular(999),
         ),
-      ],
+        border: OutlineInputBorder(
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.35)),
+          borderRadius: BorderRadius.circular(999),
+        ),
+      ),
+      onChanged: widget.onChanged,
+      onSubmitted: widget.onChanged,
     );
   }
 }
@@ -209,7 +210,7 @@ class _AuthBlock extends ConsumerWidget {
       return TextButton(
         onPressed: () => context.go('/login'),
         style: TextButton.styleFrom(
-          foregroundColor: const Color(0xFF6B7280),
+          foregroundColor: WebNaverHeader._onTealMuted,
           padding: const EdgeInsets.symmetric(horizontal: 10),
         ),
         child: const Text('로그인'),
@@ -233,7 +234,7 @@ class _LoggedInBlock extends StatelessWidget {
     return TextButton(
       onPressed: () => context.go('/settings'),
       style: TextButton.styleFrom(
-        foregroundColor: const Color(0xFF6B7280),
+        foregroundColor: WebNaverHeader._onTealMuted,
         padding: const EdgeInsets.symmetric(horizontal: 10),
       ),
       child: Text(label),
@@ -269,7 +270,7 @@ class _ServicesMenu extends ConsumerWidget {
       ],
       child: const Padding(
         padding: EdgeInsets.all(8),
-        child: Text('≡', style: TextStyle(fontSize: 18, color: Color(0xFF6B7280))),
+        child: Text('≡', style: TextStyle(fontSize: 18, color: Color(0xFFD5E2E0))),
       ),
     );
   }
