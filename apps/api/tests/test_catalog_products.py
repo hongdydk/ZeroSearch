@@ -4,10 +4,17 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from fastapi import HTTPException
+from sqlalchemy import select
+from sqlalchemy.dialects import postgresql
 
 from app.models import CatalogProduct, Product, Seller
 from app.schemas.catalog_product import CatalogProductListItem
-from app.services.catalog_products import _aggregate_offers, get_catalog_product, list_catalog_products
+from app.services.catalog_products import (
+    _aggregate_offers,
+    _catalog_search_filter,
+    get_catalog_product,
+    list_catalog_products,
+)
 from tests.factories import override_db
 
 
@@ -93,6 +100,13 @@ def test_aggregate_median_credits_fallback():
     assert median_credits == 45
     assert price_unit == "credits"
     assert label == "크레딧(보통)"
+
+
+def test_catalog_search_filter_compiles_for_query():
+    stmt = select(CatalogProduct).where(*_catalog_search_filter("김치", None))
+    sql = str(stmt.compile(dialect=postgresql.dialect()))
+    assert "ILIKE" in sql.upper()
+    assert "search_keywords" in sql
 
 
 def test_list_catalog_products(client):

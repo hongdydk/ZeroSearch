@@ -2,7 +2,7 @@ from statistics import median
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import exists, func, or_, select
+from sqlalchemy import Text, cast, exists, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import CatalogProduct, Product, Seller
@@ -66,7 +66,7 @@ def _catalog_search_filter(q: str | None, category: str | None):
                 CatalogProduct.category_major.ilike(pattern),
                 CatalogProduct.category_mid.ilike(pattern),
                 CatalogProduct.description.ilike(pattern),
-                CatalogProduct.search_keywords.astext.ilike(pattern),
+                cast(CatalogProduct.search_keywords, Text).ilike(pattern),
             )
         )
     if category:
