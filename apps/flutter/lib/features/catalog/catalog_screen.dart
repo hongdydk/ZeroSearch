@@ -207,38 +207,66 @@ class _LandingViewState extends State<_LandingView> {
         .toList();
 
     return ListView(
-      padding: widget.padding,
+      padding: EdgeInsets.zero,
       children: [
-        if (!isWebUi) ...[
-          TextField(
-            decoration: const InputDecoration(
-              hintText: '밥, 떡, 쌀…',
-              prefixIcon: Icon(Icons.search),
-            ),
-            onChanged: widget.onSearchChanged,
-          ),
-          const SizedBox(height: 20),
-        ],
-        _HeroBlock(
-          onPrimary: () {
-            final ctx = _tableKey.currentContext;
-            if (ctx != null) {
-              Scrollable.ensureVisible(
-                ctx,
-                duration: const Duration(milliseconds: 350),
-                curve: Curves.easeOut,
-              );
-            }
-          },
-        ),
-        const SizedBox(height: 40),
-        KeyedSubtree(
-          key: _tableKey,
+        Padding(
+          padding: widget.padding,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (!isWebUi) ...[
+                TextField(
+                  decoration: const InputDecoration(
+                    hintText: '밥, 떡, 쌀…',
+                    prefixIcon: Icon(Icons.search),
+                  ),
+                  onChanged: widget.onSearchChanged,
+                ),
+                const SizedBox(height: 20),
+              ],
+              _HeroBlock(
+                onPrimary: () {
+                  final ctx = _tableKey.currentContext;
+                  if (ctx != null) {
+                    Scrollable.ensureVisible(
+                      ctx,
+                      duration: const Duration(milliseconds: 350),
+                      curve: Curves.easeOut,
+                    );
+                  }
+                },
+              ),
+              const SizedBox(height: 40),
+              KeyedSubtree(
+                key: _tableKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      '식탁',
+                      style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: AppTheme.brandTeal,
+                            letterSpacing: -0.5,
+                            fontSize: 26,
+                          ),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      '대분류로 들어갑니다. 제품이 없어도 분류는 보여 줍니다.',
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            color: const Color(0xA0212121),
+                            fontSize: 13,
+                          ),
+                    ),
+                    const SizedBox(height: 22),
+                    _MajorCircleGrid(majors: majors, onPick: widget.onPickMajor),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 48),
               Text(
-                '식탁',
+                '오늘 추천',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppTheme.brandTeal,
@@ -248,50 +276,31 @@ class _LandingViewState extends State<_LandingView> {
               ),
               const SizedBox(height: 6),
               Text(
-                '대분류로 들어갑니다. 제품이 없어도 분류는 보여 줍니다.',
+                '지금 식탁에 올리기 좋은.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: const Color(0xA0212121),
                       fontSize: 13,
                     ),
               ),
               const SizedBox(height: 22),
-              _MajorCircleGrid(majors: majors, onPick: widget.onPickMajor),
+              _TodayGrid(items: today, onPick: widget.onPickMajor),
+              const SizedBox(height: 48),
+              Text(
+                '대표가는 최저가가 아닙니다',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.brandTeal,
+                      letterSpacing: -0.5,
+                      fontSize: 26,
+                    ),
+              ),
+              const SizedBox(height: 22),
+              const _ExplainSection(),
+              const SizedBox(height: 40),
             ],
           ),
         ),
-        const SizedBox(height: 48),
-        Text(
-          '오늘 추천',
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppTheme.brandTeal,
-                letterSpacing: -0.5,
-                fontSize: 26,
-              ),
-        ),
-        const SizedBox(height: 6),
-        Text(
-          '지금 밥상에 올리기 좋은 분류.',
-          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: const Color(0xA0212121),
-                fontSize: 13,
-              ),
-        ),
-        const SizedBox(height: 22),
-        _TodayGrid(items: today, onPick: widget.onPickMajor),
-        const SizedBox(height: 48),
-        Text(
-          '대표가는 최저가가 아닙니다',
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                fontWeight: FontWeight.w700,
-                color: AppTheme.brandTeal,
-              ),
-        ),
-        const SizedBox(height: 12),
-        const MallInfoBanner(
-          text: '식탁 안 카드 가격은 단위당 중간값입니다. 용량·가게는 상세 오퍼에서만 고릅니다.',
-        ),
-        const SizedBox(height: 32),
+        const _SiteFooter(),
       ],
     );
   }
@@ -300,28 +309,38 @@ class _LandingViewState extends State<_LandingView> {
 class _HeroBlock extends StatelessWidget {
   const _HeroBlock({required this.onPrimary});
 
+  static const _mainImage =
+      'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1400&q=80';
+  static const _sideImage =
+      'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=800&q=80';
+
   final VoidCallback onPrimary;
 
   @override
   Widget build(BuildContext context) {
     final narrow = MediaQuery.sizeOf(context).width < webCompactBreakpoint;
     final left = _HeroPanel(
+      kicker: '이 마켓',
       title: '식탁부터 고르면,\n카드가 쭈르륵',
-      lede: '대분류 → 중분류. 회사는 그 다음입니다. 같은 식탁 위 품목만 한 장으로 모입니다.',
+      lede: '밥이면 밥, 떡이면 떡. 회사는 그 다음입니다. 같은 식탁 위 품목만 한 장으로 모입니다.',
       cta: '식탁 보기',
       onTap: onPrimary,
+      imageUrl: _mainImage,
       gradient: const LinearGradient(
         begin: Alignment.centerLeft,
         end: Alignment.centerRight,
-        colors: [Color(0xEB074A4E), Color(0x59074A4E)],
+        colors: [Color(0xEB074A4E), Color(0x59074A4E), Color(0x00074A4E)],
+        stops: [0.0, 0.52, 0.78],
       ),
       solidCta: true,
     );
     final right = _HeroPanel(
-      title: '공식 · 입점\n한 목록',
-      lede: '배송 주체는 오퍼 줄에서 보입니다.',
+      kicker: '공식 · 입점',
+      title: '한 목록에서\n비교합니다',
+      lede: '배송 주체(자사배송 / 판매자배송)는 오퍼 줄에 표시합니다.',
       cta: '식탁으로',
       onTap: onPrimary,
+      imageUrl: _sideImage,
       gradient: const LinearGradient(
         begin: Alignment.topCenter,
         end: Alignment.bottomCenter,
@@ -336,7 +355,7 @@ class _HeroBlock extends StatelessWidget {
         children: [
           SizedBox(height: 280, child: left),
           const SizedBox(height: 14),
-          SizedBox(height: 200, child: right),
+          SizedBox(height: 220, child: right),
         ],
       );
     }
@@ -356,19 +375,23 @@ class _HeroBlock extends StatelessWidget {
 
 class _HeroPanel extends StatelessWidget {
   const _HeroPanel({
+    required this.kicker,
     required this.title,
     required this.lede,
     required this.cta,
     required this.onTap,
+    required this.imageUrl,
     required this.gradient,
     required this.solidCta,
     this.compactTitle = false,
   });
 
+  final String kicker;
   final String title;
   final String lede;
   final String cta;
   final VoidCallback onTap;
+  final String imageUrl;
   final Gradient gradient;
   final bool solidCta;
   final bool compactTitle;
@@ -377,62 +400,268 @@ class _HeroPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     return ClipRRect(
       borderRadius: BorderRadius.circular(24),
-      child: DecoratedBox(
-        decoration: BoxDecoration(gradient: gradient),
-        child: Padding(
-          padding: const EdgeInsets.all(36),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w700,
-                  height: 1.2,
-                  letterSpacing: -0.6,
-                  fontSize: compactTitle ? 26 : 36,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Image.network(
+            imageUrl,
+            fit: BoxFit.cover,
+            errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFF074A4E)),
+          ),
+          DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
+          Padding(
+            padding: const EdgeInsets.all(36),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  kicker,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.8),
+                    fontSize: 12,
+                    letterSpacing: 1.4,
+                    fontWeight: FontWeight.w600,
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text(
-                lede,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.88),
-                  fontSize: 14,
-                  height: 1.55,
+                const SizedBox(height: 12),
+                Text(
+                  title,
+                  style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w700,
+                    height: 1.2,
+                    letterSpacing: -0.6,
+                    fontSize: compactTitle ? 26 : 36,
+                  ),
                 ),
-              ),
-              const Spacer(),
-              Material(
-                color: solidCta ? Colors.white : Colors.white.withValues(alpha: 0.18),
-                borderRadius: BorderRadius.circular(999),
-                child: InkWell(
-                  onTap: onTap,
+                const SizedBox(height: 12),
+                Text(
+                  lede,
+                  style: TextStyle(
+                    color: Colors.white.withValues(alpha: 0.88),
+                    fontSize: 14,
+                    height: 1.55,
+                  ),
+                ),
+                const Spacer(),
+                Material(
+                  color: solidCta ? Colors.white : Colors.white.withValues(alpha: 0.18),
                   borderRadius: BorderRadius.circular(999),
-                  child: Container(
-                    height: 44,
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    alignment: Alignment.center,
-                    decoration: solidCta
-                        ? null
-                        : BoxDecoration(
-                            borderRadius: BorderRadius.circular(999),
-                            border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                          ),
-                    child: Text(
-                      cta,
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: solidCta ? AppTheme.brandTeal : Colors.white,
+                  child: InkWell(
+                    onTap: onTap,
+                    borderRadius: BorderRadius.circular(999),
+                    child: Container(
+                      height: 44,
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      alignment: Alignment.center,
+                      decoration: solidCta
+                          ? null
+                          : BoxDecoration(
+                              borderRadius: BorderRadius.circular(999),
+                              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
+                            ),
+                      child: Text(
+                        cta,
+                        style: TextStyle(
+                          fontWeight: FontWeight.w700,
+                          color: solidCta ? AppTheme.brandTeal : Colors.white,
+                        ),
                       ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ExplainSection extends StatelessWidget {
+  const _ExplainSection();
+
+  static const _photoUrl =
+      'https://images.unsplash.com/photo-1464226184884-fa280b87c399?auto=format&fit=crop&w=1000&q=80';
+
+  static const _items = [
+    (
+      '카드 가격은 무엇인가요?',
+      '그 종류의 비교 단위(생수는 L당)로 공개 오퍼 가격의 중간값입니다. 지금 결제할 금액이 아닙니다.',
+    ),
+    (
+      '왜 판매자마다 카드가 없나요?',
+      '같은 회사의 그 품목은 한 장입니다. 용량·맛·가게 차이는 상세 오퍼 한 줄에서만 고릅니다.',
+    ),
+    (
+      '공식과 입점은 어떻게 보이나요?',
+      '한 목록에 함께 두고, 배송 주체(자사배송 / 판매자배송)는 오퍼 줄에 표시합니다.',
+    ),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < webCompactBreakpoint;
+    final photo = ClipRRect(
+      borderRadius: BorderRadius.circular(24),
+      child: SizedBox(
+        height: narrow ? 200 : 320,
+        width: double.infinity,
+        child: Image.network(
+          _photoUrl,
+          fit: BoxFit.cover,
+          errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFFEFF5F5)),
         ),
+      ),
+    );
+    final faq = DecoratedBox(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: const Color(0x14074A4E)),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+        child: Column(
+          children: [
+            for (var i = 0; i < _items.length; i++) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        _items[i].$1,
+                        style: const TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.brandTeal,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        _items[i].$2,
+                        style: const TextStyle(
+                          fontSize: 13,
+                          height: 1.55,
+                          color: Color(0xB3212121),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              if (i < _items.length - 1)
+                const Divider(height: 1, color: Color(0x1F074A4E)),
+            ],
+          ],
+        ),
+      ),
+    );
+
+    if (narrow) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          photo,
+          const SizedBox(height: 16),
+          faq,
+        ],
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Expanded(flex: 9, child: photo),
+        const SizedBox(width: 18),
+        Expanded(flex: 11, child: faq),
+      ],
+    );
+  }
+}
+
+class _SiteFooter extends StatelessWidget {
+  const _SiteFooter();
+
+  @override
+  Widget build(BuildContext context) {
+    final narrow = MediaQuery.sizeOf(context).width < webCompactBreakpoint;
+    final links = Text(
+      '회사소개 · 이용약관 · 개인정보처리방침 · 고객센터',
+      style: TextStyle(
+        color: Colors.white.withValues(alpha: 0.82),
+        fontSize: 13,
+      ),
+    );
+
+    return ColoredBox(
+      color: AppTheme.brandTeal,
+      child: Padding(
+        padding: EdgeInsets.fromLTRB(
+          isWebUi ? 24 : 16,
+          36,
+          isWebUi ? 24 : 16,
+          28,
+        ),
+        child: narrow
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    '제로 서치',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    '식탁부터 고르고, 한 장으로 비교합니다.',
+                    style: TextStyle(
+                      color: Colors.white.withValues(alpha: 0.82),
+                      fontSize: 13,
+                      height: 1.45,
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  links,
+                ],
+              )
+            : Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          '제로 서치',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '식탁부터 고르고, 한 장으로 비교합니다.',
+                          style: TextStyle(
+                            color: Colors.white.withValues(alpha: 0.82),
+                            fontSize: 13,
+                            height: 1.45,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  links,
+                ],
+              ),
       ),
     );
   }
@@ -557,6 +786,7 @@ class _TodayGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final m = items[index];
         final label = tableMajorLabel(m.name);
+        final imageUrl = tableMajorImageUrl(m.name);
         final tag = index == 0 ? '지금 많이' : '오늘';
         return Material(
           color: Colors.white,
@@ -573,20 +803,40 @@ class _TodayGrid extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Expanded(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      color: Color(0xFFEFF5F5),
-                      borderRadius: BorderRadius.vertical(top: Radius.circular(18)),
-                    ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      label.substring(0, 1),
-                      style: const TextStyle(
-                        fontSize: 42,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.brandTeal,
-                      ),
-                    ),
+                  child: ClipRRect(
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(18)),
+                    child: imageUrl == null
+                        ? ColoredBox(
+                            color: const Color(0xFFEFF5F5),
+                            child: Center(
+                              child: Text(
+                                label.substring(0, 1),
+                                style: const TextStyle(
+                                  fontSize: 42,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.brandTeal,
+                                ),
+                              ),
+                            ),
+                          )
+                        : Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            width: double.infinity,
+                            errorBuilder: (_, __, ___) => ColoredBox(
+                              color: const Color(0xFFEFF5F5),
+                              child: Center(
+                                child: Text(
+                                  label.substring(0, 1),
+                                  style: const TextStyle(
+                                    fontSize: 42,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppTheme.brandTeal,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 ),
                 Padding(
