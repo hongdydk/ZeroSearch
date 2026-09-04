@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI: OpenAPI codegen + Flutter web build (S3 mall/ 업로드용).
+# CI: OpenAPI codegen + Flutter web build (Cloudflare Pages 사이트 루트).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -20,8 +20,21 @@ bash "$ROOT/scripts/fix-generated-dart-parts.sh"
 cd "$ROOT/apps/flutter"
 flutter pub get
 flutter build web \
-  --base-href=/mall/ \
+  --base-href="/" \
   --pwa-strategy=none \
   --dart-define="API_BASE_URL=$API_BASE_URL"
+
+python3 - <<'PY'
+from pathlib import Path
+import re
+
+p = Path("build/web/index.html")
+text = p.read_text(encoding="utf-8")
+new, n = re.subn(r'<base href="[^"]*"', '<base href="/"', text, count=1)
+if n != 1:
+    raise SystemExit(f"could not set base href in {p}")
+p.write_text(new, encoding="utf-8", newline="\n")
+print('Forced <base href="/">')
+PY
 
 echo "Built: apps/flutter/build/web"

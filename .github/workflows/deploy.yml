@@ -88,14 +88,21 @@ jobs:
 
       - name: Verify web build is site root
         run: |
-          INDEX=apps/flutter/build/web/index.html
-          test -f "$INDEX"
-          grep -F 'base href="/"' "$INDEX"
-          if grep -F 'base href="/mall/' "$INDEX"; then
-            echo "::error::index.html still has /mall/ base href — Flutter will not boot on mall.anoveli.com/"
-            exit 1
-          fi
-          echo "index.html base href OK"
+          python3 <<'PY'
+          from pathlib import Path
+
+          p = Path("apps/flutter/build/web/index.html")
+          if not p.is_file():
+              raise SystemExit(f"missing {p}")
+          text = p.read_text(encoding="utf-8")
+          bases = [ln.strip() for ln in text.splitlines() if "<base" in ln.lower()]
+          print("base tags:", bases or "(none)")
+          if any("/mall/" in b for b in bases):
+              raise SystemExit("index.html still has /mall/ base href")
+          if not any('href="/"' in b for b in bases):
+              raise SystemExit('index.html missing <base href="/">')
+          print("index.html base href OK")
+          PY
 
       - uses: actions/upload-artifact@v4
         with:
