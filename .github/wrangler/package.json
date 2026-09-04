@@ -1,0 +1,8 @@
+{
+  "name": "pages-deploy",
+  "private": true,
+  "description": "CI-only wrangler install so GitHub Actions can cache Pages uploads.",
+  "dependencies": {
+    "wrangler": "^4.34.0"
+  }
+}

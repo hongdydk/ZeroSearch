@@ -140,6 +140,12 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
+          cache: npm
+          cache-dependency-path: .github/wrangler/package-lock.json
+
+      - name: Install wrangler
+        working-directory: .github/wrangler
+        run: npm ci
 
       - name: Deploy to Cloudflare Pages (production)
         env:
@@ -147,7 +153,7 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           # Pages 프로젝트 Production 브랜치는 main. --branch=production 이면 Preview만 생김.
-          npx --yes wrangler@4 pages deploy "${{ steps.root.outputs.dir }}" \
+          .github/wrangler/node_modules/.bin/wrangler pages deploy "${{ steps.root.outputs.dir }}" \
             --project-name="${{ vars.CLOUDFLARE_PAGES_PROJECT }}" \
             --branch=main \
             --commit-dirty=true
