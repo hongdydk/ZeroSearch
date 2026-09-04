@@ -37,7 +37,7 @@ apps/api/app/schemas/  →  scripts/openapi.json  →  apps/flutter/lib/api/gene
 ## 프로젝트 규칙
 
 - **제품 컨셉** — [docs/README.md](docs/README.md)
-- **report/** — 사람용. 사용자 명시 전에는 읽지 않음 ([규칙](.cursor/rules/report.mdc))
+- **report/** — 사람용, gitignore. 사용자 명시 전에는 읽지 않음 ([규칙](.cursor/rules/report.mdc))
 - **계획 범위** — [.cursor/rules/계획-범위.mdc](.cursor/rules/계획-범위.mdc)
 - **위임** — [.cursor/rules/위임.mdc](.cursor/rules/위임.mdc)
 - **Phase 로드맵** — [.cursor/rules/phase-로드맵.mdc](.cursor/rules/phase-로드맵.mdc)
@@ -53,7 +53,7 @@ apps/api/app/schemas/  →  scripts/openapi.json  →  apps/flutter/lib/api/gene
 ShoppingMall/
 ├── apps/api/          # FastAPI — auth, products, cart, orders, sellers
 ├── apps/flutter/      # 카탈로그·장바구니·주문·판매자 UI
-├── report/            # 사람용 기획·목업 (요청 없이 읽지 않음)
+├── report/            # 사람용 기획·목업 (gitignore, 요청 없이 읽지 않음)
 ├── packages/shared/   # 레거시 TypeScript (참조만)
 └── docs/              # 제품 SSOT · phase 스펙
 ```

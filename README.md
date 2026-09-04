@@ -108,7 +108,7 @@ pnpm dev:flutter       # http://localhost:8080
 ShoppingMall/
 ├── apps/api/       # FastAPI
 ├── apps/flutter/   # Flutter 클라이언트
-├── report/         # 사람용 기획·목업
+├── report/         # 사람용 기획·목업 (gitignore)
 ├── scripts/        # OpenAPI export, codegen
 └── docs/           # 제품 SSOT · phase 스펙
 ```

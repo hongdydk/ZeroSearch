@@ -5,6 +5,7 @@ alwaysApply: true
 
 # report 폴더
 
-- `report/`는 사람용 기획·목업·논문이다. **사용자가 그 경로·파일을 말하기 전에는 읽지 않는다.**
+- `report/`는 사람용 기획·목업·논문이다. **git 추적하지 않는다** (`.gitignore`). 스테이징·커밋 금지.
+- **사용자가 그 경로·파일을 말하기 전에는 읽지 않는다.**
 - 제품·구현 SSOT는 `docs/README.md`, 활성 `docs/phaseN-spec.md`.
 - 목업·PDF가 필요하면 사용자에게 묻는다. 추측으로 `report/`를 열거나 grep하지 않는다.

@@ -1,6 +1,6 @@
 # 제로 서치 — 제품 (Agent SSOT)
 
-**사람용 기획·목업·논문은 `report/`.** 그 폴더는 사용자가 명시하지 않으면 읽지 않는다.  
+**사람용 기획·목업·논문은 `report/`.** gitignore. 사용자가 명시하지 않으면 읽지 않는다.  
 이 파일과 `docs/phaseN-spec.md`만 구현·Plan의 제품 근거로 쓴다.
 
 라우트·엔티티·API·DoD는 활성 [phase2-spec.md](./phase2-spec.md). Phase 1은 완료, Phase 3(토스 PG) 스펙은 아직 없음.
