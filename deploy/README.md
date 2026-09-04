@@ -83,7 +83,9 @@ Pages에는 `apps/flutter/build/web/` **내용**을 루트에 올린다 (`web/` 
 
 ### 3.2 커스텀 도메인
 
-Pages 프로젝트에 `mall.anoveli.com` 커스텀 도메인을 붙인다. SPA 폴백은 `web/_redirects` (`/* → /index.html` 200).
+Pages 프로젝트에 `mall.anoveli.com` 커스텀 도메인을 붙인다.  
+SPA 폴백은 Pages 기본 동작(루트 `404.html` 없음)을 쓴다.  
+`/* → /index.html 200` `_redirects`는 `main.dart.js` 등 정적 자산까지 rewrite되어 500/MIME 오류를 낼 수 있어 쓰지 않는다.
 
 접속: `https://mall.anoveli.com/` · 관리자 `…/admin` · 판매자 `…/seller`
 

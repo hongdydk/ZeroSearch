@@ -83,8 +83,9 @@ jobs:
           API_BASE_URL: ${{ vars.MALL_API_BASE_URL }}
         run: bash scripts/ci-build-flutter-web.sh
 
-      - name: SPA fallback for Pages
-        run: cp apps/flutter/web/_redirects apps/flutter/build/web/_redirects
+      # Cloudflare Pages는 루트 404.html이 없으면 SPA로 취급한다.
+      # /* → /index.html 200 _redirects 는 정적 자산(main.dart.js 등)까지
+      # rewrite 대상이 되어 500/MIME 오류를 낼 수 있어 쓰지 않는다.
 
       - name: Verify web build is site root
         run: |
