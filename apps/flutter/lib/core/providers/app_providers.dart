@@ -12,7 +12,13 @@ final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
 /// 홈 카탈로그 검색어 — 웹 헤더·카탈로그 화면 공유.
 final catalogSearchProvider = StateProvider<String>((ref) => '');
 
-/// 식탁(카테고리) 선택 — 랜딩에서 탭하면 목록으로 전환.
+/// 식탁 대분류 (AI-Hub). 제품 유무와 무관.
+final catalogMajorProvider = StateProvider<String?>((ref) => null);
+
+/// 식탁 중분류.
+final catalogMidProvider = StateProvider<String?>((ref) => null);
+
+/// 소분류(대표 상품 category) — 목록 세부 필터.
 final catalogCategoryProvider = StateProvider<String?>((ref) => null);
 
 /// 맛·용량 옵션 필터 — catalog_screen 본문 전용.
@@ -132,6 +138,8 @@ final productsProvider = FutureProvider.autoDispose<List<ProductModel>>((ref) as
 
 final catalogProductsProvider = FutureProvider.autoDispose<List<CatalogProductModel>>((ref) async {
   final q = ref.watch(catalogSearchProvider).trim();
+  final major = ref.watch(catalogMajorProvider);
+  final mid = ref.watch(catalogMidProvider);
   final category = ref.watch(catalogCategoryProvider);
   final flavor = ref.watch(catalogFlavorFilterProvider);
   final volumeMin = ref.watch(catalogVolumeMinFilterProvider);
@@ -139,6 +147,8 @@ final catalogProductsProvider = FutureProvider.autoDispose<List<CatalogProductMo
   return ref.watch(apiClientProvider).catalogProducts(
         q: q.isEmpty ? null : q,
         category: category,
+        categoryMajor: major,
+        categoryMid: mid,
         flavor: flavor,
         volumeMlMin: volumeMin,
         volumeMlMax: volumeMax,

@@ -82,6 +82,8 @@ class _TopRow extends ConsumerWidget {
       children: [
         _BrandBlock(onBrandTap: () {
           ref.read(catalogSearchProvider.notifier).state = '';
+          ref.read(catalogMajorProvider.notifier).state = null;
+          ref.read(catalogMidProvider.notifier).state = null;
           ref.read(catalogCategoryProvider.notifier).state = null;
           context.go('/');
         }),

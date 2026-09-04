@@ -25,6 +25,8 @@ class _HeaderTestApiClient extends ApiClient {
   Future<List<CatalogProductModel>> catalogProducts({
     String? q,
     String? category,
+    String? categoryMajor,
+    String? categoryMid,
     String? flavor,
     int? volumeMlMin,
     int? volumeMlMax,
@@ -36,7 +38,7 @@ class _HeaderTestApiClient extends ApiClient {
           id: 'cat-1',
           title: '백산수',
           manufacturer: '농심',
-          category: '생수',
+          category: '일반생수',
           offerCount: 3,
           priceUnit: 'ml',
           displayPriceLabel: 'L당 420',
@@ -44,9 +46,9 @@ class _HeaderTestApiClient extends ApiClient {
         ),
         CatalogProductModel(
           id: 'cat-2',
-          title: '떡갈비',
+          title: '신라면',
           manufacturer: '농심',
-          category: '떡갈비',
+          category: '국물봉지라면',
           offerCount: 2,
           priceUnit: 'credits',
           displayPriceLabel: '890',
@@ -188,6 +190,7 @@ void main() {
     expect(find.text('제로 서치'), findsOneWidget);
     expect(find.text('밥, 떡, 쌀…'), findsOneWidget);
     expect(find.text('식탁'), findsWidgets);
-    expect(find.text('생수'), findsWidgets);
+    expect(find.text('면류'), findsWidgets);
+    expect(find.text('음료'), findsWidgets);
   });
 }

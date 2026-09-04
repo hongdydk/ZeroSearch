@@ -54,7 +54,13 @@ def _aggregate_offers(offers: list[Product]) -> tuple[int, float | None, int | N
     return count, None, int(_median(credit_prices)), "credits", "크레딧(보통)"
 
 
-def _catalog_search_filter(q: str | None, category: str | None):
+def _catalog_search_filter(
+    q: str | None,
+    category: str | None,
+    *,
+    category_major: str | None = None,
+    category_mid: str | None = None,
+):
     filters = []
     if q:
         pattern = f"%{q.strip()}%"
@@ -71,6 +77,10 @@ def _catalog_search_filter(q: str | None, category: str | None):
         )
     if category:
         filters.append(CatalogProduct.category == category)
+    if category_major:
+        filters.append(CatalogProduct.category_major == category_major)
+    if category_mid:
+        filters.append(CatalogProduct.category_mid == category_mid)
     return filters
 
 
@@ -115,6 +125,8 @@ def list_catalog_products(
     *,
     q: str | None = None,
     category: str | None = None,
+    category_major: str | None = None,
+    category_mid: str | None = None,
     flavor: str | None = None,
     volume_ml_min: int | None = None,
     volume_ml_max: int | None = None,
@@ -122,7 +134,12 @@ def list_catalog_products(
     limit: int = 50,
     require_offers: bool = True,
 ) -> tuple[list[CatalogProductListItem], int]:
-    catalog_filters = _catalog_search_filter(q, category)
+    catalog_filters = _catalog_search_filter(
+        q,
+        category,
+        category_major=category_major,
+        category_mid=category_mid,
+    )
     stmt = select(CatalogProduct)
     count_stmt = select(func.count()).select_from(CatalogProduct)
     if catalog_filters:

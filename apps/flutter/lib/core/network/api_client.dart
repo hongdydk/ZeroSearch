@@ -156,6 +156,8 @@ class ApiClient {
   Future<List<CatalogProductModel>> catalogProducts({
     String? q,
     String? category,
+    String? categoryMajor,
+    String? categoryMid,
     String? flavor,
     int? volumeMlMin,
     int? volumeMlMax,
@@ -168,6 +170,8 @@ class ApiClient {
         queryParameters: {
           if (q != null && q.isNotEmpty) 'q': q,
           if (category != null && category.isNotEmpty) 'category': category,
+          if (categoryMajor != null && categoryMajor.isNotEmpty) 'categoryMajor': categoryMajor,
+          if (categoryMid != null && categoryMid.isNotEmpty) 'categoryMid': categoryMid,
           if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
           if (volumeMlMin != null) 'volumeMlMin': volumeMlMin,
           if (volumeMlMax != null) 'volumeMlMax': volumeMlMax,
