@@ -109,7 +109,10 @@ Pages 프로젝트에 `mall.anoveli.com` 커스텀 도메인을 붙인다. SPA �
 |-----|------|
 | `test-api` | pytest |
 | `deploy-api` | EC2 SSH → `deploy/ec2-deploy.sh` (git pull + docker rebuild) |
-| `deploy-flutter` | Flutter web 빌드 (`base-href=/`) → **Cloudflare Pages** 업로드 |
+| `build-flutter` | Flutter web 빌드 → artifact |
+| `deploy-pages` | artifact → Cloudflare Pages (`npx wrangler`) |
+
+업로드만 실패하면 Actions에서 **Re-run failed jobs** — `deploy-pages`만 다시 돈다.
 
 수동 실행: GitHub → Actions → **Deploy** → **Run workflow**
 
