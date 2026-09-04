@@ -219,14 +219,36 @@ class CatalogProductModel {
     required this.offerCount,
     required this.priceUnit,
     required this.displayPriceLabel,
+    this.manufacturer = '',
     this.description,
     this.imageUrl,
     this.medianUnitPrice,
     this.medianPriceCredits,
+    this.volumeOptions = const [],
   });
+
+  factory CatalogProductModel.fromJson(Map<String, dynamic> json) {
+    return CatalogProductModel(
+      id: json['id'] as String,
+      title: json['title'] as String? ?? '',
+      manufacturer: json['manufacturer'] as String? ?? '',
+      category: json['category'] as String? ?? '',
+      offerCount: json['offerCount'] as int? ?? 0,
+      priceUnit: json['priceUnit'] as String? ?? 'credits',
+      displayPriceLabel: json['displayPriceLabel'] as String? ?? '',
+      description: json['description'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      medianUnitPrice: (json['medianUnitPrice'] as num?)?.toDouble(),
+      medianPriceCredits: json['medianPriceCredits'] as int?,
+      volumeOptions: (json['volumeOptions'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+    );
+  }
 
   final String id;
   final String title;
+  final String manufacturer;
   final String category;
   final int offerCount;
   final String priceUnit;
@@ -235,6 +257,10 @@ class CatalogProductModel {
   final String? imageUrl;
   final double? medianUnitPrice;
   final int? medianPriceCredits;
+  final List<String> volumeOptions;
+
+  String get cardTitle =>
+      manufacturer.isEmpty ? title : '$manufacturer $title';
 }
 
 class CatalogOfferModel {

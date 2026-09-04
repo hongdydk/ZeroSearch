@@ -2,7 +2,7 @@ import logging
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
@@ -26,7 +26,9 @@ from app.schemas.seller import (
     AdminOrderItemResponse,
     SellerOrderItemStatusUpdate,
 )
+from app.schemas.catalog_product import CatalogImportResponse
 from app.services.admin_db import RESET_CONFIRM, get_admin_stats, run_db_reset
+from app.services.catalog_import import import_catalog_csv
 from app.services.credits import grant_credits
 from app.services.seller_orders import (
     list_admin_order_items,
@@ -45,6 +47,22 @@ def admin_stats(
 ) -> AdminStatsResponse:
     stats = get_admin_stats(db)
     return AdminStatsResponse(**stats)
+
+
+@router.post("/catalog/import", response_model=CatalogImportResponse)
+async def import_catalog(
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+    file: Annotated[UploadFile, File()],
+) -> CatalogImportResponse:
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CSV 파일만 올릴 수 있습니다.")
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="빈 파일입니다.")
+    result = import_catalog_csv(db, content)
+    db.commit()
+    return CatalogImportResponse(**result)
 
 
 @router.get("/users", response_model=AdminUserListResponse)

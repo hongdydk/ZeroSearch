@@ -2,7 +2,7 @@ from statistics import median
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import or_, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import CatalogProduct, Product, Seller
@@ -61,7 +61,10 @@ def _catalog_search_filter(q: str | None, category: str | None):
         filters.append(
             or_(
                 CatalogProduct.title.ilike(pattern),
+                CatalogProduct.manufacturer.ilike(pattern),
                 CatalogProduct.category.ilike(pattern),
+                CatalogProduct.category_major.ilike(pattern),
+                CatalogProduct.category_mid.ilike(pattern),
                 CatalogProduct.description.ilike(pattern),
                 CatalogProduct.search_keywords.astext.ilike(pattern),
             )
@@ -69,6 +72,42 @@ def _catalog_search_filter(q: str | None, category: str | None):
     if category:
         filters.append(CatalogProduct.category == category)
     return filters
+
+
+def _has_public_offers(
+    *,
+    flavor: str | None = None,
+    volume_ml_min: int | None = None,
+    volume_ml_max: int | None = None,
+):
+    offer_filters = _public_offer_filters(
+        flavor=flavor, volume_ml_min=volume_ml_min, volume_ml_max=volume_ml_max
+    )
+    return exists(
+        select(Product.id)
+        .join(Seller, Product.seller_id == Seller.id)
+        .where(Product.catalog_product_id == CatalogProduct.id, *offer_filters)
+    )
+
+
+def _list_item(catalog: CatalogProduct, offers: list[Product]) -> CatalogProductListItem:
+    offer_count, median_unit, median_credits, price_unit, display_label = _aggregate_offers(offers)
+    return CatalogProductListItem(
+        id=str(catalog.id),
+        title=catalog.title,
+        manufacturer=catalog.manufacturer or "",
+        category=catalog.category,
+        category_major=catalog.category_major,
+        category_mid=catalog.category_mid,
+        description=catalog.description,
+        image_url=catalog.image_url,
+        volume_options=list(catalog.volume_options or []),
+        offer_count=offer_count,
+        median_unit_price=median_unit,
+        median_price_credits=median_credits,
+        price_unit=price_unit,  # type: ignore[arg-type]
+        display_price_label=display_label,
+    )
 
 
 def list_catalog_products(
@@ -81,51 +120,62 @@ def list_catalog_products(
     volume_ml_max: int | None = None,
     offset: int = 0,
     limit: int = 50,
+    require_offers: bool = True,
 ) -> tuple[list[CatalogProductListItem], int]:
+    catalog_filters = _catalog_search_filter(q, category)
+    stmt = select(CatalogProduct)
+    count_stmt = select(func.count()).select_from(CatalogProduct)
+    if catalog_filters:
+        stmt = stmt.where(*catalog_filters)
+        count_stmt = count_stmt.where(*catalog_filters)
+    if require_offers:
+        has_offers = _has_public_offers(
+            flavor=flavor, volume_ml_min=volume_ml_min, volume_ml_max=volume_ml_max
+        )
+        stmt = stmt.where(has_offers)
+        count_stmt = count_stmt.where(has_offers)
+
+    total = db.scalar(count_stmt) or 0
+    catalogs = db.scalars(
+        stmt.order_by(CatalogProduct.manufacturer, CatalogProduct.title).offset(offset).limit(limit)
+    ).all()
+    if not catalogs:
+        return [], total
+
+    ids = [c.id for c in catalogs]
     offer_filters = _public_offer_filters(
         flavor=flavor, volume_ml_min=volume_ml_min, volume_ml_max=volume_ml_max
     )
-    catalog_filters = _catalog_search_filter(q, category)
+    offers = db.scalars(
+        select(Product)
+        .join(Seller, Product.seller_id == Seller.id)
+        .where(Product.catalog_product_id.in_(ids), *offer_filters)
+        .options(joinedload(Product.seller))
+    ).unique().all()
+    by_catalog: dict[UUID, list[Product]] = {cid: [] for cid in ids}
+    for offer in offers:
+        by_catalog[offer.catalog_product_id].append(offer)
 
-    base = select(CatalogProduct)
-    if catalog_filters:
-        base = base.where(*catalog_filters)
+    items = [_list_item(catalog, by_catalog[catalog.id]) for catalog in catalogs]
+    return items, total
 
-    all_catalogs = db.scalars(base.order_by(CatalogProduct.title)).all()
-    items: list[CatalogProductListItem] = []
 
-    for catalog in all_catalogs:
-        offers = db.scalars(
-            select(Product)
-            .join(Seller, Product.seller_id == Seller.id)
-            .where(Product.catalog_product_id == catalog.id, *offer_filters)
-            .options(joinedload(Product.seller))
-        ).unique().all()
-
-        offer_count, median_unit, median_credits, price_unit, display_label = _aggregate_offers(
-            list(offers)
-        )
-        if offer_count == 0:
-            continue
-
-        items.append(
-            CatalogProductListItem(
-                id=str(catalog.id),
-                title=catalog.title,
-                category=catalog.category,
-                description=catalog.description,
-                image_url=catalog.image_url,
-                offer_count=offer_count,
-                median_unit_price=median_unit,
-                median_price_credits=median_credits,
-                price_unit=price_unit,  # type: ignore[arg-type]
-                display_price_label=display_label,
-            )
-        )
-
-    total = len(items)
-    page = items[offset : offset + limit]
-    return page, total
+def search_seller_catalog_products(
+    db: Session,
+    *,
+    q: str | None = None,
+    category: str | None = None,
+    offset: int = 0,
+    limit: int = 30,
+) -> tuple[list[CatalogProductListItem], int]:
+    return list_catalog_products(
+        db,
+        q=q,
+        category=category,
+        offset=offset,
+        limit=limit,
+        require_offers=False,
+    )
 
 
 def get_catalog_product(
@@ -171,9 +221,13 @@ def get_catalog_product(
     return CatalogProductDetailResponse(
         id=str(catalog.id),
         title=catalog.title,
+        manufacturer=catalog.manufacturer or "",
         category=catalog.category,
+        category_major=catalog.category_major,
+        category_mid=catalog.category_mid,
         description=catalog.description,
         image_url=catalog.image_url,
+        volume_options=list(catalog.volume_options or []),
         offer_count=len(offer_items),
         offers=offer_items,
         created_at=catalog.created_at,

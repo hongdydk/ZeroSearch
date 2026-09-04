@@ -6,6 +6,7 @@ alwaysApply: true
 # Phase 로드맵
 
 - 로드맵·구현 전 plan에 **활성 phase 스펙**을 명시한다. 범위·용어·라우트·DoD의 SSOT는 해당 `docs/phaseN-spec.md`.
+- 제품 방향 SSOT는 `docs/README.md`. `report/`는 사람용 — 사용자 명시 전에는 읽지 않는다.
 - 승인된 plan에 고정: 활성 phase, 짧은 DoD, 허용 변경 경로.
 - 구현 전 요청이 해당 phase에 속하는지 확인한다. **라우트·엔티티 목록은 phase 스펙 본문 SSOT** — 규칙에 복사하지 않는다.
 - phase를 넘거나 plan에 없는 경로는 구현하지 말고 plan 확장을 요청한다.

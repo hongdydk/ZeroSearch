@@ -34,8 +34,8 @@ class CatalogScreen extends ConsumerWidget {
       error: (e, _) => Center(child: Text('상품을 불러오지 못했습니다: $e')),
       data: (items) {
         final bannerText = search.isEmpty
-            ? '브랜드(제품명)별 카드 · L당 대표가(보통)만 표시합니다.'
-            : '“$search” 검색 — 같은 브랜드는 카드 1장, 상세에서 오퍼를 비교합니다.';
+            ? '같은 회사·품목은 카드 1장 · L당 대표가(보통)만 표시합니다.'
+            : '“$search” 검색 — 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.';
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -169,8 +169,8 @@ class _CatalogCard extends StatelessWidget {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Text(
-                    item.title,
-                    maxLines: 1,
+                    item.cardTitle,
+                    maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: Theme.of(context).textTheme.titleSmall?.copyWith(
                           fontWeight: FontWeight.w600,

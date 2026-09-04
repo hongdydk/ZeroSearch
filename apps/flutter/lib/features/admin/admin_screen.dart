@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -175,6 +176,48 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
 
 
+  Future<void> _importCatalog() async {
+
+    final picked = await FilePicker.platform.pickFiles(
+
+      type: FileType.custom,
+
+      allowedExtensions: const ['csv'],
+
+      withData: true,
+
+    );
+
+    final file = picked?.files.single;
+
+    final bytes = file?.bytes;
+
+    if (bytes == null || file == null) return;
+
+    setState(() => _message = '업로드 중… 몇 분 걸릴 수 있습니다.');
+
+    try {
+
+      final result = await ref.read(apiClientProvider).adminImportCatalog(
+
+            bytes,
+
+            file.name,
+
+          );
+
+      setState(() => _message = '반영 ${result.upserted}건 (원본 ${result.sourceRows}줄)');
+
+    } on ApiException catch (e) {
+
+      setState(() => _message = e.message);
+
+    }
+
+  }
+
+
+
   @override
 
   Widget build(BuildContext context) {
@@ -332,6 +375,22 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
           ),
 
         ),
+
+      const Divider(),
+
+      Text('카탈로그 CSV', style: Theme.of(context).textTheme.titleMedium),
+
+      const Text('data/mfds-catalog.csv 를 올리면 대표 상품이 채워집니다. 구매자 목록에는 오퍼가 있는 카드만 나옵니다.'),
+
+      const SizedBox(height: 8),
+
+      FilledButton(
+
+        onPressed: _importCatalog,
+
+        child: const Text('CSV 업로드'),
+
+      ),
 
       const Divider(),
 

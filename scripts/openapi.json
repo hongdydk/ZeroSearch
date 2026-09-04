@@ -324,6 +324,20 @@
         "title": "AdminUserListResponse",
         "type": "object"
       },
+      "Body_import_catalog_admin_catalog_import_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_catalog_admin_catalog_import_post",
+        "type": "object"
+      },
       "CartAddRequest": {
         "properties": {
           "productId": {
@@ -451,6 +465,24 @@
         "title": "CartUpdateRequest",
         "type": "object"
       },
+      "CatalogImportResponse": {
+        "properties": {
+          "sourceRows": {
+            "title": "Sourcerows",
+            "type": "integer"
+          },
+          "upserted": {
+            "title": "Upserted",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "sourceRows",
+          "upserted"
+        ],
+        "title": "CatalogImportResponse",
+        "type": "object"
+      },
       "CatalogOfferItem": {
         "properties": {
           "flavor": {
@@ -517,6 +549,28 @@
             "title": "Category",
             "type": "string"
           },
+          "categoryMajor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categorymajor"
+          },
+          "categoryMid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categorymid"
+          },
           "createdAt": {
             "anyOf": [
               {
@@ -555,6 +609,11 @@
             ],
             "title": "Imageurl"
           },
+          "manufacturer": {
+            "default": "",
+            "title": "Manufacturer",
+            "type": "string"
+          },
           "offerCount": {
             "title": "Offercount",
             "type": "integer"
@@ -569,6 +628,13 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "volumeOptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Volumeoptions",
+            "type": "array"
           }
         },
         "required": [
@@ -586,6 +652,28 @@
           "category": {
             "title": "Category",
             "type": "string"
+          },
+          "categoryMajor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categorymajor"
+          },
+          "categoryMid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categorymid"
           },
           "description": {
             "anyOf": [
@@ -616,6 +704,11 @@
               }
             ],
             "title": "Imageurl"
+          },
+          "manufacturer": {
+            "default": "",
+            "title": "Manufacturer",
+            "type": "string"
           },
           "medianPriceCredits": {
             "anyOf": [
@@ -654,6 +747,13 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "volumeOptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Volumeoptions",
+            "type": "array"
           }
         },
         "required": [
@@ -1818,6 +1918,52 @@
           }
         },
         "summary": "Root"
+      }
+    },
+    "/admin/catalog/import": {
+      "post": {
+        "operationId": "import_catalog_admin_catalog_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_catalog_admin_catalog_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Catalog",
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/admin/db/reset": {
@@ -3251,6 +3397,99 @@
           }
         ],
         "summary": "Seller Apply",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/catalog-products": {
+      "get": {
+        "operationId": "seller_search_catalog_products_seller_catalog_products_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 50,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogProductListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Search Catalog Products",
         "tags": [
           "seller"
         ]

@@ -38,6 +38,9 @@ class ApiClient {
           if (token != null && token.isNotEmpty) {
             options.headers['Authorization'] = 'Bearer $token';
           }
+          if (options.data is FormData) {
+            options.headers.remove('Content-Type');
+          }
           handler.next(options);
         },
         onError: (error, handler) {
@@ -156,18 +159,27 @@ class ApiClient {
     int offset = 0,
     int limit = 50,
   }) async {
-    final data = await _generatedCall(
-      () => _generated.getCatalogProductsApi().getCatalogProductsCatalogProductsGet(
-            q: q,
-            category: category,
-            flavor: flavor,
-            volumeMlMin: volumeMlMin,
-            volumeMlMax: volumeMlMax,
-            offset: offset,
-            limit: limit,
-          ),
-    );
-    return catalogProductListFromGenerated(data.items);
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'catalog-products',
+        queryParameters: {
+          if (q != null && q.isNotEmpty) 'q': q,
+          if (category != null && category.isNotEmpty) 'category': category,
+          if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
+          if (volumeMlMin != null) 'volumeMlMin': volumeMlMin,
+          if (volumeMlMax != null) 'volumeMlMax': volumeMlMax,
+          'offset': offset,
+          'limit': limit,
+        },
+      );
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map((e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<CatalogProductDetailModel> catalogProduct(
@@ -349,6 +361,55 @@ class ApiClient {
           ),
     );
     return sellerModelFromGenerated(data)!;
+  }
+
+  Future<List<CatalogProductModel>> sellerSearchCatalog({
+    String? q,
+    String? category,
+    int offset = 0,
+    int limit = 30,
+  }) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'seller/catalog-products',
+        queryParameters: {
+          if (q != null && q.isNotEmpty) 'q': q,
+          if (category != null && category.isNotEmpty) 'category': category,
+          'offset': offset,
+          'limit': limit,
+        },
+      );
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map((e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<({int sourceRows, int upserted})> adminImportCatalog(List<int> bytes, String filename) async {
+    try {
+      final form = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: filename),
+      });
+      final response = await _dio.post<Map<String, dynamic>>(
+        'admin/catalog/import',
+        data: form,
+        options: Options(
+          sendTimeout: const Duration(minutes: 10),
+          receiveTimeout: const Duration(minutes: 15),
+        ),
+      );
+      final data = response.data ?? {};
+      return (
+        sourceRows: data['sourceRows'] as int? ?? 0,
+        upserted: data['upserted'] as int? ?? 0,
+      );
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<List<ProductModel>> sellerProducts() async {

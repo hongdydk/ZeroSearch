@@ -96,43 +96,45 @@ def get_seller_product(db: Session, seller: Seller, product_id: UUID) -> Product
 def _resolve_catalog_product(
     db: Session, payload: SellerProductCreateRequest
 ) -> CatalogProduct:
-    if payload.catalog_product_id:
-        catalog = db.scalar(
-            select(CatalogProduct).where(CatalogProduct.id == UUID(payload.catalog_product_id))
+    if not payload.catalog_product_id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="대표 상품을 목록에서 고르세요.",
         )
-        if catalog is None:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 상품을 찾을 수 없습니다.")
-        return catalog
-
-    catalog = db.scalar(select(CatalogProduct).where(CatalogProduct.title == payload.title))
-    if catalog is not None:
-        return catalog
-
-    catalog = CatalogProduct(
-        title=payload.title,
-        category=payload.category,
-        description=payload.description,
-        image_url=payload.image_url,
-        price_unit="each",
+    catalog = db.scalar(
+        select(CatalogProduct).where(CatalogProduct.id == UUID(payload.catalog_product_id))
     )
-    db.add(catalog)
-    db.flush()
+    if catalog is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 상품을 찾을 수 없습니다.")
     return catalog
 
 
 def create_seller_product(db: Session, seller: Seller, payload: SellerProductCreateRequest) -> Product:
     catalog = _resolve_catalog_product(db, payload)
+    options = list(catalog.volume_options or [])
+    option_label = payload.option_label
+    if options:
+        if not option_label:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="용량 선택지에서 고르세요.",
+            )
+        if option_label not in options:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="해당 품목의 용량이 아닙니다.",
+            )
     product = Product(
         seller_id=seller.id,
         catalog_product_id=catalog.id,
-        title=payload.title,
+        title=catalog.title,
         description=payload.description,
         price_credits=payload.price_credits,
         stock=payload.stock,
-        category=payload.category,
+        category=catalog.category,
         image_url=payload.image_url or catalog.image_url,
         status=payload.status,
-        option_label=payload.option_label,
+        option_label=option_label,
         volume_ml=payload.volume_ml,
         flavor=payload.flavor,
     )

@@ -51,3 +51,7 @@ docker-compose.override.yml
 
 # Local cloudflared binary (scripts/start-ollama-tunnel.ps1 downloads it)
 tools/cloudflared/cloudflared.exe
+
+# 식약처 원본·가공 카탈로그 CSV (용량 큼, 로컬 적재용)
+식품의약품안전처_통합식품영양성분정보*.csv
+data/mfds-catalog.csv

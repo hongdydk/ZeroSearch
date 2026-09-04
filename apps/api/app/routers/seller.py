@@ -16,6 +16,7 @@ from app.deps import get_current_user, require_active_seller
 
 from app.models import Seller, User
 
+from app.schemas.catalog_product import CatalogProductListResponse
 from app.schemas.product import ProductResponse
 
 from app.schemas.seller import (
@@ -36,6 +37,7 @@ from app.schemas.seller import (
 
 )
 
+from app.services.catalog_products import search_seller_catalog_products
 from app.services.products import (
 
     archive_seller_product,
@@ -111,6 +113,40 @@ def seller_me(
         return None
 
     return SellerResponse.model_validate(seller)
+
+
+
+
+
+@router.get("/catalog-products", response_model=CatalogProductListResponse)
+
+def seller_search_catalog_products(
+
+    db: Annotated[Session, Depends(get_db)],
+
+    seller: Annotated[Seller, Depends(require_active_seller)],
+
+    q: Annotated[str | None, Query()] = None,
+
+    category: Annotated[str | None, Query()] = None,
+
+    offset: Annotated[int, Query(ge=0)] = 0,
+
+    limit: Annotated[int, Query(ge=1, le=50)] = 30,
+
+) -> CatalogProductListResponse:
+
+    if not (q or "").strip() and not (category or "").strip():
+
+        return CatalogProductListResponse(items=[], total=0)
+
+    items, total = search_seller_catalog_products(
+
+        db, q=q, category=category, offset=offset, limit=limit
+
+    )
+
+    return CatalogProductListResponse(items=items, total=total)
 
 
 

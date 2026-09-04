@@ -10,13 +10,13 @@
 
 ## 제품 방향 (요약)
 
-- **제로 서치:** 검색·목록에서 **같은 브랜드** 카드 중복을 줄인다. **브랜드당 대표 1장(최저가)** → 상세 **오퍼 한 줄 비교**.
+- **제로 서치:** 「생수」·「떡갈비」처럼 **종류**로 찾으면 **회사+유형+품목 카드가 쭈르륵**. 같은 회사의 그 품목은 용량·판매자만 한 장으로 모은다. 카드는 **단위당 대표가(중위)** → 상세 **오퍼 한 줄 비교**.
 - **마켓플레이스:** 공식(`platform`) + 입점(`merchant`), 주문 줄별 가게·배송.
 - **멤버십:** 제품 범위 밖. 레거시 코드는 건드리지 않는 한 유지.
 - **결제:** 목표 토스 PG (Phase 3). 현재 크레딧 스텁.
 - **배포:** AWS (S3·CloudFront / EC2 / RDS).
 
-SSOT: [report/프로젝트-컨셉.md](report/프로젝트-컨셉.md)
+SSOT: [docs/README.md](docs/README.md)
 
 ## 계약 SSOT (API ↔ Flutter)
 
@@ -36,7 +36,8 @@ apps/api/app/schemas/  →  scripts/openapi.json  →  apps/flutter/lib/api/gene
 
 ## 프로젝트 규칙
 
-- **제품 컨셉** — [report/프로젝트-컨셉.md](report/프로젝트-컨셉.md)
+- **제품 컨셉** — [docs/README.md](docs/README.md)
+- **report/** — 사람용. 사용자 명시 전에는 읽지 않음 ([규칙](.cursor/rules/report.mdc))
 - **계획 범위** — [.cursor/rules/계획-범위.mdc](.cursor/rules/계획-범위.mdc)
 - **위임** — [.cursor/rules/위임.mdc](.cursor/rules/위임.mdc)
 - **Phase 로드맵** — [.cursor/rules/phase-로드맵.mdc](.cursor/rules/phase-로드맵.mdc)
@@ -52,15 +53,15 @@ apps/api/app/schemas/  →  scripts/openapi.json  →  apps/flutter/lib/api/gene
 ShoppingMall/
 ├── apps/api/          # FastAPI — auth, products, cart, orders, sellers
 ├── apps/flutter/      # 카탈로그·장바구니·주문·판매자 UI
-├── report/            # 컨셉, 기획서, mockup/
+├── report/            # 사람용 기획·목업 (요청 없이 읽지 않음)
 ├── packages/shared/   # 레거시 TypeScript (참조만)
-└── docs/              # phase 스펙
+└── docs/              # 제품 SSOT · phase 스펙
 ```
 
 - API: `apps/api/app/` (routers, services, models, schemas)
 - Flutter: `apps/flutter/lib/`
 - Phase SSOT: `docs/phaseN-spec.md`
-- 화면 목업: `report/mockup/index.html`
+- 제품 SSOT: `docs/README.md`
 
 ## 서브에이전트
 
