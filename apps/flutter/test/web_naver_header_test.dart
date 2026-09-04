@@ -191,6 +191,6 @@ void main() {
     expect(find.text('밥, 떡, 쌀…'), findsOneWidget);
     expect(find.text('식탁'), findsWidgets);
     expect(find.text('면류'), findsWidgets);
-    expect(find.text('음료'), findsWidgets);
+    expect(find.text('간편식'), findsWidgets);
   });
 }

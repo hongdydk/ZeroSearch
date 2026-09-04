@@ -1,6 +1,6 @@
-# EC2 + S3 배포 (아노벨리와 공존)
+# EC2 + Cloudflare Pages 배포 (아노벨리와 공존)
 
-아노벨리(`/opt/anoveli`, `api.anoveli.com:8000`, S3 버킷 루트, `app.anoveli.com`)는 **건드리지 않고**, 제로 서치(쇼핑몰)만 **추가**한다.
+아노벨리(`/opt/anoveli`, `api.anoveli.com:8000`, `app.anoveli.com`)는 **건드리지 않고**, 제로 서치(쇼핑몰)만 **추가**한다.
 
 **앱 URL:** `https://mall.anoveli.com/` (아노벨리 `app.anoveli.com` 과 호스트 분리)  
 **API URL:** `https://mall-api.anoveli.com`
@@ -13,7 +13,7 @@
 | API 포트 | **8000** | **8001** |
 | Tunnel | `api.anoveli.com` → 8000 | `mall-api.anoveli.com` → 8001 (추가) |
 | 웹 호스트 | `app.anoveli.com` | **`mall.anoveli.com`** |
-| S3 | `anoveli-web-poc/` 루트 | `anoveli-web-poc/mall/` (객체 prefix 유지) |
+| 웹 원본 | (아노벨리 쪽) | **Cloudflare Pages** (S3 sync 안 함) |
 | DB | `anoveli-postgres` / chatbot | `mall-postgres` / mall |
 
 ---
@@ -108,13 +108,33 @@ Pages 프로젝트에 `mall.anoveli.com` 커스텀 도메인을 붙인다. SPA �
 | Job | 내용 |
 |-----|------|
 | `test-api` | pytest |
-| `deploy-api` | EC2 SSH → `deploy/ec2-deploy.sh` (git pull + docker rebuild) |
+| `deploy-api` | EC2 SSH → `deploy/ec2-deploy.sh` (git pull + docker rebuild + **aihub CSV import**) |
 | `build-flutter` | Flutter web 빌드 → artifact |
 | `deploy-pages` | artifact → Cloudflare Pages (`npx wrangler`) |
 
 업로드만 실패하면 Actions에서 **Re-run failed jobs** — `deploy-pages`만 다시 돈다.
 
 수동 실행: GitHub → Actions → **Deploy** → **Run workflow**
+
+### 카탈로그 CSV (배포 시 자동)
+
+대표 상품 SSOT는 repo의 [`data/aihub-catalog.csv`](../data/aihub-catalog.csv).
+
+1. Validation 라벨에서 갱신: `python scripts/extract_aihub_catalog.py`
+2. (또는) 엑셀/CSV에 품목 한 줄 추가
+3. `main` push → EC2 `ec2-deploy.sh`가 health OK 후  
+   `python -m scripts.import_aihub_catalog` 로 upsert
+
+관리자 UI CSV 업로드는 **비상용**. 일상 반영은 위 경로.
+
+수동 import (EC2):
+
+```bash
+cd /opt/shopping-mall
+docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+  -v /opt/shopping-mall/data/aihub-catalog.csv:/import/aihub-catalog.csv:ro \
+  api python -m scripts.import_aihub_catalog /import/aihub-catalog.csv
+```
 
 ### 최초 1회 (서버)
 
@@ -140,7 +160,7 @@ EC2에 repo clone·`.env.prod` 는 기존 §1과 동일. **이 workflow 파일�
 | `CLOUDFLARE_PAGES_PROJECT` | Pages 프로젝트 이름 | `pages deploy --project-name` |
 | `MALL_API_BASE_URL` | `https://mall-api.anoveli.com` | Flutter 빌드 `--dart-define` (미설정 시 스크립트 기본값) |
 
-DummyJSON import 등 **DB 시드**는 자동 배포에 포함하지 않는다. 필요 시 EC2에서:
+DummyJSON 등 **데모 시드**는 자동 배포에 포함하지 않는다. 필요 시 EC2에서:
 
 ```bash
 cd /opt/shopping-mall
@@ -148,6 +168,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T api \
   python -m scripts.import_dummyjson_catalog
 ```
 
+AI-Hub 카탈로그는 위 §5 「카탈로그 CSV」대로 **배포마다 자동**이다.
 ---
 
 ## 하지 말 것

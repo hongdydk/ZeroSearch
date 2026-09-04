@@ -55,7 +55,7 @@ tools/cloudflared/cloudflared.exe
 # 식약처 원본·가공 카탈로그 CSV (용량 큼, 로컬 적재용)
 식품의약품안전처_통합식품영양성분정보*.csv
 data/mfds-catalog.csv
-data/aihub-catalog.csv
+# data/aihub-catalog.csv — 대표 상품 SSOT. main push 시 EC2에서 자동 import.
 
 # 사람용 기획·목업·논문 (로컬만, 제품 SSOT는 docs/)
 report/

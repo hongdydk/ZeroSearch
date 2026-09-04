@@ -121,4 +121,5 @@
 
 ## 배포
 
-AWS: Flutter(S3·Cloudflare), FastAPI(EC2), RDS(PostgreSQL). 주소 `https://mall.anoveli.com/`
+Flutter → **Cloudflare Pages** (`mall.anoveli.com`). FastAPI → EC2 Docker (`mall-api` :8001). PostgreSQL → EC2 `mall-postgres`.  
+대표 상품 SSOT는 `data/aihub-catalog.csv` — `main` 배포 시 EC2에서 upsert. 주소 `https://mall.anoveli.com/` · API `https://mall-api.anoveli.com`

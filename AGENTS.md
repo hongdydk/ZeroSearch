@@ -14,7 +14,7 @@
 - **마켓플레이스:** 공식(`platform`) + 입점(`merchant`), 주문 줄별 가게·배송.
 - **멤버십:** 제품 범위 밖. 레거시 코드는 건드리지 않는 한 유지.
 - **결제:** 목표 토스 PG (Phase 3). 현재 크레딧 스텁.
-- **배포:** AWS (S3·CloudFront / EC2 / RDS).
+- **배포:** Cloudflare Pages(Flutter) + EC2(FastAPI·Postgres). 카탈로그는 `data/aihub-catalog.csv` 배포 시 import.
 
 SSOT: [docs/README.md](docs/README.md)
 

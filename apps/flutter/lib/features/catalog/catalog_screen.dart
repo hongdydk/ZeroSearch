@@ -62,7 +62,7 @@ class CatalogScreen extends ConsumerWidget {
     if (isMidBrowse) {
       final table = tableMajorByName(major);
       return _MidBrowseView(
-        majorName: major,
+        majorName: tableMajorLabel(major),
         mids: table?.mids ?? const [],
         padding: padding,
         onBack: () => _clearBrowse(ref),
@@ -76,9 +76,8 @@ class CatalogScreen extends ConsumerWidget {
     }
 
     final catalogAsync = ref.watch(catalogProductsProvider);
-    final title = mid ?? category ?? (search.isNotEmpty ? '검색' : major ?? '목록');
     final bannerText = mid != null
-        ? '“$major · $mid” · 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
+        ? '“${tableMajorLabel(major ?? '')} · $mid” · 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
         : search.isNotEmpty
             ? '“$search” 검색 — 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
             : '같은 회사·품목은 카드 1장 · 단위당 대표가(중위)만 표시합니다.';
@@ -118,11 +117,19 @@ class CatalogScreen extends ConsumerWidget {
                       }
                     },
                     icon: const Icon(Icons.arrow_back, size: 18),
-                    label: Text(mid != null && major != null ? major : '식탁'),
+                    label: Text(
+                      mid != null && major != null
+                          ? tableMajorLabel(major)
+                          : '식탁',
+                    ),
                   ),
                   Flexible(
                     child: Text(
-                      title,
+                      mid ??
+                          category ??
+                          (search.isNotEmpty
+                              ? '검색'
+                              : (major != null ? tableMajorLabel(major) : '목록')),
                       overflow: TextOverflow.ellipsis,
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             fontWeight: FontWeight.w700,
@@ -454,6 +461,8 @@ class _MajorCircleGrid extends StatelessWidget {
       ),
       itemBuilder: (context, index) {
         final m = majors[index];
+        final label = tableMajorLabel(m.name);
+        final imageUrl = tableMajorImageUrl(m.name);
         return InkWell(
           onTap: () => onPick(m.name),
           borderRadius: BorderRadius.circular(16),
@@ -475,21 +484,38 @@ class _MajorCircleGrid extends StatelessWidget {
                         ),
                       ],
                     ),
-                    alignment: Alignment.center,
-                    child: Text(
-                      m.name.substring(0, 1),
-                      style: const TextStyle(
-                        fontSize: 28,
-                        fontWeight: FontWeight.w700,
-                        color: AppTheme.brandTeal,
-                      ),
-                    ),
+                    clipBehavior: Clip.antiAlias,
+                    child: imageUrl == null
+                        ? Center(
+                            child: Text(
+                              label.substring(0, 1),
+                              style: const TextStyle(
+                                fontSize: 28,
+                                fontWeight: FontWeight.w700,
+                                color: AppTheme.brandTeal,
+                              ),
+                            ),
+                          )
+                        : Image.network(
+                            imageUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (_, __, ___) => Center(
+                              child: Text(
+                                label.substring(0, 1),
+                                style: const TextStyle(
+                                  fontSize: 28,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppTheme.brandTeal,
+                                ),
+                              ),
+                            ),
+                          ),
                   ),
                 ),
               ),
               const SizedBox(height: 10),
               Text(
-                m.name,
+                label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
@@ -530,6 +556,7 @@ class _TodayGrid extends StatelessWidget {
       ),
       itemBuilder: (context, index) {
         final m = items[index];
+        final label = tableMajorLabel(m.name);
         final tag = index == 0 ? '지금 많이' : '오늘';
         return Material(
           color: Colors.white,
@@ -553,7 +580,7 @@ class _TodayGrid extends StatelessWidget {
                     ),
                     alignment: Alignment.center,
                     child: Text(
-                      m.name.substring(0, 1),
+                      label.substring(0, 1),
                       style: const TextStyle(
                         fontSize: 42,
                         fontWeight: FontWeight.w700,
@@ -568,7 +595,7 @@ class _TodayGrid extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        m.name,
+                        label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: const TextStyle(

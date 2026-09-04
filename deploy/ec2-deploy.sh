@@ -4,6 +4,7 @@ set -euo pipefail
 
 DEPLOY_DIR="${DEPLOY_DIR:-/opt/shopping-mall}"
 BRANCH="${DEPLOY_BRANCH:-main}"
+CATALOG_CSV="${CATALOG_CSV:-$DEPLOY_DIR/data/aihub-catalog.csv}"
 
 cd "$DEPLOY_DIR"
 
@@ -30,12 +31,23 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
     curl -sf "$HEALTH_URL"
     echo
     echo "mall-api health OK"
-    exit 0
+    break
   fi
   echo "waiting for mall-api ($attempt/$MAX_ATTEMPTS)..."
   sleep 2
+  if [[ "$attempt" -eq "$MAX_ATTEMPTS" ]]; then
+    echo "mall-api health check failed" >&2
+    docker logs mall-api --tail 40 >&2 || true
+    exit 1
+  fi
 done
 
-echo "mall-api health check failed" >&2
-docker logs mall-api --tail 40 >&2 || true
-exit 1
+if [[ -f "$CATALOG_CSV" ]]; then
+  echo "importing catalog: $CATALOG_CSV"
+  docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+    -v "$CATALOG_CSV:/import/aihub-catalog.csv:ro" \
+    api python -m scripts.import_aihub_catalog /import/aihub-catalog.csv
+  echo "catalog import done"
+else
+  echo "skip catalog import — missing $CATALOG_CSV" >&2
+fi

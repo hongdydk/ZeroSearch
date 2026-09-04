@@ -68,20 +68,28 @@ pnpm dev:flutter       # http://localhost:8080
 
 `API_BASE_URL` 기본값: `http://localhost:8001`
 
-## 배포 (AWS)
+## 배포
 
 | 구분 | 구성 |
 |------|------|
-| 화면 | Flutter → S3 `mall/` prefix · 호스트 `mall.anoveli.com` |
+| 화면 | Flutter → **Cloudflare Pages** · 호스트 `mall.anoveli.com` |
 | API | FastAPI → EC2 **8001** (`/opt/shopping-mall`) |
-| DB | PostgreSQL 16 → Docker `mall-postgres` |
+| DB | PostgreSQL 16 → Docker `mall-postgres` (EC2) |
+| 카탈로그 | `data/aihub-catalog.csv` → 배포 시 EC2에서 upsert |
 | 결제 (목표) | 토스페이먼츠 |
 
-아노벨리(`api.anoveli.com`, S3 루트, `app.anoveli.com`)와 **공존**. 상세: [deploy/README.md](./deploy/README.md)
+아노벨리(`api.anoveli.com`, `app.anoveli.com`)와 **공존**. 상세: [deploy/README.md](./deploy/README.md)
 
 목표 주소: `https://mall.anoveli.com/` · API: `https://mall-api.anoveli.com`
 
-**자동 배포:** `main` push → GitHub Actions ([deploy/README.md](./deploy/README.md) §5) — EC2 API + S3 Flutter `mall/`
+**자동 배포:** `main` push → GitHub Actions — EC2 API(+카탈로그 import) + Cloudflare Pages
+
+### 카탈로그 CSV (MD SSOT)
+
+- 파일: [`data/aihub-catalog.csv`](./data/aihub-catalog.csv) (대·중·소분류 · 품목명 · 제조사 · 용량 · 바코드)
+- Validation 라벨 zip에서 갱신: `python scripts/extract_aihub_catalog.py`
+- 판매자 요청 품목은 CSV에 한 줄 추가 후 `main` push → 서버가 자동 import
+- 관리자 화면 CSV 업로드는 비상용으로 유지
 
 ## 시드·개발 계정
 
