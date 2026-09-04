@@ -107,7 +107,7 @@ class ApiClient {
             loginRequest: gen.LoginRequest((b) => b
               ..email = email
               ..password = password
-              ..portal = portal.name),
+              ..portal = _loginRequestPortal(portal)),
           ),
     );
     return data.accessToken;
@@ -452,4 +452,12 @@ class ApiClient {
           ),
     );
   }
+}
+
+gen.LoginRequestPortalEnum _loginRequestPortal(LoginPortal portal) {
+  return switch (portal) {
+    LoginPortal.buyer => gen.LoginRequestPortalEnum.buyer,
+    LoginPortal.seller => gen.LoginRequestPortalEnum.seller,
+    LoginPortal.admin => gen.LoginRequestPortalEnum.admin,
+  };
 }
