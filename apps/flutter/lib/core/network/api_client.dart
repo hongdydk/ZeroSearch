@@ -333,20 +333,19 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> adminDbReset(String mode) async {
-    final data = await _generatedCall(
-      () => _generated.getAdminApi().resetDatabaseAdminDbResetPost(
-            dbResetRequest: gen.DbResetRequest((b) => b
-              ..confirm = 'RESET'
-              ..mode = gen.DbResetRequestModeEnum.valueOf(
-                switch (mode) {
-                  'truncate_all' => 'truncateAll',
-                  'truncate_except_users' => 'truncateExceptUsers',
-                  _ => 'seed',
-                },
-              )),
-          ),
-    );
-    return dbResetResponseToMap(data);
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'admin/db/reset',
+        data: {'confirm': 'RESET', 'mode': mode},
+        options: Options(
+          sendTimeout: const Duration(minutes: 1),
+          receiveTimeout: const Duration(minutes: 15),
+        ),
+      );
+      return response.data ?? {};
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<SellerModel?> sellerMe() async {

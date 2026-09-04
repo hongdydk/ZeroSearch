@@ -54,6 +54,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
   String? _importResult;
 
+  bool _resetting = false;
+
   @override
 
   void initState() {
@@ -158,33 +160,95 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
 
 
+  String _resetBusyLabel() {
+    return _resetMode == 'seed' ? '시드 확인 중…' : '데이터를 지우는 중 — 창을 닫지 마세요.';
+  }
+
   Future<void> _reset() async {
-
-    try {
-
-      final res = await ref.read(apiClientProvider).adminDbReset(_resetMode);
-
-      setState(() => _message = res['message'] as String? ?? '완료');
-
-    } catch (e) {
-
-      setState(() => _message = e.toString());
-
+    if (_resetting) return;
+    final wipe = _resetMode != 'seed';
+    if (wipe) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('초기화할까요?'),
+          content: Text(
+            _resetMode == 'truncate_all'
+                ? '계정·주문·가게·카탈로그를 모두 지웁니다. 몇 분 걸릴 수 있습니다.'
+                : '주문·가게·카탈로그를 지웁니다. 계정은 남습니다. 몇 분 걸릴 수 있습니다.',
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('취소')),
+            FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('실행')),
+          ],
+        ),
+      );
+      if (ok != true) return;
     }
 
+    setState(() {
+      _resetting = true;
+      _message = _resetBusyLabel();
+    });
+    try {
+      final res = await ref.read(apiClientProvider).adminDbReset(_resetMode);
+      final text = res['message'] as String? ?? '완료했습니다.';
+      if (!mounted) return;
+      setState(() => _message = text);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+      await _load();
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() => _message = e.message);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (e) {
+      if (!mounted) return;
+      final text = '초기화에 실패했습니다.';
+      setState(() => _message = text);
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+    } finally {
+      if (mounted) setState(() => _resetting = false);
+    }
   }
-
-
 
   Future<void> _approveSeller(String sellerId) async {
-
-    await ref.read(apiClientProvider).adminApproveSeller(sellerId);
-
-    await _load();
-
+    try {
+      await ref.read(apiClientProvider).adminApproveSeller(sellerId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('입점을 승인했습니다.')));
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
   }
 
+  Future<void> _promoteUser(String userId) async {
+    try {
+      await ref.read(apiClientProvider).adminPromote(userId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('관리자로 올렸습니다.')));
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
 
+  Future<void> _grantCredits(String userId) async {
+    try {
+      await ref.read(apiClientProvider).adminGrantCredits(userId, 100);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('크레딧 100을 지급했습니다.')));
+      await _load();
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    }
+  }
 
   Future<void> _importCatalog() async {
 
@@ -459,28 +523,35 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
       const Divider(),
 
       const Text('DB 초기화'),
-
-      DropdownButton<String>(
-
-        value: _resetMode,
-
-        items: const [
-
-          DropdownMenuItem(value: 'seed', child: Text('시드만')),
-
-          DropdownMenuItem(value: 'truncate_except_users', child: Text('사용자 제외 초기화')),
-
-          DropdownMenuItem(value: 'truncate_all', child: Text('전체 초기화')),
-
-        ],
-
-        onChanged: (v) => setState(() => _resetMode = v ?? 'seed'),
-
+      const SizedBox(height: 4),
+      Text(
+        '시드만 = 카탈로그를 유지합니다. 식약처 데이터를 비우려면 사용자 제외를 고르세요.',
+        style: Theme.of(context).textTheme.bodySmall,
       ),
-
-      FilledButton(onPressed: _reset, child: const Text('DB 초기화 실행')),
-
-      if (_message != null) Text(_message!),
+      DropdownButton<String>(
+        value: _resetMode,
+        items: const [
+          DropdownMenuItem(value: 'seed', child: Text('시드만 (카탈로그 유지)')),
+          DropdownMenuItem(value: 'truncate_except_users', child: Text('사용자 제외 초기화 (카탈로그 삭제)')),
+          DropdownMenuItem(value: 'truncate_all', child: Text('전체 초기화')),
+        ],
+        onChanged: _resetting ? null : (v) => setState(() => _resetMode = v ?? 'seed'),
+      ),
+      FilledButton.icon(
+        onPressed: _resetting ? null : _reset,
+        icon: _resetting
+            ? const SizedBox(
+                width: 16,
+                height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.delete_outline),
+        label: Text(_resetting ? _resetBusyLabel() : 'DB 초기화 실행'),
+      ),
+      if (_message != null) ...[
+        const SizedBox(height: 8),
+        Text(_message!),
+      ],
 
       const Divider(),
 
@@ -504,7 +575,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
                 icon: const Icon(Icons.star),
 
-                onPressed: () => ref.read(apiClientProvider).adminPromote(u['id'] as String),
+                onPressed: () => _promoteUser(u['id'] as String),
 
               ),
 
@@ -512,9 +583,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> {
 
                 icon: const Icon(Icons.monetization_on),
 
-                onPressed: () =>
-
-                    ref.read(apiClientProvider).adminGrantCredits(u['id'] as String, 100),
+                onPressed: () => _grantCredits(u['id'] as String),
 
               ),
 
@@ -613,7 +682,7 @@ class _CatalogImportPanel extends StatelessWidget {
         ? (processing
             ? '서버에 반영하는 중 — 창을 닫지 마세요. 몇 분 걸릴 수 있습니다.'
             : '파일 전송 중 $percent%')
-        : (resultText ?? 'data/mfds-catalog.csv 를 올리면 대표 상품이 채워집니다. 구매자 목록에는 오퍼가 있는 카드만 나옵니다.');
+        : (resultText ?? 'data/aihub-catalog.csv 를 올리면 대표 상품이 채워집니다. 구매자 목록에는 오퍼가 있는 카드만 나옵니다.');
 
     return Card(
       color: importing ? const Color(0xFFEFF6FF) : null,

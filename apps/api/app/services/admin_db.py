@@ -46,7 +46,7 @@ def run_db_reset(db: Session, mode: str) -> str:
         purge_catalogs_without_display_image(db)
         ensure_catalog_seed(db)
         db.commit()
-        return "Seed data ensured (admin, sellers, membership). Catalogs without display image removed."
+        return "관리자·가게·멤버십을 확인했습니다. 카탈로그는 그대로입니다."
 
     if mode == "truncate_except_users":
         truncate_data(db, keep_users=True)
@@ -54,7 +54,7 @@ def run_db_reset(db: Session, mode: str) -> str:
         purge_catalogs_without_display_image(db)
         ensure_catalog_seed(db)
         db.commit()
-        return "Cleared mall data; kept users; re-seeded admin/sellers. Image-less catalogs removed."
+        return "주문·가게·카탈로그를 지웠습니다. 계정은 남겼습니다."
 
     if mode == "truncate_all":
         truncate_data(db, keep_users=False)
@@ -62,7 +62,7 @@ def run_db_reset(db: Session, mode: str) -> str:
         purge_catalogs_without_display_image(db)
         ensure_catalog_seed(db)
         db.commit()
-        return "Cleared all data; re-seeded admin/sellers. Image-less catalogs removed."
+        return "모든 데이터를 지운 뒤 관리자·가게를 다시 만들었습니다."
 
     raise ValueError(f"Unknown reset mode: {mode}")
 
