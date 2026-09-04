@@ -1,6 +1,6 @@
 {
-    "name": "anoveli",
-    "short_name": "anoveli",
+    "name": "제로 서치",
+    "short_name": "제로 서치",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
