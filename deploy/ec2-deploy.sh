@@ -49,6 +49,31 @@ HASH_FILE="$CACHE_DIR/aihub-catalog.sha256"
 FORCE_CATALOG_IMPORT="${FORCE_CATALOG_IMPORT:-0}"
 # Keep in sync with app.services.catalog_identity.NORMALIZATION_VERSION
 CATALOG_NORM_VERSION="${CATALOG_NORM_VERSION:-v1}"
+REMERGE_MARKER="$CACHE_DIR/catalog-remerge-${CATALOG_NORM_VERSION}.done"
+
+# One-time production rollout: back up first, inspect the dry-run, then apply.
+# The marker makes subsequent deployments idempotent.
+if [[ ! -f "$REMERGE_MARKER" ]]; then
+  BACKUP_DIR="$DEPLOY_DIR/backups"
+  BACKUP_FILE="$BACKUP_DIR/catalog-before-remerge-$(date -u +%Y%m%dT%H%M%SZ).dump"
+  mkdir -p "$BACKUP_DIR" "$CACHE_DIR"
+  chmod 700 "$BACKUP_DIR"
+
+  echo "backing up catalog database: $BACKUP_FILE"
+  docker exec mall-postgres pg_dump -U mall -d mall -Fc > "$BACKUP_FILE"
+  test -s "$BACKUP_FILE"
+
+  echo "catalog remerge dry-run (norm=$CATALOG_NORM_VERSION)"
+  docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+    api python -m scripts.remerge_catalog
+
+  echo "applying catalog remerge (norm=$CATALOG_NORM_VERSION)"
+  docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+    api python -m scripts.remerge_catalog --apply
+
+  echo "$CATALOG_NORM_VERSION" > "$REMERGE_MARKER"
+  echo "catalog remerge applied; backup=$BACKUP_FILE"
+fi
 
 if [[ -f "$CATALOG_CSV" ]]; then
   CSV_HASH="$(sha256sum "$CATALOG_CSV" | awk '{print $1}')"
