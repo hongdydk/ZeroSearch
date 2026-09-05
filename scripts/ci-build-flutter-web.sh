@@ -44,10 +44,19 @@ p.write_text(new, encoding="utf-8", newline="\n")
 print('Forced <base href="/">')
 PY
 
-if [[ -f build/web/flutter_service_worker.js ]]; then
-  echo "ERROR: flutter_service_worker.js present (PWA must be disabled)" >&2
-  exit 1
+# Flutter --pwa-strategy=none still writes flutter_service_worker.js with an
+# empty body (ServiceWorkerStrategy.none → ''). Remove the stub so Pages does
+# not serve it; fail if a real (non-empty) worker slipped through.
+SW="build/web/flutter_service_worker.js"
+if [[ -f "$SW" ]]; then
+  if [[ -s "$SW" ]]; then
+    echo "ERROR: flutter_service_worker.js is non-empty (PWA must be disabled)" >&2
+    exit 1
+  fi
+  rm -f "$SW"
+  echo "OK: removed empty flutter_service_worker.js stub"
+else
+  echo "OK: no flutter_service_worker.js"
 fi
-echo "OK: no flutter_service_worker.js"
 
 echo "Built: apps/flutter/build/web"

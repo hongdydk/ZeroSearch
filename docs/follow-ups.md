@@ -50,7 +50,7 @@ Phase 2 UX(#1–9)와 **병행 가능**. Phase 3 / 3.5 / 4와 무관. 제품 DoD
 
 **구현:**
 - [`deploy/ec2-deploy.sh`](../deploy/ec2-deploy.sh) — CSV `sha256` vs `$DEPLOY_DIR/.cache/aihub-catalog.sha256`; 동일 → skip. 강제: `FORCE_CATALOG_IMPORT=1`
-- [`scripts/ci-build-flutter-web.sh`](../scripts/ci-build-flutter-web.sh) — 빌드 후 `flutter_service_worker.js` 있으면 fail (`--pwa-strategy=none`)
+- [`scripts/ci-build-flutter-web.sh`](../scripts/ci-build-flutter-web.sh) — `--pwa-strategy=none` 후에도 Flutter가 빈 `flutter_service_worker.js` stub을 남기므로 삭제; 비어 있지 않으면 fail
 - [`deploy/cloudflare-pages/_headers`](../deploy/cloudflare-pages/_headers) — `/index.html`·`/flutter_bootstrap.js` → `Cache-Control: no-cache` (CI가 Pages 산출물에 복사)
 
 ### B. 관측 (최소 알림) — Cursor Automations
