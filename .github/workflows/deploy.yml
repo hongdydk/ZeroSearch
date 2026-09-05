@@ -105,13 +105,10 @@ jobs:
           print("index.html base href OK")
           PY
 
-      - name: Attach Pages Functions (/api proxy)
+      - name: Attach Pages _routes.json
         run: |
-          cp -R deploy/cloudflare-pages/functions apps/flutter/build/web/functions
           cp deploy/cloudflare-pages/_routes.json apps/flutter/build/web/_routes.json
-          ls -la apps/flutter/build/web/functions
-          test -f apps/flutter/build/web/functions/api.js
-          test -f apps/flutter/build/web/functions/_proxy.js
+          test -f apps/flutter/build/web/_routes.json
 
       - uses: actions/upload-artifact@v4
         with:
@@ -148,6 +145,16 @@ jobs:
             exit 1
           fi
 
+      - name: Stage Pages Functions at repo root
+        run: |
+          # wrangler pages deploy bundles ./functions from CWD (not only inside assets).
+          rm -rf functions "${{ steps.root.outputs.dir }}/functions"
+          cp -R deploy/cloudflare-pages/functions ./functions
+          cp deploy/cloudflare-pages/_routes.json "${{ steps.root.outputs.dir }}/_routes.json"
+          ls -la functions functions/api
+          test -f functions/api.js
+          test -f "functions/api/[[path]].js"
+
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -164,7 +171,10 @@ jobs:
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
         run: |
           # Pages 프로젝트 Production 브랜치는 main. --branch=production 이면 Preview만 생김.
-          .github/wrangler/node_modules/.bin/wrangler pages deploy "${{ steps.root.outputs.dir }}" \
+          OUT=$(.github/wrangler/node_modules/.bin/wrangler pages deploy "${{ steps.root.outputs.dir }}" \
             --project-name="${{ vars.CLOUDFLARE_PAGES_PROJECT }}" \
             --branch=main \
-            --commit-dirty=true
+            --commit-dirty=true 2>&1)
+          echo "$OUT"
+          echo "$OUT" | grep -qiE 'function|Compiled|bundl' \
+            || echo "::warning::wrangler log had no Functions compile line — check /api/health"
