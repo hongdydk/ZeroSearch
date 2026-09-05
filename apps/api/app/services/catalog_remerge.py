@@ -236,6 +236,12 @@ def apply_db_remarge(db: Session) -> RemargeReport:
             # 다른 생존 그룹과 충돌 — 제목은 유지
             group.canonical_title = survivor.title
 
+        # canonical 제목이 중복 행의 현재 제목이면 UPDATE가 DELETE보다 먼저
+        # flush되어 unique 위반이 난다. 중복 행을 먼저 제거한다.
+        for dupe in dupes:
+            db.delete(dupe)
+        db.flush()
+
         survivor.title = group.canonical_title
         survivor.volume_options = vols
         survivor.reference_variants = refs
@@ -248,9 +254,6 @@ def apply_db_remarge(db: Session) -> RemargeReport:
                 if d.image_url:
                     survivor.image_url = d.image_url
                     break
-
-        for dupe in dupes:
-            db.delete(dupe)
 
     db.flush()
     report.offers_moved = offers_moved

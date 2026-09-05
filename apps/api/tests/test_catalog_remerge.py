@@ -121,7 +121,9 @@ def test_pg_apply_remarge_moves_offers_and_aliases():
 
         a = CatalogProduct(
             id=uuid.uuid4(),
-            title="프링글스클래식110G",
+            # canonical 제목을 가진 행이 중복 삭제 대상이어도 unique 위반 없이
+            # 오퍼가 있는 b가 생존해 이 제목을 이어받아야 한다.
+            title="프링글스",
             manufacturer="농심켈로그",
             category="스낵류",
             volume_options=["110G"],
