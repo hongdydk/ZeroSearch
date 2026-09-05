@@ -342,8 +342,16 @@ class CatalogProductModel {
   final int? medianPriceCredits;
   final List<String> volumeOptions;
 
-  String get cardTitle =>
-      manufacturer.isEmpty ? title : '$manufacturer $title';
+  String get cardTitle {
+    final maker = manufacturer.trim();
+    final product = title.trim();
+    if (maker.isEmpty ||
+        product == maker ||
+        product.startsWith('$maker ')) {
+      return product;
+    }
+    return '$maker $product';
+  }
 }
 
 class CatalogOfferModel {
