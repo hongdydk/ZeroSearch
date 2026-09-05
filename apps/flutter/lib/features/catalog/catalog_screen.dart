@@ -955,10 +955,17 @@ class _SiteFooter extends StatelessWidget {
 class _MajorCircleRow extends StatefulWidget {
   const _MajorCircleRow({required this.majors, required this.onPick});
 
-  static const _itemWidth = 72.0;
-  static const _gap = 12.0;
-  static const _step = _itemWidth + _gap;
-  static const _circleSize = 56.0;
+  /// Narrow / mobile: compact horizontal row.
+  static const _compactItemWidth = 72.0;
+  static const _compactCircle = 56.0;
+  static const _compactRowHeight = 86.0;
+  static const _compactGap = 12.0;
+
+  /// Wide / desktop: closer to original landing photo size.
+  static const _wideItemWidth = 100.0;
+  static const _wideCircle = 80.0;
+  static const _wideRowHeight = 112.0;
+  static const _wideGap = 16.0;
 
   final List<TableMajor> majors;
   final ValueChanged<String> onPick;
@@ -1021,16 +1028,26 @@ class _MajorCircleRowState extends State<_MajorCircleRow> {
 
   @override
   Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= webCompactBreakpoint;
+    final itemWidth =
+        wide ? _MajorCircleRow._wideItemWidth : _MajorCircleRow._compactItemWidth;
+    final circleSize =
+        wide ? _MajorCircleRow._wideCircle : _MajorCircleRow._compactCircle;
+    final gap = wide ? _MajorCircleRow._wideGap : _MajorCircleRow._compactGap;
+    final rowHeight =
+        wide ? _MajorCircleRow._wideRowHeight : _MajorCircleRow._compactRowHeight;
+    final step = itemWidth + gap;
+    final glyphSize = wide ? 28.0 : 22.0;
     final showArrows = _canBack || _canForward;
     return SizedBox(
-      height: 86,
+      height: rowHeight,
       child: Row(
         children: [
           if (showArrows) ...[
             _CarouselChevron(
               icon: Icons.chevron_left,
               enabled: _canBack,
-              onPressed: () => _nudge(-_MajorCircleRow._step),
+              onPressed: () => _nudge(-step),
             ),
             const SizedBox(width: 4),
           ],
@@ -1040,22 +1057,21 @@ class _MajorCircleRowState extends State<_MajorCircleRow> {
               scrollDirection: Axis.horizontal,
               physics: const ClampingScrollPhysics(),
               itemCount: widget.majors.length,
-              separatorBuilder: (_, __) =>
-                  const SizedBox(width: _MajorCircleRow._gap),
+              separatorBuilder: (_, __) => SizedBox(width: gap),
               itemBuilder: (context, index) {
                 final m = widget.majors[index];
                 final label = tableMajorLabel(m.name);
                 final imageUrl = tableMajorImageUrl(m.name);
                 return SizedBox(
-                  width: _MajorCircleRow._itemWidth,
+                  width: itemWidth,
                   child: InkWell(
                     onTap: () => widget.onPick(m.name),
                     borderRadius: BorderRadius.circular(16),
                     child: Column(
                       children: [
                         Container(
-                          width: _MajorCircleRow._circleSize,
-                          height: _MajorCircleRow._circleSize,
+                          width: circleSize,
+                          height: circleSize,
                           decoration: BoxDecoration(
                             shape: BoxShape.circle,
                             color: const Color(0xFFEFF5F5),
@@ -1073,8 +1089,8 @@ class _MajorCircleRowState extends State<_MajorCircleRow> {
                               ? Center(
                                   child: Text(
                                     label.substring(0, 1),
-                                    style: const TextStyle(
-                                      fontSize: 22,
+                                    style: TextStyle(
+                                      fontSize: glyphSize,
                                       fontWeight: FontWeight.w700,
                                       color: AppTheme.brandTeal,
                                     ),
@@ -1086,8 +1102,8 @@ class _MajorCircleRowState extends State<_MajorCircleRow> {
                                   errorBuilder: (_, __, ___) => Center(
                                     child: Text(
                                       label.substring(0, 1),
-                                      style: const TextStyle(
-                                        fontSize: 22,
+                                      style: TextStyle(
+                                        fontSize: glyphSize,
                                         fontWeight: FontWeight.w700,
                                         color: AppTheme.brandTeal,
                                       ),
@@ -1119,7 +1135,7 @@ class _MajorCircleRowState extends State<_MajorCircleRow> {
             _CarouselChevron(
               icon: Icons.chevron_right,
               enabled: _canForward,
-              onPressed: () => _nudge(_MajorCircleRow._step),
+              onPressed: () => _nudge(step),
             ),
           ],
         ],
