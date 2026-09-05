@@ -48,8 +48,9 @@ CACHE_DIR="$DEPLOY_DIR/.cache"
 HASH_FILE="$CACHE_DIR/aihub-catalog.sha256"
 FORCE_CATALOG_IMPORT="${FORCE_CATALOG_IMPORT:-0}"
 # Keep in sync with app.services.catalog_identity.NORMALIZATION_VERSION
-CATALOG_NORM_VERSION="${CATALOG_NORM_VERSION:-v1}"
+CATALOG_NORM_VERSION="${CATALOG_NORM_VERSION:-v2}"
 REMERGE_MARKER="$CACHE_DIR/catalog-remerge-${CATALOG_NORM_VERSION}.done"
+VOLUME_TITLE_REPAIR_MARKER="$CACHE_DIR/catalog-volume-title-repair-${CATALOG_NORM_VERSION}.done"
 
 # One-time production rollout: back up first, inspect the dry-run, then apply.
 # The marker makes subsequent deployments idempotent.
@@ -92,6 +93,19 @@ if [[ -f "$CATALOG_CSV" ]]; then
     mkdir -p "$CACHE_DIR"
     echo "$NEW_HASH" > "$HASH_FILE"
     echo "catalog import done"
+  fi
+
+  if [[ ! -f "$VOLUME_TITLE_REPAIR_MARKER" ]]; then
+    echo "volume-only title repair dry-run (norm=$CATALOG_NORM_VERSION)"
+    docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+      api python -m scripts.repair_volume_titles
+
+    echo "applying volume-only title repair (norm=$CATALOG_NORM_VERSION)"
+    docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+      api python -m scripts.repair_volume_titles --apply
+
+    echo "$CATALOG_NORM_VERSION" > "$VOLUME_TITLE_REPAIR_MARKER"
+    echo "volume-only title repair applied"
   fi
 else
   echo "skip catalog import — missing $CATALOG_CSV" >&2

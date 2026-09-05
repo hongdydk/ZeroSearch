@@ -169,4 +169,5 @@ Flutter → **Cloudflare Pages** (`mall.anoveli.com`). FastAPI → EC2 Docker (`
   5. CSV canonical import (`FORCE_CATALOG_IMPORT=1` 또는 fingerprint 갱신 배포)
   6. smoke: 대표 카드 수·오퍼 수·옛 상세 UUID(alias)·장바구니/주문
 - 상세 API는 alias UUID를 생존 대표로 해석. AI-Hub 변형은 구매 불가 `referenceVariants`로만 노출.
-- **CSV dry-run (v1, `data/aihub-catalog.csv`):** source 9886 → high-confidence groups 9086 (−800 cards), medium candidates 857 (자동 병합 안 함).
+- **CSV dry-run (v2, `data/aihub-catalog.csv`):** source 9886 → high-confidence groups 9064 (−822 cards), medium candidates 944 (자동 병합 안 함), 용량-only 제목 0건.
+- v1의 괄호 옵션 오인으로 용량만 남았던 카드는 v2 import 후 `repair_volume_titles`로 원본 변형별 canonical 카드와 alias를 복구한다.

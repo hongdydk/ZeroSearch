@@ -18,6 +18,7 @@ from app.services.catalog_identity import (
     ParsedCatalogTitle,
     ReferenceVariant,
     cluster_parsed_titles,
+    is_volume_only_title,
     parse_catalog_title,
 )
 
@@ -35,6 +36,28 @@ class RemargeReport:
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
+
+
+@dataclass
+class VolumeTitleRepairReport:
+    affected_rows: int
+    source_variants: int
+    target_groups: int
+    missing_targets: list[dict[str, str]]
+    rows_with_offers: list[str]
+    aliases_repointed: int
+    applied: bool
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class _VolumeTitleRepairPlan:
+    bad: CatalogProduct
+    targets_by_title: dict[str, CatalogProduct]
+    title_by_original: dict[str, str]
+    primary_title: str
 
 
 def _merge_volume_options(*groups: list[str]) -> list[str]:
@@ -258,6 +281,161 @@ def apply_db_remarge(db: Session) -> RemargeReport:
     db.flush()
     report.offers_moved = offers_moved
     report.aliases_created = aliases_created
+    report.applied = True
+    return report
+
+
+def plan_volume_title_repair(
+    db: Session,
+) -> tuple[list[_VolumeTitleRepairPlan], VolumeTitleRepairReport]:
+    """v1 괄호 오인으로 용량만 남은 카드를 v2 import 결과로 연결한다."""
+
+    catalogs = list(db.scalars(select(CatalogProduct)).all())
+    bad_rows = [
+        row
+        for row in catalogs
+        if is_volume_only_title(row.title) and list(row.reference_variants or [])
+    ]
+    by_key = {
+        (row.manufacturer, row.category, row.title): row
+        for row in catalogs
+    }
+    plans: list[_VolumeTitleRepairPlan] = []
+    missing_targets: list[dict[str, str]] = []
+    source_variants = 0
+    target_group_count = 0
+
+    for bad in bad_rows:
+        parsed: list[ParsedCatalogTitle] = []
+        for raw_variant in list(bad.reference_variants or []):
+            if not isinstance(raw_variant, dict):
+                continue
+            variant = ReferenceVariant.from_dict(raw_variant)
+            if not variant.original_title or is_volume_only_title(variant.original_title):
+                continue
+            parsed.append(
+                parse_catalog_title(
+                    manufacturer=bad.manufacturer,
+                    category=bad.category,
+                    title=variant.original_title,
+                    volumes_hint=variant.volumes,
+                    barcode=variant.barcode,
+                )
+            )
+
+        if not parsed:
+            continue
+
+        groups, _ = cluster_parsed_titles(parsed, auto_threshold=HIGH_CONFIDENCE)
+        source_variants += len(parsed)
+        target_group_count += len(groups)
+        targets_by_title: dict[str, CatalogProduct] = {}
+        title_by_original: dict[str, str] = {}
+
+        for group in groups:
+            target = by_key.get((bad.manufacturer, bad.category, group.canonical_title))
+            if target is None or target.id == bad.id:
+                missing_targets.append(
+                    {
+                        "catalogId": str(bad.id),
+                        "manufacturer": bad.manufacturer,
+                        "category": bad.category,
+                        "targetTitle": group.canonical_title,
+                    }
+                )
+                continue
+            targets_by_title[group.canonical_title] = target
+            for member in group.members:
+                title_by_original[member.raw_title] = group.canonical_title
+
+        if len(targets_by_title) != len(groups):
+            continue
+
+        primary = max(
+            groups,
+            key=lambda group: (len(group.members), -len(group.canonical_title), group.canonical_title),
+        )
+        plans.append(
+            _VolumeTitleRepairPlan(
+                bad=bad,
+                targets_by_title=targets_by_title,
+                title_by_original=title_by_original,
+                primary_title=primary.canonical_title,
+            )
+        )
+
+    bad_ids = [plan.bad.id for plan in plans]
+    rows_with_offers: list[str] = []
+    if bad_ids:
+        rows_with_offers = [
+            str(catalog_id)
+            for catalog_id in db.scalars(
+                select(Product.catalog_product_id)
+                .where(Product.catalog_product_id.in_(bad_ids))
+                .distinct()
+            ).all()
+        ]
+
+    report = VolumeTitleRepairReport(
+        affected_rows=len(bad_rows),
+        source_variants=source_variants,
+        target_groups=target_group_count,
+        missing_targets=missing_targets,
+        rows_with_offers=rows_with_offers,
+        aliases_repointed=0,
+        applied=False,
+    )
+    return plans, report
+
+
+def apply_volume_title_repair(db: Session) -> VolumeTitleRepairReport:
+    plans, report = plan_volume_title_repair(db)
+    if report.missing_targets:
+        raise RuntimeError(
+            f"v2 canonical import 대상이 없습니다: {len(report.missing_targets)}건"
+        )
+    if report.rows_with_offers:
+        raise RuntimeError(
+            "용량-only 카드에 판매 오퍼가 있어 자동 분할하지 않습니다: "
+            + ", ".join(report.rows_with_offers)
+        )
+
+    aliases_repointed = 0
+    for plan in plans:
+        primary = plan.targets_by_title[plan.primary_title]
+        aliases = list(
+            db.scalars(
+                select(CatalogProductAlias).where(
+                    CatalogProductAlias.canonical_id == plan.bad.id
+                )
+            ).all()
+        )
+        for alias in aliases:
+            target_title = plan.title_by_original.get(
+                alias.original_title or "", plan.primary_title
+            )
+            alias.canonical_id = plan.targets_by_title[target_title].id
+            aliases_repointed += 1
+
+        own_alias = db.get(CatalogProductAlias, plan.bad.id)
+        if own_alias is None:
+            db.add(
+                CatalogProductAlias(
+                    alias_id=plan.bad.id,
+                    canonical_id=primary.id,
+                    original_title=plan.bad.title,
+                )
+            )
+            aliases_repointed += 1
+        else:
+            own_alias.canonical_id = primary.id
+
+        # alias FK를 먼저 새 target으로 옮겨야 bad 삭제의 CASCADE를 피한다.
+        db.flush()
+        db.delete(plan.bad)
+        db.flush()
+
+    report.aliases_repointed = aliases_repointed
     report.applied = True
     return report
 

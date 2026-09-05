@@ -29,6 +29,31 @@ def test_parse_without_paren_prefix():
     assert "양파맛" in parsed.flavors or "양파" in parsed.flavors
 
 
+def test_parse_keeps_product_name_before_option_parentheses():
+    cases = [
+        ("농심튀김우동(봉지)118G", "튀김우동(봉지)"),
+        ("농심 새우탕컵(소) 67G", "새우탕컵(소)"),
+        ("농심)앵그리알티에이(RtA)(낱개)121G", "앵그리알티에이(RtA)(낱개)"),
+    ]
+
+    for title, expected in cases:
+        parsed = parse_catalog_title(
+            manufacturer="농심",
+            category="라면",
+            title=title,
+        )
+        assert parsed.canonical_title == expected
+
+
+def test_parse_never_replaces_maker_only_title_with_volume():
+    parsed = parse_catalog_title(
+        manufacturer="피카소F",
+        category="과채음료",
+        title="피카소F120ML",
+    )
+    assert parsed.canonical_title == "피카소F"
+
+
 def test_cluster_merges_flavor_volume_variants():
     items = [
         parse_catalog_title(manufacturer="농심", category="감자스낵", title="농심)프링글스클래식110G"),

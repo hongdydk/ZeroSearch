@@ -16,7 +16,9 @@ from app.models import CatalogProduct, CatalogProductAlias, Product, Seller, Use
 from app.services.catalog_identity import canonicalize_csv_rows
 from app.services.catalog_remerge import (
     apply_db_remarge,
+    apply_volume_title_repair,
     plan_db_remarge,
+    plan_volume_title_repair,
     resolve_catalog_product,
 )
 
@@ -177,6 +179,82 @@ def test_pg_apply_remarge_moves_offers_and_aliases():
         # 멱등
         report2 = apply_db_remarge(db)
         assert report2.cards_reduced == 0
+
+        db.rollback()
+    finally:
+        db.rollback()
+        db.close()
+        engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.environ.get("RUN_PG_CATALOG_REMERGE") != "1",
+    reason="RUN_PG_CATALOG_REMERGE=1 일 때만 PostgreSQL 재병합 테스트 실행",
+)
+def test_pg_repair_volume_only_title_after_v2_import():
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url or "postgresql" not in database_url:
+        pytest.skip("DATABASE_URL(postgresql) 필요")
+
+    engine = create_engine(database_url, pool_pre_ping=True)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db: Session = SessionLocal()
+    try:
+        bad = CatalogProduct(
+            id=uuid.uuid4(),
+            title="118G",
+            manufacturer="농심",
+            category="국물봉지라면",
+            volume_options=["118G"],
+            reference_variants=[
+                {
+                    "originalTitle": "농심튀김우동(봉지)118G",
+                    "flavors": [],
+                    "volumes": ["118G"],
+                    "barcode": None,
+                },
+                {
+                    "originalTitle": "118G",
+                    "flavors": [],
+                    "volumes": ["118G"],
+                    "barcode": None,
+                },
+            ],
+            price_unit="each",
+        )
+        target = CatalogProduct(
+            id=uuid.uuid4(),
+            title="튀김우동(봉지)",
+            manufacturer="농심",
+            category="국물봉지라면",
+            volume_options=["118G"],
+            reference_variants=[],
+            price_unit="each",
+        )
+        old_id = uuid.uuid4()
+        db.add_all([bad, target])
+        db.flush()
+        db.add(
+            CatalogProductAlias(
+                alias_id=old_id,
+                canonical_id=bad.id,
+                original_title="농심튀김우동(봉지)118G",
+            )
+        )
+        db.flush()
+
+        plans, dry = plan_volume_title_repair(db)
+        assert len(plans) == 1
+        assert dry.affected_rows == 1
+        assert dry.missing_targets == []
+        assert dry.rows_with_offers == []
+
+        result = apply_volume_title_repair(db)
+        db.flush()
+        assert result.applied
+        assert db.get(CatalogProduct, bad.id) is None
+        assert resolve_catalog_product(db, bad.id).id == target.id
+        assert resolve_catalog_product(db, old_id).id == target.id
 
         db.rollback()
     finally:

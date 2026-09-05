@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 from typing import Iterable, Sequence
 
 # 규칙 변경 시 bump — deploy fingerprint에 포함.
-NORMALIZATION_VERSION = "v1"
+NORMALIZATION_VERSION = "v2"
 
 # 자동 병합 임계값 (고신뢰만 자동 적용).
 HIGH_CONFIDENCE = 0.92
@@ -22,7 +22,6 @@ _VOLUME_RE = re.compile(
     r"(?i)(\d+(?:\.\d+)?)\s*(ml|mℓ|㎖|l|ℓ|㎖|g|kg|팩|개입|입|포|개)",
 )
 _PACK_RE = re.compile(r"(?i)[x×＊*]\s*\d+")
-_PAREN_MAKER_RE = re.compile(r"^[^)\]]+[)）]\s*")
 _NON_ALNUM_RE = re.compile(r"[^0-9A-Za-z가-힣]+")
 _SPACE_RE = re.compile(r"\s+")
 
@@ -160,8 +159,6 @@ def normalize_manufacturer(raw: str) -> str:
 
 def _strip_manufacturer_prefix(title: str, manufacturer: str) -> str:
     text = title.strip()
-    # `농심)` / `CJ푸드)` 형태
-    text = _PAREN_MAKER_RE.sub("", text)
     maker = manufacturer.strip()
     if not maker:
         return text
@@ -198,6 +195,17 @@ def _extract_volumes(text: str) -> tuple[str, list[str]]:
     cleaned = _VOLUME_RE.sub(" ", text)
     cleaned = _PACK_RE.sub(" ", cleaned)
     return cleaned, volumes
+
+
+def is_volume_only_title(title: str) -> bool:
+    """제품명 없이 용량·포장 수량만 남은 canonical 제목인지 확인한다."""
+
+    raw = unicodedata.normalize("NFKC", (title or "").strip())
+    if not _VOLUME_RE.search(raw):
+        return False
+    cleaned = _VOLUME_RE.sub(" ", raw)
+    cleaned = _PACK_RE.sub(" ", cleaned)
+    return not _compact_key(cleaned)
 
 
 def _extract_flavors(text: str) -> tuple[str, list[str]]:
@@ -245,8 +253,14 @@ def parse_catalog_title(
     without_flavor, flavors = _extract_flavors(without_vol)
     base = _SPACE_RE.sub(" ", without_flavor).strip(" -_/|")
     if not base:
-        # 전부 옵션으로 빠진 경우 원제목 축약본 사용
-        base = _SPACE_RE.sub(" ", stripped).strip() or raw
+        # 제조사 외 제품명이 없는 원본도 용량만 카드명이 되지 않게 한다.
+        raw_without_vol, _ = _extract_volumes(raw)
+        raw_without_flavor, _ = _extract_flavors(raw_without_vol)
+        base = (
+            _SPACE_RE.sub(" ", raw_without_flavor).strip(" -_/|")
+            or _SPACE_RE.sub(" ", stripped).strip()
+            or raw
+        )
     canonical = base
     base_key = _compact_key(base)
     return ParsedCatalogTitle(
