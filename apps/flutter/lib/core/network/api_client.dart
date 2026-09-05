@@ -153,7 +153,7 @@ class ApiClient {
     return productListFromGenerated(data.items);
   }
 
-  Future<List<CatalogProductModel>> catalogProducts({
+  Future<CatalogProductPageModel> catalogProducts({
     String? q,
     String? category,
     String? categoryMajor,
@@ -180,10 +180,14 @@ class ApiClient {
         },
       );
       final items = response.data?['items'] as List<dynamic>? ?? [];
-      return items
-          .whereType<Map>()
-          .map((e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+      final total = response.data?['total'] as int? ?? items.length;
+      return CatalogProductPageModel(
+        items: items
+            .whereType<Map>()
+            .map((e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)))
+            .toList(),
+        total: total,
+      );
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }
@@ -214,48 +218,77 @@ class ApiClient {
   }
 
   Future<CartModel> cart() async {
-    final data = await _generatedCall(
-      () => _generated.getCartApi().readCartMeCartGet(),
-    );
-    return cartModelFromGenerated(data);
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('me/cart');
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return CartModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<CartModel> addToCart(String productId, {int qty = 1}) async {
-    final data = await _generatedCall(
-      () => _generated.getCartApi().createCartItemMeCartPost(
-            cartAddRequest: gen.CartAddRequest((b) => b
-              ..productId = productId
-              ..qty = qty),
-          ),
-    );
-    return cartModelFromGenerated(data);
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'me/cart',
+        data: {'productId': productId, 'qty': qty},
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return CartModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<CartModel> updateCartItem(String productId, int qty) async {
-    final data = await _generatedCall(
-      () => _generated.getCartApi().updateCartMeCartPut(
-            cartUpdateRequest: gen.CartUpdateRequest((b) => b
-              ..productId = productId
-              ..qty = qty),
-          ),
-    );
-    return cartModelFromGenerated(data);
+    try {
+      final response = await _dio.put<Map<String, dynamic>>(
+        'me/cart',
+        data: {'productId': productId, 'qty': qty},
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return CartModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<CartModel> removeFromCart(String productId) async {
-    final data = await _generatedCall(
-      () => _generated.getCartApi().deleteCartItemMeCartDelete(
-            cartRemoveRequest: gen.CartRemoveRequest((b) => b..productId = productId),
-          ),
-    );
-    return cartModelFromGenerated(data);
+    try {
+      final response = await _dio.delete<Map<String, dynamic>>(
+        'me/cart',
+        data: {'productId': productId},
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return CartModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
-  Future<OrderModel> checkout() async {
-    final data = await _generatedCall(
-      () => _generated.getOrdersApi().createOrderMeOrdersPost(),
-    );
-    return orderModelFromGenerated(data.order);
+  Future<OrderModel> checkout({String? idempotencyKey}) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'me/orders',
+        options: Options(
+          headers: {
+            if (idempotencyKey != null && idempotencyKey.isNotEmpty)
+              'Idempotency-Key': idempotencyKey,
+          },
+        ),
+      );
+      final order = response.data?['order'];
+      if (order is! Map) {
+        throw ApiException('응답 데이터가 없습니다.');
+      }
+      return OrderModel.fromJson(Map<String, dynamic>.from(order));
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<List<OrderModel>> orders() async {

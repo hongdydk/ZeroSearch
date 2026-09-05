@@ -79,6 +79,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       if (ref.read(catalogCategoryProvider) != null) {
         ref.read(catalogCategoryProvider.notifier).state = null;
       }
+      ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
       return;
     }
     if (ref.read(catalogSearchProvider).isNotEmpty) {
@@ -87,16 +88,22 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     if (ref.read(catalogDebouncedSearchProvider).isNotEmpty) {
       ref.read(catalogDebouncedSearchProvider.notifier).state = '';
     }
-    if (ref.read(catalogMajorProvider) != major) {
+    final majorChanged = ref.read(catalogMajorProvider) != major;
+    final midChanged = ref.read(catalogMidProvider) != mid;
+    if (majorChanged) {
       ref.read(catalogMajorProvider.notifier).state = major;
     }
-    if (ref.read(catalogMidProvider) != mid) {
+    if (midChanged) {
       ref.read(catalogMidProvider.notifier).state = mid;
+    }
+    if (majorChanged || midChanged) {
+      ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     }
   }
 
   void _applyMajorDrill(String name) {
     ref.read(catalogMidScrollOffsetProvider.notifier).state = 0;
+    ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogSearchProvider.notifier).state = '';
     ref.read(catalogDebouncedSearchProvider.notifier).state = '';
     ref.read(catalogCategoryProvider.notifier).state = null;
@@ -110,6 +117,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   }
 
   void _applyMidDrill(String major, String name) {
+    ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogFlavorFilterProvider.notifier).state = null;
     ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
     ref.read(catalogCategoryProvider.notifier).state = null;
@@ -122,6 +130,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     _searchDebounce.schedule(value, (committed) {
       if (!mounted) return;
       final q = committed.trim();
+      ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
       context.go(q.isEmpty ? '/' : browseLocation(q: q));
     });
   }
@@ -201,7 +210,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         onScrollOffset: (v) =>
             ref.read(catalogMidScrollOffsetProvider.notifier).state = v,
         onBack: () => popBrowseOrHome(context),
-        onPickMid: (name) => _applyMidDrill(major!, name),
+        onPickMid: (name) => _applyMidDrill(major, name),
       );
     }
 
@@ -277,7 +286,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   }
 
   Widget _catalogResultsBody(
-    AsyncValue<List<CatalogProductModel>>? catalogAsync,
+    AsyncValue<CatalogListState>? catalogAsync,
     EdgeInsets padding,
     int columns,
     double aspectRatio,
@@ -301,26 +310,151 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           ],
         ),
       ),
-      data: (items) {
-        if (items.isEmpty) {
+      data: (page) {
+        if (page.items.isEmpty) {
           return const Center(
             child: Text('조건에 맞는 상품이 없습니다.\n검색어나 식탁 분류를 바꿔 보세요.'),
           );
         }
-        return GridView.builder(
+        return _CatalogProductGrid(
+          items: page.items,
+          hasMore: page.hasMore,
+          loadingMore: page.loadingMore,
           padding: padding.copyWith(top: 16),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            childAspectRatio: aspectRatio,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
-          ),
-          itemCount: items.length,
-          itemBuilder: (context, index) {
-            return _CatalogCard(item: items[index]);
+          columns: columns,
+          aspectRatio: aspectRatio,
+          initialScrollOffset: ref.watch(catalogGridScrollOffsetProvider),
+          onScrollOffset: (v) =>
+              ref.read(catalogGridScrollOffsetProvider.notifier).state = v,
+          onNearEnd: () {
+            ref.read(catalogProductsProvider.notifier).loadMore();
           },
         );
       },
+    );
+  }
+}
+
+class _CatalogProductGrid extends StatefulWidget {
+  const _CatalogProductGrid({
+    required this.items,
+    required this.hasMore,
+    required this.loadingMore,
+    required this.padding,
+    required this.columns,
+    required this.aspectRatio,
+    required this.initialScrollOffset,
+    required this.onScrollOffset,
+    required this.onNearEnd,
+  });
+
+  final List<CatalogProductModel> items;
+  final bool hasMore;
+  final bool loadingMore;
+  final EdgeInsets padding;
+  final int columns;
+  final double aspectRatio;
+  final double initialScrollOffset;
+  final ValueChanged<double> onScrollOffset;
+  final VoidCallback onNearEnd;
+
+  @override
+  State<_CatalogProductGrid> createState() => _CatalogProductGridState();
+}
+
+class _CatalogProductGridState extends State<_CatalogProductGrid> {
+  late final ScrollController _scroll;
+  bool _loadRequested = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll = ScrollController();
+    _scroll.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreOffset());
+  }
+
+  void _restoreOffset() {
+    if (!_scroll.hasClients) return;
+    final max = _scroll.position.maxScrollExtent;
+    final target = widget.initialScrollOffset.clamp(0.0, max);
+    if (target > 0) _scroll.jumpTo(target);
+  }
+
+  void _onScroll() {
+    if (!_scroll.hasClients) return;
+    widget.onScrollOffset(_scroll.offset);
+    if (!widget.hasMore || widget.loadingMore) {
+      _loadRequested = false;
+      return;
+    }
+    final remaining = _scroll.position.maxScrollExtent - _scroll.offset;
+    if (remaining < 480) {
+      if (_loadRequested) return;
+      _loadRequested = true;
+      widget.onNearEnd();
+    } else {
+      _loadRequested = false;
+    }
+  }
+
+  @override
+  void didUpdateWidget(covariant _CatalogProductGrid oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (!widget.loadingMore) {
+      _loadRequested = false;
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_onScroll);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final showLoading = widget.hasMore || widget.loadingMore;
+    return CustomScrollView(
+      controller: _scroll,
+      slivers: [
+        SliverPadding(
+          padding: widget.padding,
+          sliver: SliverGrid(
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: widget.columns,
+              childAspectRatio: widget.aspectRatio,
+              crossAxisSpacing: 14,
+              mainAxisSpacing: 14,
+            ),
+            delegate: SliverChildBuilderDelegate(
+              (context, index) => _CatalogCard(item: widget.items[index]),
+              childCount: widget.items.length,
+            ),
+          ),
+        ),
+        if (showLoading)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 20),
+              child: Center(
+                child: SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+              ),
+            ),
+          )
+        else if (widget.items.isNotEmpty)
+          const SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 16),
+              child: Center(child: Text('모두 불러왔습니다.')),
+            ),
+          ),
+      ],
     );
   }
 }

@@ -100,11 +100,21 @@ CartItemModel cartItemFromGenerated(gen.CartItemResponse item) => CartItemModel(
             item.sellerType,
             specifiedType: const FullType(gen.CartItemResponseSellerTypeEnum),
           ) as String,
+      isAvailable: item.isAvailable,
+      issueCode: item.issueCode == null
+          ? null
+          : gen.serializers.serialize(
+              item.issueCode,
+              specifiedType: const FullType(gen.CartItemResponseIssueCodeEnum),
+            ) as String,
+      issueMessage: item.issueMessage,
+      maxQty: item.maxQty,
     );
 
 CartModel cartModelFromGenerated(gen.CartResponse cart) => CartModel(
       items: cart.items.map(cartItemFromGenerated).toList(),
       totalCredits: cart.totalCredits,
+      checkoutBlocked: cart.checkoutBlocked,
     );
 
 OrderItemModel orderItemFromGenerated(gen.OrderItemResponse item) => OrderItemModel(

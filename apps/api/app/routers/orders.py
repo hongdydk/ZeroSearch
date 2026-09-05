@@ -1,7 +1,7 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, Header, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
@@ -13,13 +13,16 @@ from app.services.orders import checkout, get_order, list_orders, _order_respons
 router = APIRouter(prefix="/me/orders", tags=["orders"])
 
 
-@router.post("", response_model=CheckoutResponse, status_code=status.HTTP_201_CREATED)
+@router.post("", response_model=CheckoutResponse)
 def create_order(
+    response: Response,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
+    idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> CheckoutResponse:
-    order = checkout(db, current_user)
+    order, created = checkout(db, current_user, idempotency_key=idempotency_key)
     db.commit()
+    response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
     return CheckoutResponse(order=order)
 
 

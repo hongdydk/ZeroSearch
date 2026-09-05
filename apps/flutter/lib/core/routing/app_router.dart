@@ -6,6 +6,7 @@ import '../auth/login_portal.dart';
 import '../providers/app_providers.dart';
 import 'safe_next_path.dart';
 import '../../features/admin/admin_screen.dart';
+import '../../features/auth/buyer_auth_gate.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/portal_auth_gate.dart';
 import '../../features/auth/register_screen.dart';
@@ -34,6 +35,9 @@ final routerProvider = Provider<GoRouter>((ref) {
     refreshListenable: listenable,
     redirect: (context, state) {
       final auth = ref.read(authStateProvider);
+      // bootstrap 중에는 미로그인으로 취급하지 않음 (로그인 flash 방지).
+      if (auth.isLoading) return null;
+
       final loggedIn = auth.valueOrNull?.isLoggedIn ?? false;
       final portal = auth.valueOrNull?.portal ?? LoginPortal.buyer;
       final path = state.matchedLocation;
@@ -72,10 +76,22 @@ final routerProvider = Provider<GoRouter>((ref) {
               productId: state.pathParameters['id']!,
             ),
           ),
-          GoRoute(path: '/cart', builder: (_, _) => const CartScreen()),
-          GoRoute(path: '/orders', builder: (_, _) => const OrdersScreen()),
-          GoRoute(path: '/membership', builder: (_, _) => const MembershipScreen()),
-          GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
+          GoRoute(
+            path: '/cart',
+            builder: (_, _) => const BuyerAuthGate(child: CartScreen()),
+          ),
+          GoRoute(
+            path: '/orders',
+            builder: (_, _) => const BuyerAuthGate(child: OrdersScreen()),
+          ),
+          GoRoute(
+            path: '/membership',
+            builder: (_, _) => const BuyerAuthGate(child: MembershipScreen()),
+          ),
+          GoRoute(
+            path: '/settings',
+            builder: (_, _) => const BuyerAuthGate(child: SettingsScreen()),
+          ),
           GoRoute(
             path: '/login',
             builder: (_, state) => LoginScreen(

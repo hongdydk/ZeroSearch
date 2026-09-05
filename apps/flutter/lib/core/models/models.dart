@@ -122,7 +122,29 @@ class CartItemModel {
     required this.sellerId,
     required this.shopName,
     required this.sellerType,
+    this.isAvailable = true,
+    this.issueCode,
+    this.issueMessage,
+    this.maxQty = 99,
   });
+
+  factory CartItemModel.fromJson(Map<String, dynamic> json) {
+    return CartItemModel(
+      id: json['id'] as String? ?? '',
+      productId: json['productId'] as String? ?? '',
+      productTitle: json['productTitle'] as String? ?? '',
+      qty: json['qty'] as int? ?? 0,
+      priceCredits: json['priceCredits'] as int? ?? 0,
+      lineTotalCredits: json['lineTotalCredits'] as int? ?? 0,
+      sellerId: json['sellerId'] as String? ?? '',
+      shopName: json['shopName'] as String? ?? '',
+      sellerType: json['sellerType'] as String? ?? 'merchant',
+      isAvailable: json['isAvailable'] as bool? ?? true,
+      issueCode: json['issueCode'] as String?,
+      issueMessage: json['issueMessage'] as String?,
+      maxQty: json['maxQty'] as int? ?? 99,
+    );
+  }
 
   final String id;
   final String productId;
@@ -133,16 +155,46 @@ class CartItemModel {
   final String sellerId;
   final String shopName;
   final String sellerType;
+  final bool isAvailable;
+  final String? issueCode;
+  final String? issueMessage;
+  final int maxQty;
 }
 
 class CartModel {
   CartModel({
     required this.items,
     required this.totalCredits,
+    this.checkoutBlocked = false,
   });
+
+  factory CartModel.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return CartModel(
+      items: rawItems
+          .whereType<Map>()
+          .map((e) => CartItemModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      totalCredits: json['totalCredits'] as int? ?? 0,
+      checkoutBlocked: json['checkoutBlocked'] as bool? ?? false,
+    );
+  }
 
   final List<CartItemModel> items;
   final int totalCredits;
+  final bool checkoutBlocked;
+}
+
+class CatalogProductPageModel {
+  CatalogProductPageModel({
+    required this.items,
+    required this.total,
+  });
+
+  final List<CatalogProductModel> items;
+  final int total;
+
+  bool get hasMore => items.length < total;
 }
 
 class OrderItemModel {
@@ -177,6 +229,31 @@ class OrderModel {
     required this.items,
     this.createdAt,
   });
+
+  factory OrderModel.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return OrderModel(
+      id: json['id'] as String,
+      status: json['status'] as String? ?? 'paid',
+      totalCredits: json['totalCredits'] as int? ?? 0,
+      createdAt: json['createdAt'] != null
+          ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
+      items: rawItems.whereType<Map>().map((e) {
+        final m = Map<String, dynamic>.from(e);
+        return OrderItemModel(
+          id: m['id'] as String? ?? '',
+          productId: m['productId'] as String? ?? '',
+          productTitle: m['productTitle'] as String? ?? '',
+          qty: m['qty'] as int? ?? 0,
+          unitPriceCredits: m['unitPriceCredits'] as int? ?? 0,
+          fulfillmentStatus: m['fulfillmentStatus'] as String? ?? 'paid',
+          shopName: m['shopName'] as String? ?? '',
+          sellerType: m['sellerType'] as String? ?? 'merchant',
+        );
+      }).toList(),
+    );
+  }
 
   final String id;
   final String status;

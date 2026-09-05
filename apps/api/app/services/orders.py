@@ -2,6 +2,7 @@ from uuid import UUID
 
 from fastapi import HTTPException, status
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import CartItem, Order, OrderItem, Product, User
@@ -60,6 +61,14 @@ def get_order(db: Session, user: User, order_id: UUID) -> Order:
     return order
 
 
+def _find_order_by_idempotency_key(db: Session, user_id: UUID, key: str) -> Order | None:
+    return db.scalar(
+        select(Order)
+        .where(Order.user_id == user_id, Order.idempotency_key == key)
+        .options(joinedload(Order.items).joinedload(OrderItem.seller))
+    )
+
+
 def _reserve_stock(db: Session, *, product_id: UUID, qty: int, title: str) -> None:
     """원자적으로 재고를 차감한다. 동시 주문에서도 stock >= qty인 행만 갱신된다."""
     reserved = db.execute(
@@ -75,7 +84,32 @@ def _reserve_stock(db: Session, *, product_id: UUID, qty: int, title: str) -> No
         )
 
 
-def checkout(db: Session, user: User) -> OrderResponse:
+def checkout(
+    db: Session,
+    user: User,
+    *,
+    idempotency_key: str | None = None,
+) -> tuple[OrderResponse, bool]:
+    """체크아웃. 반환: (응답, created). created=False면 idempotent replay."""
+    key = idempotency_key.strip() if idempotency_key else None
+    if key == "":
+        key = None
+    if key is not None and len(key) > 64:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Idempotency-Key는 64자 이하여야 합니다.",
+        )
+
+    if key is not None:
+        existing = _find_order_by_idempotency_key(db, user.id, key)
+        if existing is not None:
+            if existing.status == "paid":
+                return _order_response(existing), False
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="결제 처리 중입니다. 잠시 후 주문 내역을 확인해 주세요.",
+            )
+
     cart_items = list(
         db.scalars(
             select(CartItem)
@@ -85,6 +119,16 @@ def checkout(db: Session, user: User) -> OrderResponse:
     )
 
     if not cart_items:
+        # 동시 요청: 다른 트랜잭션이 같은 키로 이미 결제·장바구니 비움을 끝낸 경우
+        if key is not None:
+            existing = _find_order_by_idempotency_key(db, user.id, key)
+            if existing is not None:
+                if existing.status == "paid":
+                    return _order_response(existing), False
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="결제 처리 중입니다. 잠시 후 주문 내역을 확인해 주세요.",
+                )
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="장바구니가 비어 있습니다.")
 
     for item in cart_items:
@@ -100,14 +144,29 @@ def checkout(db: Session, user: User) -> OrderResponse:
                 detail=f"'{product.title}' 판매자가 활성 상태가 아닙니다.",
             )
 
-    # Deadlock 완화: 상품 ID 오름차순으로 재고 예약
     cart_items.sort(key=lambda item: item.product_id)
-
     total = sum(item.product.price_credits * item.qty for item in cart_items)
 
-    order = Order(user_id=user.id, status="pending", total_credits=total)
-    db.add(order)
-    db.flush()
+    # savepoint 안에서 insert — begin_nested 직전 autoflush로 UniqueViolation이
+    # savepoint 밖에서 터지는 것을 막는다.
+    try:
+        with db.begin_nested():
+            order = Order(
+                user_id=user.id,
+                status="pending",
+                total_credits=total,
+                idempotency_key=key,
+            )
+            db.add(order)
+            db.flush()
+    except IntegrityError:
+        existing = _find_order_by_idempotency_key(db, user.id, key) if key else None
+        if existing is not None and existing.status == "paid":
+            return _order_response(existing), False
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="결제 처리 중입니다. 잠시 후 주문 내역을 확인해 주세요.",
+        )
 
     for item in cart_items:
         _reserve_stock(
@@ -142,7 +201,6 @@ def checkout(db: Session, user: User) -> OrderResponse:
         db.delete(item)
 
     db.flush()
-    # 원자 UPDATE 이후 ORM에 남은 구 재고 값 폐기
     db.expire_all()
 
     order = db.scalar(
@@ -152,4 +210,4 @@ def checkout(db: Session, user: User) -> OrderResponse:
     )
     if order is None:
         raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="주문 생성 실패")
-    return _order_response(order)
+    return _order_response(order), True

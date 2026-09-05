@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/login_portal.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/routing/safe_next_path.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
@@ -23,13 +24,23 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   String? _error;
   bool _loading = false;
 
+  String? get _safeNext => safeNextPath(widget.next);
+
   LoginPortal get _portal =>
-      widget.next == '/seller' ? LoginPortal.seller : LoginPortal.buyer;
+      _safeNext == '/seller' ? LoginPortal.seller : LoginPortal.buyer;
 
-  String get _afterPath => widget.next == '/seller' ? '/seller' : '/';
+  String get _afterPath {
+    final next = _safeNext;
+    if (next == null) return '/';
+    return next;
+  }
 
-  String get _loginPath =>
-      widget.next == '/seller' ? '/seller' : '/login';
+  String get _loginPath {
+    final next = _safeNext;
+    if (next == '/seller') return '/seller';
+    if (next == null) return '/login';
+    return '/login?next=${Uri.encodeQueryComponent(next)}';
+  }
 
   @override
   void dispose() {

@@ -377,8 +377,44 @@
             "title": "Id",
             "type": "string"
           },
+          "isAvailable": {
+            "title": "Isavailable",
+            "type": "boolean"
+          },
+          "issueCode": {
+            "anyOf": [
+              {
+                "enum": [
+                  "offer_unavailable",
+                  "seller_inactive",
+                  "out_of_stock",
+                  "insufficient_stock"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuecode"
+          },
+          "issueMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Issuemessage"
+          },
           "lineTotalCredits": {
             "title": "Linetotalcredits",
+            "type": "integer"
+          },
+          "maxQty": {
+            "title": "Maxqty",
             "type": "integer"
           },
           "priceCredits": {
@@ -423,7 +459,9 @@
           "shopName",
           "sellerType",
           "priceCredits",
-          "lineTotalCredits"
+          "lineTotalCredits",
+          "isAvailable",
+          "maxQty"
         ],
         "title": "CartItemResponse",
         "type": "object"
@@ -444,6 +482,10 @@
       },
       "CartResponse": {
         "properties": {
+          "checkoutBlocked": {
+            "title": "Checkoutblocked",
+            "type": "boolean"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/CartItemResponse"
@@ -458,7 +500,8 @@
         },
         "required": [
           "items",
-          "totalCredits"
+          "totalCredits",
+          "checkoutBlocked"
         ],
         "title": "CartResponse",
         "type": "object"
@@ -3415,8 +3458,26 @@
       },
       "post": {
         "operationId": "create_order_me_orders_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
         "responses": {
-          "201": {
+          "200": {
             "content": {
               "application/json": {
                 "schema": {
@@ -3425,6 +3486,16 @@
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [

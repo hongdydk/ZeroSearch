@@ -69,9 +69,14 @@ def test_add_to_cart(client):
                 price_credits=12,
                 line_total_credits=24,
                 created_at=datetime.now(UTC),
+                is_available=True,
+                issue_code=None,
+                issue_message=None,
+                max_qty=10,
             )
         ],
         total_credits=24,
+        checkout_blocked=False,
     )
 
     with patch("app.routers.cart.add_to_cart", return_value=cart):
@@ -102,6 +107,60 @@ def test_cart_item_response_maps_seller_from_product():
     assert mapped.seller_type == "merchant"
     assert mapped.product_title == "텀블러"
     assert mapped.line_total_credits == 24
+    assert mapped.is_available is True
+    assert mapped.issue_code is None
+    assert mapped.max_qty == 10
+
+
+def test_cart_item_marks_out_of_stock():
+    seller = _sample_seller()
+    item = _sample_cart_item(seller)
+    item.product.stock = 0
+
+    mapped = _cart_item_response(item)
+
+    assert mapped.is_available is False
+    assert mapped.issue_code == "out_of_stock"
+    assert mapped.max_qty == 0
+    assert mapped.issue_message is not None
+
+
+def test_get_cart_sets_checkout_blocked(client):
+    user = make_user()
+    override_current_user(user)
+    mock_db = MagicMock()
+    override_db(mock_db)
+
+    cart = CartResponse(
+        items=[
+            CartItemResponse(
+                id=str(uuid.uuid4()),
+                product_id=str(uuid.uuid4()),
+                qty=1,
+                product_title="품절템",
+                seller_id=str(uuid.uuid4()),
+                shop_name="청정마트",
+                seller_type="merchant",
+                price_credits=5,
+                line_total_credits=5,
+                created_at=datetime.now(UTC),
+                is_available=False,
+                issue_code="out_of_stock",
+                issue_message="품절된 상품입니다.",
+                max_qty=0,
+            )
+        ],
+        total_credits=5,
+        checkout_blocked=True,
+    )
+
+    with patch("app.routers.cart.get_cart", return_value=cart):
+        response = client.get("/me/cart", headers={"Authorization": "Bearer fake"})
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["checkoutBlocked"] is True
+    assert body["items"][0]["issueCode"] == "out_of_stock"
 
 
 def test_checkout_creates_paid_order(client):
@@ -132,7 +191,7 @@ def test_checkout_creates_paid_order(client):
         created_at=datetime.now(UTC),
     )
 
-    with patch("app.routers.orders.checkout", return_value=order):
+    with patch("app.routers.orders.checkout", return_value=(order, True)):
         response = client.post("/me/orders", headers={"Authorization": "Bearer fake"})
 
     assert response.status_code == 201
@@ -154,10 +213,34 @@ def test_checkout_response_shape(client):
         created_at=datetime.now(UTC),
     )
 
-    with patch("app.routers.orders.checkout", return_value=order):
+    with patch("app.routers.orders.checkout", return_value=(order, True)):
         response = client.post("/me/orders", headers={"Authorization": "Bearer fake"})
 
+    assert response.status_code == 201
     assert "order" in response.json()
+
+
+def test_checkout_idempotent_replay_returns_200(client):
+    user = make_user()
+    override_current_user(user)
+    override_db(MagicMock())
+
+    order = OrderResponse(
+        id=str(uuid.uuid4()),
+        status="paid",
+        total_credits=45,
+        items=[],
+        created_at=datetime.now(UTC),
+    )
+
+    with patch("app.routers.orders.checkout", return_value=(order, False)):
+        response = client.post(
+            "/me/orders",
+            headers={"Authorization": "Bearer fake", "Idempotency-Key": "same-key-1"},
+        )
+
+    assert response.status_code == 200
+    assert response.json()["order"]["id"] == order.id
 
 
 def test_list_orders(client):

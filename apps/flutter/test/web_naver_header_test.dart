@@ -21,7 +21,7 @@ class _HeaderTestApiClient extends ApiClient {
       );
 
   @override
-  Future<List<CatalogProductModel>> catalogProducts({
+  Future<CatalogProductPageModel> catalogProducts({
     String? q,
     String? category,
     String? categoryMajor,
@@ -32,28 +32,31 @@ class _HeaderTestApiClient extends ApiClient {
     int offset = 0,
     int limit = 50,
   }) async =>
-      [
-        CatalogProductModel(
-          id: 'cat-1',
-          title: '백산수',
-          manufacturer: '농심',
-          category: '일반생수',
-          offerCount: 3,
-          priceUnit: 'ml',
-          displayPriceLabel: 'L당 420',
-          medianUnitPrice: 0.42,
-        ),
-        CatalogProductModel(
-          id: 'cat-2',
-          title: '신라면',
-          manufacturer: '농심',
-          category: '국물봉지라면',
-          offerCount: 2,
-          priceUnit: 'credits',
-          displayPriceLabel: '890',
-          medianPriceCredits: 890,
-        ),
-      ];
+      CatalogProductPageModel(
+        items: [
+          CatalogProductModel(
+            id: 'cat-1',
+            title: '백산수',
+            manufacturer: '농심',
+            category: '일반생수',
+            offerCount: 3,
+            priceUnit: 'ml',
+            displayPriceLabel: 'L당 420',
+            medianUnitPrice: 0.42,
+          ),
+          CatalogProductModel(
+            id: 'cat-2',
+            title: '신라면',
+            manufacturer: '농심',
+            category: '국물봉지라면',
+            offerCount: 2,
+            priceUnit: 'credits',
+            displayPriceLabel: '890',
+            medianPriceCredits: 890,
+          ),
+        ],
+        total: 2,
+      );
 }
 
 class _LoggedInTokenStorage extends TokenStorage {

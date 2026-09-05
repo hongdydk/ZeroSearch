@@ -20,7 +20,7 @@ class _Api extends ApiClient {
       );
 
   @override
-  Future<List<CatalogProductModel>> catalogProducts({
+  Future<CatalogProductPageModel> catalogProducts({
     String? q,
     String? category,
     String? categoryMajor,
@@ -31,7 +31,7 @@ class _Api extends ApiClient {
     int offset = 0,
     int limit = 50,
   }) async =>
-      const [];
+      CatalogProductPageModel(items: const [], total: 0);
 }
 
 class _Tokens extends TokenStorage {
@@ -76,7 +76,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    expect(find.text('식탁'), findsWidgets);
+    expect(find.textContaining('식탁'), findsWidgets);
     expect(find.text('면류'), findsWidgets);
 
     await tester.tap(find.text('면류').first);

@@ -24,6 +24,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   String? _error;
   bool _loading = false;
 
+  String _registerLocation() {
+    if (widget.portal == LoginPortal.seller) {
+      return '/register?next=/seller';
+    }
+    final next = safeNextPath(widget.next);
+    if (next == null) return '/register';
+    return '/register?next=${Uri.encodeQueryComponent(next)}';
+  }
+
   @override
   void dispose() {
     _email.dispose();
@@ -97,9 +106,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           if (portal != LoginPortal.admin)
             TextButton(
-              onPressed: () => context.go(
-                portal == LoginPortal.seller ? '/register?next=/seller' : '/register',
-              ),
+              onPressed: () => context.go(_registerLocation()),
               child: const Text('회원가입'),
             ),
           if (portal == LoginPortal.buyer) ...[

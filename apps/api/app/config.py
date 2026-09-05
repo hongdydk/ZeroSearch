@@ -7,6 +7,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     database_url: str = "postgresql+psycopg://mall:mall@localhost:5434/mall"
+    db_pool_size: int = 5
+    db_max_overflow: int = 10
+    db_pool_timeout: int = 30
+    db_pool_recycle: int = 1800
     jwt_secret: str = "dev-secret-change-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7

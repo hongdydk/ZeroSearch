@@ -1,9 +1,17 @@
 from datetime import datetime
 from uuid import UUID
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 from app.schemas.seller import SellerType
+
+CartIssueCode = Literal[
+    "offer_unavailable",
+    "seller_inactive",
+    "out_of_stock",
+    "insufficient_stock",
+]
 
 
 class CartItemResponse(BaseModel):
@@ -17,6 +25,10 @@ class CartItemResponse(BaseModel):
     price_credits: int = Field(alias="priceCredits")
     line_total_credits: int = Field(alias="lineTotalCredits")
     created_at: datetime | None = Field(default=None, alias="createdAt")
+    is_available: bool = Field(alias="isAvailable")
+    issue_code: CartIssueCode | None = Field(default=None, alias="issueCode")
+    issue_message: str | None = Field(default=None, alias="issueMessage")
+    max_qty: int = Field(alias="maxQty")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
@@ -24,6 +36,7 @@ class CartItemResponse(BaseModel):
 class CartResponse(BaseModel):
     items: list[CartItemResponse]
     total_credits: int = Field(alias="totalCredits")
+    checkout_blocked: bool = Field(alias="checkoutBlocked")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

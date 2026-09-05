@@ -19,6 +19,9 @@ final catalogDebouncedSearchProvider = StateProvider<String>((ref) => '');
 final catalogLandingScrollOffsetProvider = StateProvider<double>((ref) => 0);
 final catalogMidScrollOffsetProvider = StateProvider<double>((ref) => 0);
 
+/// 카드 그리드 스크롤 복원 (필터·검색 조합별).
+final catalogGridScrollOffsetProvider = StateProvider<double>((ref) => 0);
+
 /// 식탁 대분류 (AI-Hub). 제품 유무와 무관.
 final catalogMajorProvider = StateProvider<String?>((ref) => null);
 
@@ -143,24 +146,94 @@ final productsProvider = FutureProvider.autoDispose<List<ProductModel>>((ref) as
   return ref.watch(apiClientProvider).products();
 });
 
-final catalogProductsProvider = FutureProvider.autoDispose<List<CatalogProductModel>>((ref) async {
-  final q = ref.watch(catalogDebouncedSearchProvider).trim();
-  final major = ref.watch(catalogMajorProvider);
-  final mid = ref.watch(catalogMidProvider);
-  final category = ref.watch(catalogCategoryProvider);
-  final flavor = ref.watch(catalogFlavorFilterProvider);
-  final volumeMin = ref.watch(catalogVolumeMinFilterProvider);
-  final volumeMax = ref.watch(catalogVolumeMaxFilterProvider);
-  return ref.watch(apiClientProvider).catalogProducts(
-        q: q.isEmpty ? null : q,
-        category: category,
-        categoryMajor: major,
-        categoryMid: mid,
-        flavor: flavor,
-        volumeMlMin: volumeMin,
-        volumeMlMax: volumeMax,
-      );
+final cartProvider = FutureProvider.autoDispose<CartModel>((ref) async {
+  final auth = ref.watch(authStateProvider).valueOrNull;
+  if (auth?.token == null) {
+    return CartModel(items: const [], totalCredits: 0, checkoutBlocked: false);
+  }
+  return ref.watch(apiClientProvider).cart();
 });
+
+class CatalogListState {
+  const CatalogListState({
+    required this.items,
+    required this.total,
+    this.loadingMore = false,
+  });
+
+  final List<CatalogProductModel> items;
+  final int total;
+  final bool loadingMore;
+
+  bool get hasMore => items.length < total;
+}
+
+class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState> {
+  @override
+  Future<CatalogListState> build() async {
+    final q = ref.watch(catalogDebouncedSearchProvider).trim();
+    final major = ref.watch(catalogMajorProvider);
+    final mid = ref.watch(catalogMidProvider);
+    final category = ref.watch(catalogCategoryProvider);
+    final flavor = ref.watch(catalogFlavorFilterProvider);
+    final volumeMin = ref.watch(catalogVolumeMinFilterProvider);
+    final volumeMax = ref.watch(catalogVolumeMaxFilterProvider);
+    final page = await ref.watch(apiClientProvider).catalogProducts(
+          q: q.isEmpty ? null : q,
+          category: category,
+          categoryMajor: major,
+          categoryMid: mid,
+          flavor: flavor,
+          volumeMlMin: volumeMin,
+          volumeMlMax: volumeMax,
+          offset: 0,
+          limit: 50,
+        );
+    return CatalogListState(items: page.items, total: page.total);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || current.loadingMore || !current.hasMore) return;
+    state = AsyncData(
+      CatalogListState(
+        items: current.items,
+        total: current.total,
+        loadingMore: true,
+      ),
+    );
+    try {
+      final q = ref.read(catalogDebouncedSearchProvider).trim();
+      final page = await ref.read(apiClientProvider).catalogProducts(
+            q: q.isEmpty ? null : q,
+            category: ref.read(catalogCategoryProvider),
+            categoryMajor: ref.read(catalogMajorProvider),
+            categoryMid: ref.read(catalogMidProvider),
+            flavor: ref.read(catalogFlavorFilterProvider),
+            volumeMlMin: ref.read(catalogVolumeMinFilterProvider),
+            volumeMlMax: ref.read(catalogVolumeMaxFilterProvider),
+            offset: current.items.length,
+            limit: 50,
+          );
+      state = AsyncData(
+        CatalogListState(
+          items: [...current.items, ...page.items],
+          total: page.total,
+        ),
+      );
+    } catch (_) {
+      state = AsyncData(
+        CatalogListState(items: current.items, total: current.total),
+      );
+      rethrow;
+    }
+  }
+}
+
+final catalogProductsProvider =
+    AsyncNotifierProvider.autoDispose<CatalogProductsNotifier, CatalogListState>(
+  CatalogProductsNotifier.new,
+);
 
 final catalogProductDetailProvider =
     FutureProvider.autoDispose.family<CatalogProductDetailModel, String>((ref, id) async {
@@ -173,14 +246,6 @@ final catalogProductDetailProvider =
         volumeMlMin: volumeMin,
         volumeMlMax: volumeMax,
       );
-});
-
-final cartProvider = FutureProvider.autoDispose<CartModel>((ref) async {
-  final auth = ref.watch(authStateProvider).valueOrNull;
-  if (auth?.token == null) {
-    return CartModel(items: const [], totalCredits: 0);
-  }
-  return ref.watch(apiClientProvider).cart();
 });
 
 final ordersProvider = FutureProvider.autoDispose<List<OrderModel>>((ref) async {
