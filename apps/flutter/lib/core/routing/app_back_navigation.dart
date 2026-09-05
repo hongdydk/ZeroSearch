@@ -28,11 +28,16 @@ void handleAppBackNavigation(BuildContext context) {
     debugPrint('[back] location=$location canPop=${router.canPop()}');
   }
 
+  // Buyer auth (/login, /register) and other shell tabs: leave to home.
+  // Do not SystemNavigator.pop() here — on mobile web that is a silent no-op.
   if (location != '/' &&
-      location != '/login' &&
       location != '/seller' &&
       location != '/admin' &&
       isShellTabRoot(location)) {
+    if (router.canPop()) {
+      router.pop();
+      return;
+    }
     router.go('/');
     return;
   }
@@ -65,6 +70,7 @@ void handleAppBackNavigation(BuildContext context) {
     return;
   }
 
+  // Portal roots (/seller, /admin) with empty stack.
   SystemNavigator.pop();
 }
 

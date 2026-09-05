@@ -502,6 +502,17 @@ class _HeroBlockState extends State<_HeroBlock> {
     super.dispose();
   }
 
+  void _goPage(int delta) {
+    if (!_page.hasClients) return;
+    final target = (_index + delta).clamp(0, 1);
+    if (target == _index) return;
+    _page.animateToPage(
+      target,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final pages = [
@@ -540,10 +551,39 @@ class _HeroBlockState extends State<_HeroBlock> {
       children: [
         SizedBox(
           height: _HeroBlock._bannerHeight,
-          child: PageView(
-            controller: _page,
-            onPageChanged: (i) => setState(() => _index = i),
-            children: pages,
+          child: Stack(
+            children: [
+              PageView(
+                controller: _page,
+                physics: const ClampingScrollPhysics(),
+                onPageChanged: (i) => setState(() => _index = i),
+                children: pages,
+              ),
+              Positioned(
+                left: 6,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: _CarouselChevron(
+                    icon: Icons.chevron_left,
+                    enabled: _index > 0,
+                    onPressed: () => _goPage(-1),
+                  ),
+                ),
+              ),
+              Positioned(
+                right: 6,
+                top: 0,
+                bottom: 0,
+                child: Center(
+                  child: _CarouselChevron(
+                    icon: Icons.chevron_right,
+                    enabled: _index < pages.length - 1,
+                    onPressed: () => _goPage(1),
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: 10),
@@ -564,6 +604,42 @@ class _HeroBlockState extends State<_HeroBlock> {
           }),
         ),
       ],
+    );
+  }
+}
+
+/// Compact teal chevron for banner / category carousels (web mouse UX).
+class _CarouselChevron extends StatelessWidget {
+  const _CarouselChevron({
+    required this.icon,
+    required this.enabled,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final bool enabled;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white.withValues(alpha: enabled ? 0.92 : 0.45),
+      shape: const CircleBorder(),
+      elevation: enabled ? 1 : 0,
+      shadowColor: const Color(0x40074A4E),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: enabled ? onPressed : null,
+        child: SizedBox(
+          width: 32,
+          height: 32,
+          child: Icon(
+            icon,
+            size: 22,
+            color: AppTheme.brandTeal.withValues(alpha: enabled ? 1 : 0.35),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -876,93 +952,177 @@ class _SiteFooter extends StatelessWidget {
   }
 }
 
-class _MajorCircleRow extends StatelessWidget {
+class _MajorCircleRow extends StatefulWidget {
   const _MajorCircleRow({required this.majors, required this.onPick});
 
   static const _itemWidth = 72.0;
+  static const _gap = 12.0;
+  static const _step = _itemWidth + _gap;
   static const _circleSize = 56.0;
 
   final List<TableMajor> majors;
   final ValueChanged<String> onPick;
 
   @override
+  State<_MajorCircleRow> createState() => _MajorCircleRowState();
+}
+
+class _MajorCircleRowState extends State<_MajorCircleRow> {
+  late final ScrollController _scroll;
+  bool _canBack = false;
+  bool _canForward = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll = ScrollController();
+    _scroll.addListener(_syncArrows);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _syncArrows());
+  }
+
+  @override
+  void didUpdateWidget(covariant _MajorCircleRow oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.majors.length != widget.majors.length) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _syncArrows());
+    }
+  }
+
+  @override
+  void dispose() {
+    _scroll.removeListener(_syncArrows);
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _syncArrows() {
+    if (!_scroll.hasClients) return;
+    final pos = _scroll.position;
+    final back = pos.pixels > 0.5;
+    final forward = pos.pixels < pos.maxScrollExtent - 0.5;
+    if (back != _canBack || forward != _canForward) {
+      setState(() {
+        _canBack = back;
+        _canForward = forward;
+      });
+    }
+  }
+
+  void _nudge(double delta) {
+    if (!_scroll.hasClients) return;
+    final target =
+        (_scroll.offset + delta).clamp(0.0, _scroll.position.maxScrollExtent);
+    _scroll.animateTo(
+      target,
+      duration: const Duration(milliseconds: 280),
+      curve: Curves.easeOut,
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final showArrows = _canBack || _canForward;
     return SizedBox(
       height: 86,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: majors.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (context, index) {
-          final m = majors[index];
-          final label = tableMajorLabel(m.name);
-          final imageUrl = tableMajorImageUrl(m.name);
-          return SizedBox(
-            width: _itemWidth,
-            child: InkWell(
-              onTap: () => onPick(m.name),
-              borderRadius: BorderRadius.circular(16),
-              child: Column(
-                children: [
-                  Container(
-                    width: _circleSize,
-                    height: _circleSize,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFFEFF5F5),
-                      border: Border.all(color: const Color(0x14074A4E)),
-                      boxShadow: const [
-                        BoxShadow(
-                          color: Color(0x0F074A4E),
-                          blurRadius: 12,
-                          offset: Offset(0, 4),
+      child: Row(
+        children: [
+          if (showArrows) ...[
+            _CarouselChevron(
+              icon: Icons.chevron_left,
+              enabled: _canBack,
+              onPressed: () => _nudge(-_MajorCircleRow._step),
+            ),
+            const SizedBox(width: 4),
+          ],
+          Expanded(
+            child: ListView.separated(
+              controller: _scroll,
+              scrollDirection: Axis.horizontal,
+              physics: const ClampingScrollPhysics(),
+              itemCount: widget.majors.length,
+              separatorBuilder: (_, __) =>
+                  const SizedBox(width: _MajorCircleRow._gap),
+              itemBuilder: (context, index) {
+                final m = widget.majors[index];
+                final label = tableMajorLabel(m.name);
+                final imageUrl = tableMajorImageUrl(m.name);
+                return SizedBox(
+                  width: _MajorCircleRow._itemWidth,
+                  child: InkWell(
+                    onTap: () => widget.onPick(m.name),
+                    borderRadius: BorderRadius.circular(16),
+                    child: Column(
+                      children: [
+                        Container(
+                          width: _MajorCircleRow._circleSize,
+                          height: _MajorCircleRow._circleSize,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: const Color(0xFFEFF5F5),
+                            border: Border.all(color: const Color(0x14074A4E)),
+                            boxShadow: const [
+                              BoxShadow(
+                                color: Color(0x0F074A4E),
+                                blurRadius: 12,
+                                offset: Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          clipBehavior: Clip.antiAlias,
+                          child: imageUrl == null
+                              ? Center(
+                                  child: Text(
+                                    label.substring(0, 1),
+                                    style: const TextStyle(
+                                      fontSize: 22,
+                                      fontWeight: FontWeight.w700,
+                                      color: AppTheme.brandTeal,
+                                    ),
+                                  ),
+                                )
+                              : Image.network(
+                                  imageUrl,
+                                  fit: BoxFit.cover,
+                                  errorBuilder: (_, __, ___) => Center(
+                                    child: Text(
+                                      label.substring(0, 1),
+                                      style: const TextStyle(
+                                        fontSize: 22,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppTheme.brandTeal,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppTheme.brandTeal,
+                          ),
                         ),
                       ],
                     ),
-                    clipBehavior: Clip.antiAlias,
-                    child: imageUrl == null
-                        ? Center(
-                            child: Text(
-                              label.substring(0, 1),
-                              style: const TextStyle(
-                                fontSize: 22,
-                                fontWeight: FontWeight.w700,
-                                color: AppTheme.brandTeal,
-                              ),
-                            ),
-                          )
-                        : Image.network(
-                            imageUrl,
-                            fit: BoxFit.cover,
-                            errorBuilder: (_, __, ___) => Center(
-                              child: Text(
-                                label.substring(0, 1),
-                                style: const TextStyle(
-                                  fontSize: 22,
-                                  fontWeight: FontWeight.w700,
-                                  color: AppTheme.brandTeal,
-                                ),
-                              ),
-                            ),
-                          ),
                   ),
-                  const SizedBox(height: 8),
-                  Text(
-                    label,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    textAlign: TextAlign.center,
-                    style: const TextStyle(
-                      fontSize: 12,
-                      fontWeight: FontWeight.w600,
-                      color: AppTheme.brandTeal,
-                    ),
-                  ),
-                ],
-              ),
+                );
+              },
             ),
-          );
-        },
+          ),
+          if (showArrows) ...[
+            const SizedBox(width: 4),
+            _CarouselChevron(
+              icon: Icons.chevron_right,
+              enabled: _canForward,
+              onPressed: () => _nudge(_MajorCircleRow._step),
+            ),
+          ],
+        ],
       ),
     );
   }
