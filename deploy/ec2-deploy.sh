@@ -42,12 +42,28 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
   fi
 done
 
+# CSV unchanged → skip upsert. FORCE_CATALOG_IMPORT=1 forces re-import.
+CACHE_DIR="$DEPLOY_DIR/.cache"
+HASH_FILE="$CACHE_DIR/aihub-catalog.sha256"
+FORCE_CATALOG_IMPORT="${FORCE_CATALOG_IMPORT:-0}"
+
 if [[ -f "$CATALOG_CSV" ]]; then
-  echo "importing catalog: $CATALOG_CSV"
-  docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
-    -v "$CATALOG_CSV:/import/aihub-catalog.csv:ro" \
-    api python -m scripts.import_aihub_catalog /import/aihub-catalog.csv
-  echo "catalog import done"
+  NEW_HASH="$(sha256sum "$CATALOG_CSV" | awk '{print $1}')"
+  OLD_HASH=""
+  if [[ -f "$HASH_FILE" ]]; then
+    OLD_HASH="$(tr -d '[:space:]' < "$HASH_FILE")"
+  fi
+  if [[ "$FORCE_CATALOG_IMPORT" != "1" && -n "$OLD_HASH" && "$NEW_HASH" == "$OLD_HASH" ]]; then
+    echo "skip catalog import (unchanged)"
+  else
+    echo "importing catalog: $CATALOG_CSV"
+    docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+      -v "$CATALOG_CSV:/import/aihub-catalog.csv:ro" \
+      api python -m scripts.import_aihub_catalog /import/aihub-catalog.csv
+    mkdir -p "$CACHE_DIR"
+    echo "$NEW_HASH" > "$HASH_FILE"
+    echo "catalog import done"
+  fi
 else
   echo "skip catalog import — missing $CATALOG_CSV" >&2
 fi

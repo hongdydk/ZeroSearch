@@ -44,4 +44,10 @@ p.write_text(new, encoding="utf-8", newline="\n")
 print('Forced <base href="/">')
 PY
 
+if [[ -f build/web/flutter_service_worker.js ]]; then
+  echo "ERROR: flutter_service_worker.js present (PWA must be disabled)" >&2
+  exit 1
+fi
+echo "OK: no flutter_service_worker.js"
+
 echo "Built: apps/flutter/build/web"

@@ -80,7 +80,7 @@ flutter build web --base-href=/ \
 ```
 
 Pages에는 `apps/flutter/build/web/` **내용**을 루트에 올린다 (`web/` 폴더 중첩 금지).  
-배포 전 `deploy/cloudflare-pages/functions`·`_routes.json`을 산출물에 붙여 **`/api/*` → mall-api** 프록시를 켠다 (CI가 자동).  
+배포 전 `deploy/cloudflare-pages/functions`·`_routes.json`·`_headers`를 산출물에 붙여 **`/api/*` → mall-api** 프록시와 `index.html`/`flutter_bootstrap.js` no-cache를 켠다 (CI가 자동).  
 자동 배포는 §5 GitHub Actions.
 
 ### 3.2 커스텀 도메인
@@ -128,7 +128,9 @@ SPA 폴백은 Pages 기본 동작(루트 `404.html` 없음)을 쓴다.
 1. Validation 라벨에서 갱신: `python scripts/extract_aihub_catalog.py`
 2. (또는) 엑셀/CSV에 품목 한 줄 추가
 3. `main` push → EC2 `ec2-deploy.sh`가 health OK 후  
-   `python -m scripts.import_aihub_catalog` 로 upsert
+   CSV `sha256`이 `$DEPLOY_DIR/.cache/aihub-catalog.sha256`과 같으면 **skip**,  
+   다르거나 캐시 없으면 `import_aihub_catalog` upsert 후 해시 기록.  
+   강제: `FORCE_CATALOG_IMPORT=1 bash deploy/ec2-deploy.sh`
 
 관리자 UI CSV 업로드는 **비상용**. 일상 반영은 위 경로.
 
@@ -173,7 +175,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod exec -T api \
   python -m scripts.import_dummyjson_catalog
 ```
 
-AI-Hub 카탈로그는 위 §5 「카탈로그 CSV」대로 **배포마다 자동**이다.
+AI-Hub 카탈로그는 위 §5 「카탈로그 CSV」대로 배포 시 반영(변경 없으면 skip)이다.
 ---
 
 ## 하지 말 것

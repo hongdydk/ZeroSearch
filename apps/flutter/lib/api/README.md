@@ -37,7 +37,7 @@ Contract SSOT: `apps/api/app/schemas/` (Pydantic) → `scripts/openapi.json` →
 
 | Path | Policy |
 |------|--------|
-| `scripts/openapi.json` | **Committed** — CI drift check compares export to this file |
+| `scripts/openapi.json` | **Committed** — `deploy.yml` `test-api` runs `export_openapi.py` then `git diff --exit-code` (drift → fail) |
 | `lib/api/generated/` | **Gitignored** — regenerate locally or in CI before `flutter pub get` |
 
 ## Troubleshooting

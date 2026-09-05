@@ -1,0 +1,25 @@
+name: Health check
+
+on:
+  schedule:
+    # ~15 minutes
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Probe mall API health
+        run: curl -sfS --max-time 20 "https://mall.anoveli.com/api/health"
+
+      - name: Notify Cursor Automations on failure
+        if: failure()
+        env:
+          CURSOR_AUTOMATION_WEBHOOK_URL: ${{ secrets.CURSOR_AUTOMATION_WEBHOOK_URL }}
+          CURSOR_AUTOMATION_WEBHOOK_KEY: ${{ secrets.CURSOR_AUTOMATION_WEBHOOK_KEY }}
+        run: |
+          bash scripts/notify-cursor-automation.sh health_fail \
+            "Health check failed for https://mall.anoveli.com/api/health"

@@ -39,6 +39,11 @@ jobs:
       - name: Install API dependencies
         run: pip install -r apps/api/requirements.txt
 
+      - name: OpenAPI drift check
+        run: |
+          python scripts/export_openapi.py
+          git diff --exit-code -- scripts/openapi.json
+
       - name: pytest
         working-directory: apps/api
         run: python -m pytest tests/ -q
@@ -105,10 +110,12 @@ jobs:
           print("index.html base href OK")
           PY
 
-      - name: Attach Pages _routes.json
+      - name: Attach Pages _routes.json and _headers
         run: |
           cp deploy/cloudflare-pages/_routes.json apps/flutter/build/web/_routes.json
+          cp deploy/cloudflare-pages/_headers apps/flutter/build/web/_headers
           test -f apps/flutter/build/web/_routes.json
+          test -f apps/flutter/build/web/_headers
 
       - uses: actions/upload-artifact@v4
         with:
@@ -151,9 +158,11 @@ jobs:
           rm -rf functions "${{ steps.root.outputs.dir }}/functions"
           cp -R deploy/cloudflare-pages/functions ./functions
           cp deploy/cloudflare-pages/_routes.json "${{ steps.root.outputs.dir }}/_routes.json"
+          cp deploy/cloudflare-pages/_headers "${{ steps.root.outputs.dir }}/_headers"
           ls -la functions functions/api
           test -f functions/api.js
           test -f "functions/api/[[path]].js"
+          test -f "${{ steps.root.outputs.dir }}/_headers"
 
       - uses: actions/setup-node@v4
         with:
@@ -178,3 +187,18 @@ jobs:
           echo "$OUT"
           echo "$OUT" | grep -qiE 'function|Compiled|bundl' \
             || echo "::warning::wrangler log had no Functions compile line — check /api/health"
+
+  notify-failure:
+    needs: [test-api, deploy-api, build-flutter, deploy-pages]
+    if: always() && contains(needs.*.result, 'failure') && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Notify Cursor Automations
+        env:
+          CURSOR_AUTOMATION_WEBHOOK_URL: ${{ secrets.CURSOR_AUTOMATION_WEBHOOK_URL }}
+          CURSOR_AUTOMATION_WEBHOOK_KEY: ${{ secrets.CURSOR_AUTOMATION_WEBHOOK_KEY }}
+        run: |
+          bash scripts/notify-cursor-automation.sh deploy_fail \
+            "Deploy workflow failed (see run_url)"

@@ -1,0 +1,7 @@
+# HTML entry + bootstrap: always revalidate (avoid stale SPA shell).
+# Hashed static assets keep Cloudflare/browser defaults.
+/index.html
+  Cache-Control: no-cache
+
+/flutter_bootstrap.js
+  Cache-Control: no-cache

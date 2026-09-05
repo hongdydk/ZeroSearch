@@ -1,6 +1,6 @@
 # 후속 작업 (미적용)
 
-**다음 적용:** 운영 서브페이즈 A (배포 부담 완화). Phase 2 UX #1–9·same-origin(§1)은 적용됨.
+**다음 적용:** §1b `mall-api` 공개 호스트 정리 (또는 Phase 3). 운영 서브페이즈 A–C는 **적용됨**.
 
 구매자·장바구니 UX(#1–9)는 **Phase 2** — [ux-issues.md](./ux-issues.md) · DoD [phase2-spec.md](./phase2-spec.md) — **적용됨**.  
 이 문서는 Phase 2 DoD에 아직 안 넣은 **인프라·운영**만 둔다. 운영 서브페이즈 A–C가 SSOT.
@@ -27,7 +27,7 @@
 
 ### 1b. `mall-api` 공개 호스트 정리 (나중)
 
-**상태:** 미적용 · §1 이후
+**상태:** 미적용 · §1 이후 · **다음 적용**
 
 **목표:** 브라우저·문서에서 `mall-api.anoveli.com`을 없앤다. Pages Functions(또는 Tunnel)가 **비공개/내부 origin**으로만 :8001에 붙게 한 뒤, 공개 DNS·Tunnel hostname `mall-api` 제거.
 
@@ -44,21 +44,58 @@ Phase 2 UX(#1–9)와 **병행 가능**. Phase 3 / 3.5 / 4와 무관. 제품 DoD
 
 ### A. 배포 부담 완화
 
-**증상:** 배포마다 `data/aihub-catalog.csv` 전량 upsert(~1만 행). Flutter `flutter_service_worker.js`가 비거나 SW가 오래되면 캐시 잔존·빈 SW 위험.
+**상태:** 적용됨
 
-**방향:** CSV 해시·mtime 등으로 **변경 없을 때 import skip**. SW/캐시 무효화·빈 워커 방지 점검. (구현 Plan 시 `deploy/`·시드 스크립트만)
+**증상(이전):** 배포마다 `data/aihub-catalog.csv` 전량 upsert(~1만 행). Flutter `flutter_service_worker.js`가 비거나 SW가 오래되면 캐시 잔존·빈 SW 위험.
 
-### B. 관측 (최소 알림)
+**구현:**
+- [`deploy/ec2-deploy.sh`](../deploy/ec2-deploy.sh) — CSV `sha256` vs `$DEPLOY_DIR/.cache/aihub-catalog.sha256`; 동일 → skip. 강제: `FORCE_CATALOG_IMPORT=1`
+- [`scripts/ci-build-flutter-web.sh`](../scripts/ci-build-flutter-web.sh) — 빌드 후 `flutter_service_worker.js` 있으면 fail (`--pwa-strategy=none`)
+- [`deploy/cloudflare-pages/_headers`](../deploy/cloudflare-pages/_headers) — `/index.html`·`/flutter_bootstrap.js` → `Cache-Control: no-cache` (CI가 Pages 산출물에 복사)
 
-**증상:** health·배포 실패를 사람이 나중에야 앎. 네트워크 오류와 UI 버그가 한 덩어리로 보임.
+### B. 관측 (최소 알림) — Cursor Automations
 
-**방향:** health/deploy 실패 **최소 알림**부터. 원인 구분은 네트워크 vs UI. Sentry류는 **선택·나중** — 필수는 아님.
+**상태:** 적용됨 (레포 연동) · **secrets + Automations UI는 사용자 1회 설정**
+
+**증상(이전):** health·배포 실패를 사람이 나중에야 앎.
+
+**구현 (로컬 hooks 아님):**
+- [`.github/workflows/health-check.yml`](../.github/workflows/health-check.yml) — ~15분 + `workflow_dispatch` → `curl https://mall.anoveli.com/api/health`
+- [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — `notify-failure` job (`if: always() && failure()`)
+- [`scripts/notify-cursor-automation.sh`](../scripts/notify-cursor-automation.sh) — POST Automations webhook; secret 없으면 skip
+
+| | [`.cursor/hooks.json`](../.cursor/hooks.json) (로컬 Hook) | **Cursor Automations** (웹훅) |
+|--|--|--|
+| 트리거 | Agent 도구/셸/세션 (에디터 안) | HTTP POST · GitHub · 스케줄 |
+| CI/헬스 실패 수신 | **불가** | **가능** |
+| 역할 | 정책·감사·후처리 | **수신기** → Cloud Agent 실행 |
+
+로컬 Hook은 Cursor 안에서 Agent가 돌 때만 동작한다. 배포/헬스 실패를 Cursor로 보내는 경로는 **Automations 웹훅**이다.
+
+#### Automations 설정 (사용자 1회)
+
+1. [cursor.com/automations](https://cursor.com/automations)에서 Automation 생성 (Webhook 트리거).
+2. **Prompt 의도:** payload의 `run_url`·`event`를 읽고 ZeroSearch 레포에서 배포/헬스 실패 원인을 짧게 진단·요약. 명확한 레포 수정이면 PR 제안; 인프라/비밀/EC2 수동이면 조치 체크리스트만. Sentry 없음.
+3. Webhook URL·Key를 GitHub repo secrets에 넣기:
+
+| Secret | 용도 |
+|--------|------|
+| `CURSOR_AUTOMATION_WEBHOOK_URL` | Automations webhook URL |
+| `CURSOR_AUTOMATION_WEBHOOK_KEY` | Bearer 키 |
+
+Payload: `source`, `event` (`health_fail`\|`deploy_fail`), `repo`, `run_url`, `job`, `message`.
+
+Sentry는 **선택·나중** — 필수는 아님.
 
 ### C. OpenAPI 계약 습관
 
-**증상:** `schemas` ↔ `openapi.json` ↔ Flutter generated가 어긋나면 Phase 2 장바구니·API UX 수정 때 클라이언트/서버가 따로 노는다.
+**상태:** 적용됨
 
-**방향:** 손대면 체크 — [AGENTS.md](../AGENTS.md) 「API 스키마 변경 시」: `schemas` → `scripts/export_openapi.py` → `pytest` → (필요 시) `pnpm codegen:flutter`. 계약 규칙: [.cursor/rules/openapi-contract.mdc](../.cursor/rules/openapi-contract.mdc)
+**증상(이전):** `schemas` ↔ `openapi.json` ↔ Flutter generated가 어긋나면 클라이언트/서버가 따로 논다.
+
+**구현:**
+- `deploy.yml` `test-api`: `python scripts/export_openapi.py` → `git diff --exit-code -- scripts/openapi.json` (drift → fail)
+- 손대면 체크 — [AGENTS.md](../AGENTS.md) 「API 스키마 변경 시」: `schemas` → `scripts/export_openapi.py` → `pytest` → (필요 시) `pnpm codegen:flutter`. 계약 규칙: [.cursor/rules/openapi-contract.mdc](../.cursor/rules/openapi-contract.mdc)
 
 ---
 
@@ -66,5 +103,5 @@ Phase 2 UX(#1–9)와 **병행 가능**. Phase 3 / 3.5 / 4와 무관. 제품 DoD
 
 1. **same-origin** 프록시 + `API_BASE_URL` + 헬스 확인 (이 문서 §1) — **적용됨**
 2. (Phase 2) 구매자·장바구니 UX #1–9 — [ux-issues.md](./ux-issues.md) — **적용됨**
-3. **운영 서브페이즈** A → B → C — **다음: A** (병행 가능; UX와 겹치면 C를 해당 PR에 묶음)
-4. **§1b** `mall-api` 공개 호스트 정리 (프록시 origin 교체 후)
+3. **운영 서브페이즈** A → B → C — **적용됨**
+4. **§1b** `mall-api` 공개 호스트 정리 (프록시 origin 교체 후) — **다음**
