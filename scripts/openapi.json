@@ -396,6 +396,22 @@
           "qty": {
             "title": "Qty",
             "type": "integer"
+          },
+          "sellerId": {
+            "title": "Sellerid",
+            "type": "string"
+          },
+          "sellerType": {
+            "enum": [
+              "platform",
+              "merchant"
+            ],
+            "title": "Sellertype",
+            "type": "string"
+          },
+          "shopName": {
+            "title": "Shopname",
+            "type": "string"
           }
         },
         "required": [
@@ -403,6 +419,9 @@
           "productId",
           "qty",
           "productTitle",
+          "sellerId",
+          "shopName",
+          "sellerType",
           "priceCredits",
           "lineTotalCredits"
         ],
@@ -2815,6 +2834,38 @@
                 }
               ],
               "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryMajor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Categorymajor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryMid",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Categorymid"
             }
           },
           {

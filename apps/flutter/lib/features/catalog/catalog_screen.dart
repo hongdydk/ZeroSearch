@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
+import '../../core/catalog/browse_location.dart';
 import '../../core/catalog/table_taxonomy.dart';
 import '../../core/format/price_format.dart';
 import '../../core/layout/ui_platform.dart';
@@ -12,25 +14,103 @@ import '../../core/theme/mall_tokens.dart';
 import '../../shared/widgets/mall_info_banner.dart';
 import '../../shared/widgets/product_image.dart';
 
-class CatalogScreen extends ConsumerWidget {
+class CatalogScreen extends ConsumerStatefulWidget {
   const CatalogScreen({super.key});
 
   static const _flavorOptions = ['레몬', '자몽'];
 
-  void _clearBrowse(WidgetRef ref) {
-    ref.read(catalogSearchProvider.notifier).state = '';
-    ref.read(catalogMajorProvider.notifier).state = null;
-    ref.read(catalogMidProvider.notifier).state = null;
-    ref.read(catalogCategoryProvider.notifier).state = null;
-    ref.read(catalogFlavorFilterProvider.notifier).state = null;
-    ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
+  @override
+  ConsumerState<CatalogScreen> createState() => _CatalogScreenState();
+}
+
+class _CatalogScreenState extends ConsumerState<CatalogScreen> {
+  final _searchDebounce = CatalogSearchDebounce();
+  String? _syncedQuery;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _syncBrowseFromUri(GoRouterState.of(context).uri);
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final search = ref.watch(catalogSearchProvider).trim();
-    final major = ref.watch(catalogMajorProvider);
-    final mid = ref.watch(catalogMidProvider);
+  void dispose() {
+    _searchDebounce.dispose();
+    super.dispose();
+  }
+
+  void _syncBrowseFromUri(Uri uri) {
+    final key = uri.hasQuery ? uri.query : '';
+    if (_syncedQuery == key) return;
+    _syncedQuery = key;
+    _searchDebounce.cancel();
+
+    final q = (uri.queryParameters['q'] ?? '').trim();
+    final majorRaw = uri.queryParameters['major'];
+    final midRaw = uri.queryParameters['mid'];
+    final major = (majorRaw == null || majorRaw.isEmpty) ? null : majorRaw;
+    final mid = (midRaw == null || midRaw.isEmpty) ? null : midRaw;
+
+    if (q.isNotEmpty) {
+      if (ref.read(catalogSearchProvider) != q) {
+        ref.read(catalogSearchProvider.notifier).state = q;
+      }
+      if (ref.read(catalogDebouncedSearchProvider) != q) {
+        ref.read(catalogDebouncedSearchProvider.notifier).state = q;
+      }
+      if (ref.read(catalogMajorProvider) != null) {
+        ref.read(catalogMajorProvider.notifier).state = null;
+      }
+      if (ref.read(catalogMidProvider) != null) {
+        ref.read(catalogMidProvider.notifier).state = null;
+      }
+      if (ref.read(catalogCategoryProvider) != null) {
+        ref.read(catalogCategoryProvider.notifier).state = null;
+      }
+      return;
+    }
+    if (ref.read(catalogSearchProvider).isNotEmpty) {
+      ref.read(catalogSearchProvider.notifier).state = '';
+    }
+    if (ref.read(catalogDebouncedSearchProvider).isNotEmpty) {
+      ref.read(catalogDebouncedSearchProvider.notifier).state = '';
+    }
+    if (ref.read(catalogMajorProvider) != major) {
+      ref.read(catalogMajorProvider.notifier).state = major;
+    }
+    if (ref.read(catalogMidProvider) != mid) {
+      ref.read(catalogMidProvider.notifier).state = mid;
+    }
+  }
+
+  void _onSearchTyped(String value) {
+    ref.read(catalogSearchProvider.notifier).state = value;
+    _searchDebounce.schedule(value, (committed) {
+      if (!mounted) return;
+      final q = committed.trim();
+      context.go(q.isEmpty ? '/' : browseLocation(q: q));
+    });
+  }
+
+  void _clearStaleWaterFilters(bool showWater) {
+    if (showWater) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      if (ref.read(catalogFlavorFilterProvider) != null) {
+        ref.read(catalogFlavorFilterProvider.notifier).state = null;
+      }
+      if (ref.read(catalogVolumeMinFilterProvider) != null) {
+        ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final typedSearch = ref.watch(catalogSearchProvider).trim();
+    final debouncedSearch = ref.watch(catalogDebouncedSearchProvider).trim();
+    final urlMajor = ref.watch(catalogMajorProvider);
+    final urlMid = ref.watch(catalogMidProvider);
     final category = ref.watch(catalogCategoryProvider);
     final flavor = ref.watch(catalogFlavorFilterProvider);
     final volumeMin = ref.watch(catalogVolumeMinFilterProvider);
@@ -45,20 +125,38 @@ class CatalogScreen extends ConsumerWidget {
       vertical: isWebUi ? 20 : 16,
     );
 
-    final isLanding = search.isEmpty && major == null && mid == null && category == null;
-    final isMidBrowse = major != null && mid == null && search.isEmpty && category == null;
+    final inSearch = typedSearch.isNotEmpty;
+    final major = inSearch ? null : urlMajor;
+    final mid = inSearch ? null : urlMid;
+    final showWater = showsWaterFilters(
+      mid: urlMid,
+      category: category,
+      q: debouncedSearch,
+    );
+    if (!showWater && (flavor != null || volumeMin != null)) {
+      _clearStaleWaterFilters(false);
+    }
+
+    final isLanding = !inSearch && major == null && mid == null && category == null;
+    final isMidBrowse = !inSearch && major != null && mid == null && category == null;
+    final awaitingFirstSearch = inSearch &&
+        debouncedSearch.isEmpty &&
+        urlMajor == null &&
+        urlMid == null &&
+        category == null;
 
     if (isLanding) {
       return _LandingView(
         padding: padding,
+        searchValue: typedSearch,
+        initialScrollOffset: ref.watch(catalogLandingScrollOffsetProvider),
+        onScrollOffset: (v) =>
+            ref.read(catalogLandingScrollOffsetProvider.notifier).state = v,
         onPickMajor: (name) {
-          ref.read(catalogFlavorFilterProvider.notifier).state = null;
-          ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
-          ref.read(catalogMidProvider.notifier).state = null;
-          ref.read(catalogCategoryProvider.notifier).state = null;
-          ref.read(catalogMajorProvider.notifier).state = name;
+          ref.read(catalogMidScrollOffsetProvider.notifier).state = 0;
+          context.push(browseLocation(major: name));
         },
-        onSearchChanged: (v) => ref.read(catalogSearchProvider.notifier).state = v,
+        onSearchChanged: _onSearchTyped,
       );
     }
 
@@ -68,115 +166,128 @@ class CatalogScreen extends ConsumerWidget {
         majorName: tableMajorLabel(major),
         mids: table?.mids ?? const [],
         padding: padding,
-        onBack: () => _clearBrowse(ref),
-        onPickMid: (name) {
-          ref.read(catalogFlavorFilterProvider.notifier).state = null;
-          ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
-          ref.read(catalogCategoryProvider.notifier).state = null;
-          ref.read(catalogMidProvider.notifier).state = name;
-        },
+        initialScrollOffset: ref.watch(catalogMidScrollOffsetProvider),
+        onScrollOffset: (v) =>
+            ref.read(catalogMidScrollOffsetProvider.notifier).state = v,
+        onBack: () => popBrowseOrHome(context),
+        onPickMid: (name) => context.push(browseLocation(major: major, mid: name)),
       );
     }
 
-    final catalogAsync = ref.watch(catalogProductsProvider);
     final bannerText = mid != null
         ? '“${tableMajorLabel(major ?? '')} · $mid” · 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
-        : search.isNotEmpty
-            ? '“$search” 검색 — 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
+        : inSearch
+            ? '“$typedSearch” 검색 — 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
             : '같은 회사·품목은 카드 1장 · 단위당 대표가(중위)만 표시합니다.';
 
-    return catalogAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('상품을 불러오지 못했습니다: $e')),
-      data: (items) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (!isWebUi)
-              Padding(
-                padding: padding.copyWith(bottom: 0),
-                child: TextField(
-                  decoration: const InputDecoration(
-                    hintText: '밥, 떡, 쌀…',
-                    prefixIcon: Icon(Icons.search),
-                  ),
-                  onChanged: (v) => ref.read(catalogSearchProvider.notifier).state = v,
+    final catalogAsync = awaitingFirstSearch ? null : ref.watch(catalogProductsProvider);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (!isWebUi)
+          Padding(
+            padding: padding.copyWith(bottom: 0),
+            child: _SyncedSearchField(
+              value: typedSearch,
+              onChanged: _onSearchTyped,
+            ),
+          ),
+        Padding(
+          padding: padding.copyWith(bottom: 0, top: isWebUi ? padding.top : 12),
+          child: Row(
+            children: [
+              TextButton.icon(
+                onPressed: () => popBrowseOrHome(context),
+                icon: const Icon(Icons.arrow_back, size: 18),
+                label: Text(
+                  !inSearch && mid != null && major != null
+                      ? tableMajorLabel(major)
+                      : '식탁',
                 ),
               ),
-            Padding(
-              padding: padding.copyWith(bottom: 0, top: isWebUi ? padding.top : 12),
-              child: Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: () {
-                      if (mid != null || category != null) {
-                        ref.read(catalogMidProvider.notifier).state = null;
-                        ref.read(catalogCategoryProvider.notifier).state = null;
-                        ref.read(catalogFlavorFilterProvider.notifier).state = null;
-                        ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
-                        if (major == null) _clearBrowse(ref);
-                      } else {
-                        _clearBrowse(ref);
-                      }
-                    },
-                    icon: const Icon(Icons.arrow_back, size: 18),
-                    label: Text(
-                      mid != null && major != null
-                          ? tableMajorLabel(major)
-                          : '식탁',
-                    ),
-                  ),
-                  Flexible(
-                    child: Text(
-                      mid ??
-                          category ??
-                          (search.isNotEmpty
-                              ? '검색'
-                              : (major != null ? tableMajorLabel(major) : '목록')),
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            fontWeight: FontWeight.w700,
-                            color: AppTheme.brandTeal,
-                          ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
-            if (isWebUi)
-              Padding(
-                padding: padding.copyWith(top: 8, bottom: 0),
-                child: MallInfoBanner(text: bannerText),
-              ),
-            Padding(
-              padding: padding.copyWith(top: 12, bottom: 0),
-              child: _FilterChips(
-                flavor: flavor,
-                volumeMin: volumeMin,
-                onFlavor: (v) => ref.read(catalogFlavorFilterProvider.notifier).state = v,
-                onVolumeMin: (v) => ref.read(catalogVolumeMinFilterProvider.notifier).state = v,
-              ),
-            ),
-            Expanded(
-              child: items.isEmpty
-                  ? const Center(
-                      child: Text('아직 등록된 대표 상품이 없습니다.\n식탁 분류는 그대로 고를 수 있습니다.'),
-                    )
-                  : GridView.builder(
-                      padding: padding.copyWith(top: 16),
-                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: columns,
-                        childAspectRatio: aspectRatio,
-                        crossAxisSpacing: 14,
-                        mainAxisSpacing: 14,
+              Flexible(
+                child: Text(
+                  mid ??
+                      category ??
+                      (inSearch
+                          ? '검색'
+                          : (major != null ? tableMajorLabel(major) : '목록')),
+                  overflow: TextOverflow.ellipsis,
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: AppTheme.brandTeal,
                       ),
-                      itemCount: items.length,
-                      itemBuilder: (context, index) {
-                        return _CatalogCard(item: items[index]);
-                      },
-                    ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (isWebUi)
+          Padding(
+            padding: padding.copyWith(top: 8, bottom: 0),
+            child: MallInfoBanner(text: bannerText),
+          ),
+        if (showWater)
+          Padding(
+            padding: padding.copyWith(top: 12, bottom: 0),
+            child: _FilterChips(
+              flavor: flavor,
+              volumeMin: volumeMin,
+              onFlavor: (v) => ref.read(catalogFlavorFilterProvider.notifier).state = v,
+              onVolumeMin: (v) => ref.read(catalogVolumeMinFilterProvider.notifier).state = v,
+            ),
+          ),
+        if (catalogAsync != null && catalogAsync.isLoading && catalogAsync.hasValue)
+          const LinearProgressIndicator(minHeight: 2),
+        Expanded(child: _catalogResultsBody(catalogAsync, padding, columns, aspectRatio)),
+      ],
+    );
+  }
+
+  Widget _catalogResultsBody(
+    AsyncValue<List<CatalogProductModel>>? catalogAsync,
+    EdgeInsets padding,
+    int columns,
+    double aspectRatio,
+  ) {
+    if (catalogAsync == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    return catalogAsync.when(
+      skipLoadingOnReload: true,
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('상품을 불러오지 못했습니다.'),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () => ref.invalidate(catalogProductsProvider),
+              child: const Text('다시 시도'),
             ),
           ],
+        ),
+      ),
+      data: (items) {
+        if (items.isEmpty) {
+          return const Center(
+            child: Text('조건에 맞는 상품이 없습니다.\n검색어나 식탁 분류를 바꿔 보세요.'),
+          );
+        }
+        return GridView.builder(
+          padding: padding.copyWith(top: 16),
+          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: columns,
+            childAspectRatio: aspectRatio,
+            crossAxisSpacing: 14,
+            mainAxisSpacing: 14,
+          ),
+          itemCount: items.length,
+          itemBuilder: (context, index) {
+            return _CatalogCard(item: items[index]);
+          },
         );
       },
     );
@@ -186,11 +297,17 @@ class CatalogScreen extends ConsumerWidget {
 class _LandingView extends StatefulWidget {
   const _LandingView({
     required this.padding,
+    required this.searchValue,
+    required this.initialScrollOffset,
+    required this.onScrollOffset,
     required this.onPickMajor,
     required this.onSearchChanged,
   });
 
   final EdgeInsets padding;
+  final String searchValue;
+  final double initialScrollOffset;
+  final ValueChanged<double> onScrollOffset;
   final ValueChanged<String> onPickMajor;
   final ValueChanged<String> onSearchChanged;
 
@@ -200,6 +317,30 @@ class _LandingView extends StatefulWidget {
 
 class _LandingViewState extends State<_LandingView> {
   final _tableKey = GlobalKey();
+  late final ScrollController _scroll;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll = ScrollController();
+    _scroll.addListener(() {
+      if (_scroll.hasClients) widget.onScrollOffset(_scroll.offset);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreOffset());
+  }
+
+  void _restoreOffset() {
+    if (!_scroll.hasClients) return;
+    final max = _scroll.position.maxScrollExtent;
+    final target = widget.initialScrollOffset.clamp(0.0, max);
+    if (target > 0) _scroll.jumpTo(target);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +351,7 @@ class _LandingViewState extends State<_LandingView> {
         .toList();
 
     return ListView(
+      controller: _scroll,
       padding: EdgeInsets.zero,
       children: [
         Padding(
@@ -218,11 +360,8 @@ class _LandingViewState extends State<_LandingView> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               if (!isWebUi) ...[
-                TextField(
-                  decoration: const InputDecoration(
-                    hintText: '밥, 떡, 쌀…',
-                    prefixIcon: Icon(Icons.search),
-                  ),
+                _SyncedSearchField(
+                  value: widget.searchValue,
                   onChanged: widget.onSearchChanged,
                 ),
                 const SizedBox(height: 20),
@@ -898,11 +1037,13 @@ class _TodayGrid extends StatelessWidget {
   }
 }
 
-class _MidBrowseView extends StatelessWidget {
+class _MidBrowseView extends StatefulWidget {
   const _MidBrowseView({
     required this.majorName,
     required this.mids,
     required this.padding,
+    required this.initialScrollOffset,
+    required this.onScrollOffset,
     required this.onBack,
     required this.onPickMid,
   });
@@ -910,8 +1051,40 @@ class _MidBrowseView extends StatelessWidget {
   final String majorName;
   final List<TableMid> mids;
   final EdgeInsets padding;
+  final double initialScrollOffset;
+  final ValueChanged<double> onScrollOffset;
   final VoidCallback onBack;
   final ValueChanged<String> onPickMid;
+
+  @override
+  State<_MidBrowseView> createState() => _MidBrowseViewState();
+}
+
+class _MidBrowseViewState extends State<_MidBrowseView> {
+  late final ScrollController _scroll;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll = ScrollController();
+    _scroll.addListener(() {
+      if (_scroll.hasClients) widget.onScrollOffset(_scroll.offset);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreOffset());
+  }
+
+  void _restoreOffset() {
+    if (!_scroll.hasClients) return;
+    final max = _scroll.position.maxScrollExtent;
+    final target = widget.initialScrollOffset.clamp(0.0, max);
+    if (target > 0) _scroll.jumpTo(target);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -921,17 +1094,18 @@ class _MidBrowseView extends StatelessWidget {
         : (width < 900 ? 3 : (width < 1200 ? 4 : 5));
 
     return ListView(
-      padding: padding,
+      controller: _scroll,
+      padding: widget.padding,
       children: [
         Row(
           children: [
             TextButton.icon(
-              onPressed: onBack,
+              onPressed: widget.onBack,
               icon: const Icon(Icons.arrow_back, size: 18),
               label: const Text('식탁'),
             ),
             Text(
-              majorName,
+              widget.majorName,
               style: Theme.of(context).textTheme.titleLarge?.copyWith(
                     fontWeight: FontWeight.w700,
                     color: AppTheme.brandTeal,
@@ -947,7 +1121,7 @@ class _MidBrowseView extends StatelessWidget {
               ),
         ),
         const SizedBox(height: 20),
-        if (mids.isEmpty)
+        if (widget.mids.isEmpty)
           const Padding(
             padding: EdgeInsets.symmetric(vertical: 40),
             child: Center(child: Text('중분류가 없습니다.')),
@@ -956,7 +1130,7 @@ class _MidBrowseView extends StatelessWidget {
           GridView.builder(
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(),
-            itemCount: mids.length,
+            itemCount: widget.mids.length,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: cols,
               childAspectRatio: 1.35,
@@ -964,7 +1138,7 @@ class _MidBrowseView extends StatelessWidget {
               mainAxisSpacing: 14,
             ),
             itemBuilder: (context, index) {
-              final mid = mids[index];
+              final mid = widget.mids[index];
               return Material(
                 color: Colors.white,
                 shape: RoundedRectangleBorder(
@@ -972,7 +1146,7 @@ class _MidBrowseView extends StatelessWidget {
                   side: const BorderSide(color: Color(0x14074A4E)),
                 ),
                 child: InkWell(
-                  onTap: () => onPickMid(mid.name),
+                  onTap: () => widget.onPickMid(mid.name),
                   borderRadius: BorderRadius.circular(18),
                   child: Padding(
                     padding: const EdgeInsets.all(16),
@@ -1005,6 +1179,55 @@ class _MidBrowseView extends StatelessWidget {
             },
           ),
       ],
+    );
+  }
+}
+
+class _SyncedSearchField extends StatefulWidget {
+  const _SyncedSearchField({
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String value;
+  final ValueChanged<String> onChanged;
+
+  @override
+  State<_SyncedSearchField> createState() => _SyncedSearchFieldState();
+}
+
+class _SyncedSearchFieldState extends State<_SyncedSearchField> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.value);
+  }
+
+  @override
+  void didUpdateWidget(covariant _SyncedSearchField oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.value != _controller.text) {
+      _controller.text = widget.value;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return TextField(
+      controller: _controller,
+      decoration: const InputDecoration(
+        hintText: '밥, 떡, 쌀…',
+        prefixIcon: Icon(Icons.search),
+      ),
+      onChanged: widget.onChanged,
     );
   }
 }

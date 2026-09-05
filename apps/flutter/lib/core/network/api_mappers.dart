@@ -94,6 +94,12 @@ CartItemModel cartItemFromGenerated(gen.CartItemResponse item) => CartItemModel(
       qty: item.qty,
       priceCredits: item.priceCredits,
       lineTotalCredits: item.lineTotalCredits,
+      sellerId: item.sellerId,
+      shopName: item.shopName,
+      sellerType: gen.serializers.serialize(
+            item.sellerType,
+            specifiedType: const FullType(gen.CartItemResponseSellerTypeEnum),
+          ) as String,
     );
 
 CartModel cartModelFromGenerated(gen.CartResponse cart) => CartModel(

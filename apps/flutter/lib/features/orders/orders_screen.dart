@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
@@ -22,7 +23,7 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
   void initState() {
     super.initState();
     _pollTimer = Timer.periodic(const Duration(seconds: 3), (_) {
-      if (mounted) ref.invalidate(ordersProvider);
+      if (mounted) unawaited(ref.refresh(ordersProvider.future));
     });
   }
 
@@ -38,8 +39,21 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
 
     return PageFormScaffold(
       child: ordersAsync.when(
+        skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('주문 내역을 불러오지 못했습니다: $e')),
+        error: (e, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('주문 내역을 불러오지 못했습니다.'),
+              const SizedBox(height: 12),
+              TextButton(
+                onPressed: () => ref.invalidate(ordersProvider),
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
         data: (orders) {
           if (orders.isEmpty) {
             return Column(
@@ -47,7 +61,14 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
               children: [
                 Text('주문', style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 24),
-                const Center(child: Text('주문 내역이 없습니다.')),
+                const Center(child: Text('아직 주문이 없습니다.')),
+                const SizedBox(height: 16),
+                Center(
+                  child: FilledButton(
+                    onPressed: () => context.go('/'),
+                    child: const Text('식탁 보러 가기'),
+                  ),
+                ),
               ],
             );
           }

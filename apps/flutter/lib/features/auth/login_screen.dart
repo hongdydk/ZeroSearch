@@ -5,12 +5,14 @@ import 'package:go_router/go_router.dart';
 import '../../core/auth/login_portal.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/routing/safe_next_path.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
-  const LoginScreen({super.key, this.portal = LoginPortal.buyer});
+  const LoginScreen({super.key, this.portal = LoginPortal.buyer, this.next});
 
   final LoginPortal portal;
+  final String? next;
 
   @override
   ConsumerState<LoginScreen> createState() => _LoginScreenState();
@@ -40,7 +42,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             _password.text,
             portal: widget.portal,
           );
-      if (mounted) context.go(widget.portal.homePath);
+      if (mounted) {
+        context.go(safeNextPath(widget.next) ?? widget.portal.homePath);
+      }
     } on ApiException catch (e) {
       setState(() => _error = e.message);
     } catch (e) {

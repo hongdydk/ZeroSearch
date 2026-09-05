@@ -119,6 +119,9 @@ class CartItemModel {
     required this.qty,
     required this.priceCredits,
     required this.lineTotalCredits,
+    required this.sellerId,
+    required this.shopName,
+    required this.sellerType,
   });
 
   final String id;
@@ -127,6 +130,9 @@ class CartItemModel {
   final int qty;
   final int priceCredits;
   final int lineTotalCredits;
+  final String sellerId;
+  final String shopName;
+  final String sellerType;
 }
 
 class CartModel {

@@ -10,11 +10,15 @@ from app.schemas.cart import CartItemResponse, CartResponse
 
 def _cart_item_response(item: CartItem) -> CartItemResponse:
     product = item.product
+    seller = product.seller
     return CartItemResponse(
         id=str(item.id),
         product_id=str(item.product_id),
         qty=item.qty,
         product_title=product.title,
+        seller_id=str(product.seller_id),
+        shop_name=seller.shop_name if seller else "",
+        seller_type=seller.seller_type if seller else "merchant",  # type: ignore[arg-type]
         price_credits=product.price_credits,
         line_total_credits=product.price_credits * item.qty,
         created_at=item.created_at,
@@ -32,7 +36,7 @@ def get_cart(db: Session, user: User) -> CartResponse:
     items = db.scalars(
         select(CartItem)
         .where(CartItem.user_id == user.id)
-        .options(joinedload(CartItem.product))
+        .options(joinedload(CartItem.product).joinedload(Product.seller))
         .order_by(CartItem.created_at.desc())
     ).all()
     responses = [_cart_item_response(item) for item in items]
@@ -100,5 +104,4 @@ def remove_from_cart(db: Session, user: User, product_id: UUID) -> CartResponse:
 
     db.delete(item)
     db.flush()
-    return get_cart(db, user)
-
+    return get_cart(db, user)

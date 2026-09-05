@@ -3,12 +3,17 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.seller import SellerType
+
 
 class CartItemResponse(BaseModel):
     id: str
     product_id: str = Field(alias="productId")
     qty: int
     product_title: str = Field(alias="productTitle")
+    seller_id: str = Field(alias="sellerId")
+    shop_name: str = Field(alias="shopName")
+    seller_type: SellerType = Field(alias="sellerType")
     price_credits: int = Field(alias="priceCredits")
     line_total_credits: int = Field(alias="lineTotalCredits")
     created_at: datetime | None = Field(default=None, alias="createdAt")

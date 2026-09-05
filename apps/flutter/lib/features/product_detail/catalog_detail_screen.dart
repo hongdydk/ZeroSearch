@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format/price_format.dart';
+import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/layout/ui_platform.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/routing/app_back_navigation.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/product_image.dart';
 import '../../shared/widgets/seller_badge.dart';
@@ -28,7 +30,12 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
     final auth = ref.read(authStateProvider).valueOrNull;
     if (auth?.isLoggedIn != true) {
       if (!mounted) return;
-      context.go('/login');
+      context.go(
+        Uri(
+          path: '/login',
+          queryParameters: {'next': '/catalog/${widget.catalogId}'},
+        ).toString(),
+      );
       return;
     }
 
@@ -66,14 +73,49 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
     final detailAsync = ref.watch(catalogProductDetailProvider(widget.catalogId));
 
     return detailAsync.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('상품을 불러오지 못했습니다: $e')),
+      skipLoadingOnReload: true,
+      loading: () => PageFormScaffold(
+        maxWidth: isWebUi ? webContentMaxWidth : 960,
+        padding: EdgeInsets.all(isWebUi ? 20 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _DetailBackButton(onPressed: () => popBrowseOrHome(context)),
+            const SizedBox(height: 24),
+            const Center(child: CircularProgressIndicator()),
+          ],
+        ),
+      ),
+      error: (e, _) => PageFormScaffold(
+        maxWidth: isWebUi ? webContentMaxWidth : 960,
+        padding: EdgeInsets.all(isWebUi ? 20 : 16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _DetailBackButton(onPressed: () => popBrowseOrHome(context)),
+            const SizedBox(height: 24),
+            const Center(child: Text('상품을 불러오지 못했습니다.')),
+            const SizedBox(height: 12),
+            Center(
+              child: TextButton(
+                onPressed: () => ref.invalidate(catalogProductDetailProvider(widget.catalogId)),
+                child: const Text('다시 시도'),
+              ),
+            ),
+          ],
+        ),
+      ),
       data: (detail) => PageFormScaffold(
         maxWidth: isWebUi ? webContentMaxWidth : 960,
         padding: EdgeInsets.all(isWebUi ? 20 : 16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _DetailBackButton(onPressed: () => popBrowseOrHome(context)),
+            ),
+            const SizedBox(height: 8),
             Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
@@ -110,50 +152,68 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
             if (detail.offers.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
-                child: Center(child: Text('표시할 오퍼가 없습니다.')),
+                child: Center(child: Text('지금은 비교할 판매 옵션이 없습니다.')),
               )
             else
               ...detail.offers.map((offer) {
                 final loading = _loadingOfferId == offer.id;
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
-                  child: ListTile(
-                    title: Text(_offerLabel(offer)),
-                    subtitle: Column(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        SellerBadge(
-                          shopName: offer.seller.shopName,
-                          isOfficial: offer.isOfficial,
-                        ),
-                        if (offer.volumeMl != null)
-                          Text(
-                            '용량 ${offer.volumeMl}ml',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
-                      ],
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
                         Text(
-                          formatWon(offer.priceCredits),
-                          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                fontWeight: FontWeight.w700,
-                              ),
+                          _offerLabel(offer),
+                          style: Theme.of(context).textTheme.titleSmall,
                         ),
-                        const SizedBox(width: 8),
-                        FilledButton(
-                          onPressed: _loadingOfferId != null || offer.stock < 1
-                              ? null
-                              : () => _addToCart(offer.id),
-                          child: loading
-                              ? const SizedBox(
-                                  width: 16,
-                                  height: 16,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : Text(offer.stock < 1 ? '품절' : '담기'),
+                        const SizedBox(height: 6),
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          children: [
+                            SellerBadge(
+                              shopName: offer.seller.shopName,
+                              isOfficial: offer.isOfficial,
+                            ),
+                            Text(
+                              shippingOwnerLabel(offer.seller.sellerType),
+                              style: Theme.of(context).textTheme.bodySmall,
+                            ),
+                            if (offer.volumeMl != null)
+                              Text(
+                                '용량 ${offer.volumeMl}ml',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 10),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                formatWon(offer.priceCredits),
+                                overflow: TextOverflow.ellipsis,
+                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                      fontWeight: FontWeight.w700,
+                                    ),
+                              ),
+                            ),
+                            FilledButton(
+                              onPressed: _loadingOfferId != null || offer.stock < 1
+                                  ? null
+                                  : () => _addToCart(offer.id),
+                              child: loading
+                                  ? const SizedBox(
+                                      width: 16,
+                                      height: 16,
+                                      child: CircularProgressIndicator(strokeWidth: 2),
+                                    )
+                                  : Text(offer.stock < 1 ? '품절' : '담기'),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -173,6 +233,21 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _DetailBackButton extends StatelessWidget {
+  const _DetailBackButton({required this.onPressed});
+
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return TextButton.icon(
+      onPressed: onPressed,
+      icon: const Icon(Icons.arrow_back, size: 18),
+      label: const Text('뒤로'),
     );
   }
 }

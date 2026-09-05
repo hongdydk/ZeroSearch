@@ -5,7 +5,9 @@ import 'package:go_router/go_router.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/format/price_format.dart';
+import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/layout/ui_platform.dart';
+import '../../core/routing/app_back_navigation.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/product_image.dart';
 import '../../shared/widgets/seller_badge.dart';
@@ -26,7 +28,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     final auth = ref.read(authStateProvider).valueOrNull;
     if (auth?.isLoggedIn != true) {
       if (!mounted) return;
-      context.go('/login');
+      context.go(
+        Uri(
+          path: '/login',
+          queryParameters: {'next': '/products/${widget.productId}'},
+        ).toString(),
+      );
       return;
     }
 
@@ -54,10 +61,47 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       future: ref.read(apiClientProvider).product(widget.productId),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: CircularProgressIndicator());
+          return PageFormScaffold(
+            maxWidth: isWebUi ? webContentMaxWidth : 720,
+            padding: EdgeInsets.all(isWebUi ? 20 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextButton.icon(
+                  onPressed: () => popBrowseOrHome(context),
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text('뒤로'),
+                ),
+                const SizedBox(height: 24),
+                const Center(child: CircularProgressIndicator()),
+              ],
+            ),
+          );
         }
         if (snapshot.hasError) {
-          return Center(child: Text('상품을 불러오지 못했습니다: ${snapshot.error}'));
+          return PageFormScaffold(
+            maxWidth: isWebUi ? webContentMaxWidth : 720,
+            padding: EdgeInsets.all(isWebUi ? 20 : 16),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                TextButton.icon(
+                  onPressed: () => popBrowseOrHome(context),
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text('뒤로'),
+                ),
+                const SizedBox(height: 24),
+                const Center(child: Text('상품을 불러오지 못했습니다.')),
+                const SizedBox(height: 12),
+                Center(
+                  child: TextButton(
+                    onPressed: () => setState(() {}),
+                    child: const Text('다시 시도'),
+                  ),
+                ),
+              ],
+            ),
+          );
         }
         final product = snapshot.data!;
 
@@ -67,15 +111,34 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: () => popBrowseOrHome(context),
+                  icon: const Icon(Icons.arrow_back, size: 18),
+                  label: const Text('뒤로'),
+                ),
+              ),
               AspectRatio(
                 aspectRatio: 16 / 9,
                 child: ProductImage(imageUrl: product.imageUrl, title: product.title),
               ),
               const SizedBox(height: 16),
               Text(product.title, style: Theme.of(context).textTheme.headlineSmall),
-              SellerBadge(
-                shopName: product.seller.shopName,
-                isOfficial: product.isOfficial,
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                crossAxisAlignment: WrapCrossAlignment.center,
+                children: [
+                  SellerBadge(
+                    shopName: product.seller.shopName,
+                    isOfficial: product.isOfficial,
+                  ),
+                  Text(
+                    shippingOwnerLabel(product.seller.sellerType),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
               ),
               const SizedBox(height: 8),
               Text(

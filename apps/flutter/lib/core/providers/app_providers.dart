@@ -9,8 +9,15 @@ final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
 
-/// 홈 카탈로그 검색어 — 웹 헤더·카탈로그 화면 공유.
+/// 홈 카탈로그 검색어 — 웹 헤더·카탈로그 화면 공유 (즉시 반영).
 final catalogSearchProvider = StateProvider<String>((ref) => '');
+
+/// Fetch·URL 커밋용 검색어 (debounce 후).
+final catalogDebouncedSearchProvider = StateProvider<String>((ref) => '');
+
+/// 랜딩·중분류 ListView 스크롤 복원.
+final catalogLandingScrollOffsetProvider = StateProvider<double>((ref) => 0);
+final catalogMidScrollOffsetProvider = StateProvider<double>((ref) => 0);
 
 /// 식탁 대분류 (AI-Hub). 제품 유무와 무관.
 final catalogMajorProvider = StateProvider<String?>((ref) => null);
@@ -137,7 +144,7 @@ final productsProvider = FutureProvider.autoDispose<List<ProductModel>>((ref) as
 });
 
 final catalogProductsProvider = FutureProvider.autoDispose<List<CatalogProductModel>>((ref) async {
-  final q = ref.watch(catalogSearchProvider).trim();
+  final q = ref.watch(catalogDebouncedSearchProvider).trim();
   final major = ref.watch(catalogMajorProvider);
   final mid = ref.watch(catalogMidProvider);
   final category = ref.watch(catalogCategoryProvider);

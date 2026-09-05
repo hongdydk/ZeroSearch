@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/catalog/browse_location.dart';
 import '../../../core/providers/app_providers.dart';
 import '../../../core/theme/app_theme.dart';
 
@@ -39,10 +40,7 @@ class WebNaverHeader extends ConsumerWidget {
                       _TopRow(auth: auth, showSearch: false),
                       if (_isHome) ...[
                         const SizedBox(height: 10),
-                        _CatalogSearchField(
-                          value: ref.watch(catalogSearchProvider),
-                          onChanged: (v) => ref.read(catalogSearchProvider.notifier).state = v,
-                        ),
+                        _CatalogSearchField(value: ref.watch(catalogSearchProvider)),
                       ],
                     ],
                   )
@@ -50,11 +48,7 @@ class WebNaverHeader extends ConsumerWidget {
                     auth: auth,
                     showSearch: _isHome,
                     search: _isHome
-                        ? _CatalogSearchField(
-                            value: ref.watch(catalogSearchProvider),
-                            onChanged: (v) =>
-                                ref.read(catalogSearchProvider.notifier).state = v,
-                          )
+                        ? _CatalogSearchField(value: ref.watch(catalogSearchProvider))
                         : null,
                   ),
           ),
@@ -81,10 +75,7 @@ class _TopRow extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
         _BrandBlock(onBrandTap: () {
-          ref.read(catalogSearchProvider.notifier).state = '';
-          ref.read(catalogMajorProvider.notifier).state = null;
-          ref.read(catalogMidProvider.notifier).state = null;
-          ref.read(catalogCategoryProvider.notifier).state = null;
+          clearCatalogBrowse(ref);
           context.go('/');
         }),
         if (showSearch && search != null) ...[
@@ -132,21 +123,18 @@ class _BrandBlock extends StatelessWidget {
   }
 }
 
-class _CatalogSearchField extends StatefulWidget {
-  const _CatalogSearchField({
-    required this.value,
-    required this.onChanged,
-  });
+class _CatalogSearchField extends ConsumerStatefulWidget {
+  const _CatalogSearchField({required this.value});
 
   final String value;
-  final ValueChanged<String> onChanged;
 
   @override
-  State<_CatalogSearchField> createState() => _CatalogSearchFieldState();
+  ConsumerState<_CatalogSearchField> createState() => _CatalogSearchFieldState();
 }
 
-class _CatalogSearchFieldState extends State<_CatalogSearchField> {
+class _CatalogSearchFieldState extends ConsumerState<_CatalogSearchField> {
   late final TextEditingController _controller;
+  final _debounce = CatalogSearchDebounce();
 
   @override
   void initState() {
@@ -164,8 +152,18 @@ class _CatalogSearchFieldState extends State<_CatalogSearchField> {
 
   @override
   void dispose() {
+    _debounce.dispose();
     _controller.dispose();
     super.dispose();
+  }
+
+  void _commit(String value) {
+    ref.read(catalogSearchProvider.notifier).state = value;
+    _debounce.schedule(value, (committed) {
+      if (!mounted) return;
+      final q = committed.trim();
+      context.go(q.isEmpty ? '/' : browseLocation(q: q));
+    });
   }
 
   @override
@@ -195,8 +193,13 @@ class _CatalogSearchFieldState extends State<_CatalogSearchField> {
           borderRadius: BorderRadius.circular(999),
         ),
       ),
-      onChanged: widget.onChanged,
-      onSubmitted: widget.onChanged,
+      onChanged: _commit,
+      onSubmitted: (v) {
+        _debounce.cancel();
+        ref.read(catalogSearchProvider.notifier).state = v;
+        final q = v.trim();
+        context.go(q.isEmpty ? '/' : browseLocation(q: q));
+      },
     );
   }
 }

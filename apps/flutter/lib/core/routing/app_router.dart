@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/login_portal.dart';
 import '../providers/app_providers.dart';
+import 'safe_next_path.dart';
 import '../../features/admin/admin_screen.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/portal_auth_gate.dart';
@@ -25,6 +26,9 @@ final routerProvider = Provider<GoRouter>((ref) {
   final listenable = _AuthListenable(ref);
   ref.onDispose(listenable.dispose);
 
+  // push('/?major=') 등이 브라우저 주소에 반영되어야 Browse 히스토리가 동작한다.
+  GoRouter.optionURLReflectsImperativeAPIs = true;
+
   return GoRouter(
     initialLocation: '/',
     refreshListenable: listenable,
@@ -40,8 +44,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       }
 
       final isAuthRoute = path == '/login' || path == '/register';
-      if (!loggedIn && _requiresAuth(path)) return '/login';
-      if (loggedIn && portal == LoginPortal.buyer && isAuthRoute) return '/';
+      if (!loggedIn && _requiresAuth(path)) {
+        final raw = state.uri.hasQuery
+            ? '${state.matchedLocation}?${state.uri.query}'
+            : state.matchedLocation;
+        return '/login?next=${Uri.encodeQueryComponent(raw)}';
+      }
+      if (loggedIn && portal == LoginPortal.buyer && isAuthRoute) {
+        return safeNextPath(state.uri.queryParameters['next']) ?? '/';
+      }
       return null;
     },
     routes: [
@@ -67,7 +78,10 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/settings', builder: (_, _) => const SettingsScreen()),
           GoRoute(
             path: '/login',
-            builder: (_, _) => const LoginScreen(portal: LoginPortal.buyer),
+            builder: (_, state) => LoginScreen(
+              portal: LoginPortal.buyer,
+              next: state.uri.queryParameters['next'],
+            ),
           ),
           GoRoute(
             path: '/register',

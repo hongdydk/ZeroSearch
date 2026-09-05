@@ -3,10 +3,27 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/format/price_format.dart';
+import '../../core/fulfillment/fulfillment_labels.dart';
+import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
+
+List<List<CartItemModel>> _groupCartBySeller(List<CartItemModel> items) {
+  final groups = <String, List<CartItemModel>>{};
+  final order = <String>[];
+  for (final item in items) {
+    final existing = groups[item.sellerId];
+    if (existing == null) {
+      order.add(item.sellerId);
+      groups[item.sellerId] = [item];
+    } else {
+      existing.add(item);
+    }
+  }
+  return [for (final id in order) groups[id]!];
+}
 
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
@@ -74,7 +91,19 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
     return PageFormScaffold(
       child: cartAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('장바구니를 불러오지 못했습니다: $e')),
+        error: (_, _) => Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('장바구니를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'),
+              const SizedBox(height: 16),
+              OutlinedButton(
+                onPressed: () => ref.invalidate(cartProvider),
+                child: const Text('다시 시도'),
+              ),
+            ],
+          ),
+        ),
         data: (cart) {
           if (cart.items.isEmpty) {
             return Column(
@@ -82,11 +111,11 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
               children: [
                 Text('장바구니', style: Theme.of(context).textTheme.headlineSmall),
                 const SizedBox(height: 24),
-                const Center(child: Text('장바구니가 비어 있습니다.')),
+                const Center(child: Text('아직 담은 상품이 없어요.')),
                 const SizedBox(height: 16),
                 OutlinedButton(
                   onPressed: () => context.go('/'),
-                  child: const Text('쇼핑 계속하기'),
+                  child: const Text('상품 둘러보기'),
                 ),
               ],
             );
@@ -97,39 +126,51 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
             children: [
               Text('장바구니', style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 16),
-              ...cart.items.map(
-                (item) {
-                  final rowBusy = isBusy('cart:${item.productId}') || _checkingOut;
-                  return Card(
-                    child: ListTile(
-                      title: Text(item.productTitle),
-                      subtitle: Text(formatWonLine(item.priceCredits, item.qty)),
-                      trailing: Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          IconButton(
-                            icon: const Icon(Icons.remove),
-                            onPressed: rowBusy || item.qty <= 1
-                                ? null
-                                : () => _updateQty(item.productId, item.qty - 1),
+              ..._groupCartBySeller(cart.items).expand((group) {
+                final header = group.first;
+                return [
+                  Padding(
+                    padding: const EdgeInsets.only(top: 8, bottom: 8),
+                    child: Text(
+                      '${header.shopName} · ${shippingOwnerLabel(header.sellerType)}',
+                      style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                            fontWeight: FontWeight.w700,
                           ),
-                          Text('${item.qty}'),
-                          IconButton(
-                            icon: const Icon(Icons.add),
-                            onPressed: rowBusy
-                                ? null
-                                : () => _updateQty(item.productId, item.qty + 1),
-                          ),
-                          IconButton(
-                            icon: rowBusy ? busyProgress() : const Icon(Icons.delete_outline),
-                            onPressed: rowBusy ? null : () => _remove(item.productId),
-                          ),
-                        ],
-                      ),
                     ),
-                  );
-                },
-              ),
+                  ),
+                  ...group.map((item) {
+                    final rowBusy = isBusy('cart:${item.productId}') || _checkingOut;
+                    return Card(
+                      child: ListTile(
+                        title: Text(item.productTitle),
+                        subtitle: Text(formatWonLine(item.priceCredits, item.qty)),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.remove),
+                              onPressed: rowBusy || item.qty <= 1
+                                  ? null
+                                  : () => _updateQty(item.productId, item.qty - 1),
+                            ),
+                            Text('${item.qty}'),
+                            IconButton(
+                              icon: const Icon(Icons.add),
+                              onPressed: rowBusy
+                                  ? null
+                                  : () => _updateQty(item.productId, item.qty + 1),
+                            ),
+                            IconButton(
+                              icon: rowBusy ? busyProgress() : const Icon(Icons.delete_outline),
+                              onPressed: rowBusy ? null : () => _remove(item.productId),
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  }),
+                ];
+              }),
               const SizedBox(height: 16),
               Text(
                 '합계: ${formatWon(cart.totalCredits)}',
