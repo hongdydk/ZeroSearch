@@ -474,11 +474,17 @@ class _LandingViewState extends State<_LandingView> {
 class _HeroBlock extends StatefulWidget {
   const _HeroBlock({required this.onPrimary});
 
-  static const _bannerHeight = 176.0;
-  static const _mainImage =
-      'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1400&q=80';
-  static const _sideImage =
-      'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=800&q=80';
+  /// Narrow / mobile: compact strip. Wide: closer to pre-carousel hero (~340).
+  static const _bannerHeightCompact = 176.0;
+  static const _bannerHeightWide = 340.0;
+
+  static const _images = [
+    'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1604719312566-8912e9227c6a?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1488459716781-31db52582fe9?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1498837167922-ddd27525d352?auto=format&fit=crop&w=1400&q=80',
+    'https://images.unsplash.com/photo-1506617420156-8e4536971650?auto=format&fit=crop&w=1400&q=80',
+  ];
 
   final VoidCallback onPrimary;
 
@@ -502,9 +508,9 @@ class _HeroBlockState extends State<_HeroBlock> {
     super.dispose();
   }
 
-  void _goPage(int delta) {
+  void _goPage(int delta, int lastIndex) {
     if (!_page.hasClients) return;
-    final target = (_index + delta).clamp(0, 1);
+    final target = (_index + delta).clamp(0, lastIndex);
     if (target == _index) return;
     _page.animateToPage(
       target,
@@ -515,6 +521,9 @@ class _HeroBlockState extends State<_HeroBlock> {
 
   @override
   Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= webCompactBreakpoint;
+    final bannerHeight =
+        wide ? _HeroBlock._bannerHeightWide : _HeroBlock._bannerHeightCompact;
     final pages = [
       _HeroPanel(
         kicker: '이 마켓',
@@ -522,7 +531,7 @@ class _HeroBlockState extends State<_HeroBlock> {
         lede: '밥이면 밥, 떡이면 떡. 회사는 그 다음입니다.',
         cta: '카테고리 보기',
         onTap: widget.onPrimary,
-        imageUrl: _HeroBlock._mainImage,
+        imageUrl: _HeroBlock._images[0],
         gradient: const LinearGradient(
           begin: Alignment.centerLeft,
           end: Alignment.centerRight,
@@ -537,7 +546,7 @@ class _HeroBlockState extends State<_HeroBlock> {
         lede: '배송 주체(자사배송 / 판매자배송)는 오퍼 줄에 표시합니다.',
         cta: '카테고리로',
         onTap: widget.onPrimary,
-        imageUrl: _HeroBlock._sideImage,
+        imageUrl: _HeroBlock._images[1],
         gradient: const LinearGradient(
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
@@ -545,12 +554,57 @@ class _HeroBlockState extends State<_HeroBlock> {
         ),
         solidCta: false,
       ),
+      _HeroPanel(
+        kicker: '대표가',
+        title: '카드 가격은\n중간값입니다',
+        lede: '단위당 중위 대표가. 지금 결제할 금액이 아닙니다.',
+        cta: '카테고리 보기',
+        onTap: widget.onPrimary,
+        imageUrl: _HeroBlock._images[2],
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xEB0B5A4A), Color(0x590B5A4A), Color(0x000B5A4A)],
+          stops: [0.0, 0.5, 0.8],
+        ),
+        solidCta: true,
+      ),
+      _HeroPanel(
+        kicker: '제로 서치',
+        title: '같은 회사·품목은\n카드 한 장',
+        lede: '용량·맛·가게 차이는 상세 오퍼 한 줄에서만 고릅니다.',
+        cta: '카테고리로',
+        onTap: widget.onPrimary,
+        imageUrl: _HeroBlock._images[3],
+        gradient: const LinearGradient(
+          begin: Alignment.bottomLeft,
+          end: Alignment.topRight,
+          colors: [Color(0xE0063A4A), Color(0x70063A4A), Color(0x00063A4A)],
+          stops: [0.0, 0.55, 0.85],
+        ),
+        solidCta: false,
+      ),
+      _HeroPanel(
+        kicker: '장보기',
+        title: '종류로 들어가면\n비교가 쉬워집니다',
+        lede: '생수·떡갈비처럼 식탁 분류부터. 검색은 보조입니다.',
+        cta: '카테고리 보기',
+        onTap: widget.onPrimary,
+        imageUrl: _HeroBlock._images[4],
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xD8743A1E), Color(0x8C743A1E)],
+        ),
+        solidCta: true,
+      ),
     ];
+    final lastIndex = pages.length - 1;
 
     return Column(
       children: [
         SizedBox(
-          height: _HeroBlock._bannerHeight,
+          height: bannerHeight,
           child: Stack(
             children: [
               PageView(
@@ -567,7 +621,7 @@ class _HeroBlockState extends State<_HeroBlock> {
                   child: _CarouselChevron(
                     icon: Icons.chevron_left,
                     enabled: _index > 0,
-                    onPressed: () => _goPage(-1),
+                    onPressed: () => _goPage(-1, lastIndex),
                   ),
                 ),
               ),
@@ -578,8 +632,8 @@ class _HeroBlockState extends State<_HeroBlock> {
                 child: Center(
                   child: _CarouselChevron(
                     icon: Icons.chevron_right,
-                    enabled: _index < pages.length - 1,
-                    onPressed: () => _goPage(1),
+                    enabled: _index < lastIndex,
+                    onPressed: () => _goPage(1, lastIndex),
                   ),
                 ),
               ),
@@ -667,6 +721,14 @@ class _HeroPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final wide = MediaQuery.sizeOf(context).width >= webCompactBreakpoint;
+    final pad = wide
+        ? const EdgeInsets.fromLTRB(28, 28, 28, 24)
+        : const EdgeInsets.fromLTRB(18, 16, 18, 14);
+    final titleSize = wide ? 32.0 : 20.0;
+    final ledeSize = wide ? 15.0 : 12.0;
+    final ctaHeight = wide ? 44.0 : 34.0;
+
     return Material(
       color: Colors.transparent,
       child: InkWell(
@@ -689,7 +751,7 @@ class _HeroPanel extends StatelessWidget {
                 ),
                 DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+                  padding: pad,
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -697,39 +759,41 @@ class _HeroPanel extends StatelessWidget {
                         kicker,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.8),
-                          fontSize: 11,
+                          fontSize: wide ? 12 : 11,
                           letterSpacing: 1.2,
                           fontWeight: FontWeight.w600,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: wide ? 12 : 6),
                       Text(
                         title,
-                        style: const TextStyle(
+                        style: TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.w700,
-                          height: 1.15,
-                          letterSpacing: -0.5,
-                          fontSize: 20,
+                          height: wide ? 1.2 : 1.15,
+                          letterSpacing: -0.6,
+                          fontSize: titleSize,
                         ),
                       ),
-                      const SizedBox(height: 6),
+                      SizedBox(height: wide ? 12 : 6),
                       Text(
                         lede,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.88),
-                          fontSize: 12,
-                          height: 1.4,
+                          fontSize: ledeSize,
+                          height: wide ? 1.55 : 1.4,
                         ),
                       ),
                       const Spacer(),
                       Align(
                         alignment: Alignment.centerLeft,
                         child: Container(
-                          height: 34,
-                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          height: ctaHeight,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: wide ? 20 : 14,
+                          ),
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
                             color: solidCta
@@ -745,7 +809,7 @@ class _HeroPanel extends StatelessWidget {
                           child: Text(
                             cta,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: wide ? 14 : 13,
                               fontWeight: FontWeight.w700,
                               color: solidCta ? AppTheme.brandTeal : Colors.white,
                             ),
