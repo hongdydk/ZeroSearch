@@ -395,7 +395,7 @@ class _LandingViewState extends State<_LandingView> {
                   value: widget.searchValue,
                   onChanged: widget.onSearchChanged,
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 12),
               ],
               _HeroBlock(
                 onPrimary: () {
@@ -409,42 +409,34 @@ class _LandingViewState extends State<_LandingView> {
                   }
                 },
               ),
-              const SizedBox(height: 40),
+              const SizedBox(height: 20),
               KeyedSubtree(
                 key: _tableKey,
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      '식탁',
+                      '카테고리',
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                             color: AppTheme.brandTeal,
                             letterSpacing: -0.5,
-                            fontSize: 26,
+                            fontSize: 22,
                           ),
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      '대분류로 들어갑니다. 제품이 없어도 분류는 보여 줍니다.',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: const Color(0xA0212121),
-                            fontSize: 13,
-                          ),
-                    ),
-                    const SizedBox(height: 22),
-                    _MajorCircleGrid(majors: majors, onPick: widget.onPickMajor),
+                    const SizedBox(height: 12),
+                    _MajorCircleRow(majors: majors, onPick: widget.onPickMajor),
                   ],
                 ),
               ),
-              const SizedBox(height: 48),
+              const SizedBox(height: 28),
               Text(
                 '오늘 추천',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppTheme.brandTeal,
                       letterSpacing: -0.5,
-                      fontSize: 26,
+                      fontSize: 22,
                     ),
               ),
               const SizedBox(height: 6),
@@ -455,9 +447,9 @@ class _LandingViewState extends State<_LandingView> {
                       fontSize: 13,
                     ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 16),
               _TodayGrid(items: today, onPick: widget.onPickMajor),
-              const SizedBox(height: 48),
+              const SizedBox(height: 40),
               Text(
                 '대표가는 최저가가 아닙니다',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -479,9 +471,10 @@ class _LandingViewState extends State<_LandingView> {
   }
 }
 
-class _HeroBlock extends StatelessWidget {
+class _HeroBlock extends StatefulWidget {
   const _HeroBlock({required this.onPrimary});
 
+  static const _bannerHeight = 176.0;
   static const _mainImage =
       'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1400&q=80';
   static const _sideImage =
@@ -490,58 +483,87 @@ class _HeroBlock extends StatelessWidget {
   final VoidCallback onPrimary;
 
   @override
+  State<_HeroBlock> createState() => _HeroBlockState();
+}
+
+class _HeroBlockState extends State<_HeroBlock> {
+  late final PageController _page;
+  int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _page = PageController();
+  }
+
+  @override
+  void dispose() {
+    _page.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final narrow = MediaQuery.sizeOf(context).width < webCompactBreakpoint;
-    final left = _HeroPanel(
-      kicker: '이 마켓',
-      title: '식탁부터 고르면,\n카드가 쭈르륵',
-      lede: '밥이면 밥, 떡이면 떡. 회사는 그 다음입니다. 같은 식탁 위 품목만 한 장으로 모입니다.',
-      cta: '식탁 보기',
-      onTap: onPrimary,
-      imageUrl: _mainImage,
-      gradient: const LinearGradient(
-        begin: Alignment.centerLeft,
-        end: Alignment.centerRight,
-        colors: [Color(0xEB074A4E), Color(0x59074A4E), Color(0x00074A4E)],
-        stops: [0.0, 0.52, 0.78],
+    final pages = [
+      _HeroPanel(
+        kicker: '이 마켓',
+        title: '식탁부터 고르면,\n카드가 쭈르륵',
+        lede: '밥이면 밥, 떡이면 떡. 회사는 그 다음입니다.',
+        cta: '카테고리 보기',
+        onTap: widget.onPrimary,
+        imageUrl: _HeroBlock._mainImage,
+        gradient: const LinearGradient(
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+          colors: [Color(0xEB074A4E), Color(0x59074A4E), Color(0x00074A4E)],
+          stops: [0.0, 0.52, 0.78],
+        ),
+        solidCta: true,
       ),
-      solidCta: true,
-    );
-    final right = _HeroPanel(
-      kicker: '공식 · 입점',
-      title: '한 목록에서\n비교합니다',
-      lede: '배송 주체(자사배송 / 판매자배송)는 오퍼 줄에 표시합니다.',
-      cta: '식탁으로',
-      onTap: onPrimary,
-      imageUrl: _sideImage,
-      gradient: const LinearGradient(
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-        colors: [Color(0xE0872022), Color(0x8C872022)],
+      _HeroPanel(
+        kicker: '공식 · 입점',
+        title: '한 목록에서\n비교합니다',
+        lede: '배송 주체(자사배송 / 판매자배송)는 오퍼 줄에 표시합니다.',
+        cta: '카테고리로',
+        onTap: widget.onPrimary,
+        imageUrl: _HeroBlock._sideImage,
+        gradient: const LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [Color(0xE0872022), Color(0x8C872022)],
+        ),
+        solidCta: false,
       ),
-      solidCta: false,
-      compactTitle: true,
-    );
+    ];
 
-    if (narrow) {
-      return Column(
-        children: [
-          SizedBox(height: 280, child: left),
-          const SizedBox(height: 14),
-          SizedBox(height: 220, child: right),
-        ],
-      );
-    }
-
-    return SizedBox(
-      height: 340,
-      child: Row(
-        children: [
-          Expanded(flex: 17, child: left),
-          const SizedBox(width: 18),
-          Expanded(flex: 9, child: right),
-        ],
-      ),
+    return Column(
+      children: [
+        SizedBox(
+          height: _HeroBlock._bannerHeight,
+          child: PageView(
+            controller: _page,
+            onPageChanged: (i) => setState(() => _index = i),
+            children: pages,
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(pages.length, (i) {
+            final active = i == _index;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: active ? 16 : 6,
+              height: 6,
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              decoration: BoxDecoration(
+                color: AppTheme.brandTeal.withValues(alpha: active ? 1 : 0.28),
+                borderRadius: BorderRadius.circular(999),
+              ),
+            );
+          }),
+        ),
+      ],
     );
   }
 }
@@ -556,7 +578,6 @@ class _HeroPanel extends StatelessWidget {
     required this.imageUrl,
     required this.gradient,
     required this.solidCta,
-    this.compactTitle = false,
   });
 
   final String kicker;
@@ -567,86 +588,101 @@ class _HeroPanel extends StatelessWidget {
   final String imageUrl;
   final Gradient gradient;
   final bool solidCta;
-  final bool compactTitle;
 
   @override
   Widget build(BuildContext context) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(24),
-      child: Stack(
-        fit: StackFit.expand,
-        children: [
-          Image.network(
-            imageUrl,
-            fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) => const ColoredBox(color: Color(0xFF074A4E)),
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(20),
+        child: Ink(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(20),
           ),
-          DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
-          Padding(
-            padding: const EdgeInsets.all(36),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: Stack(
+              fit: StackFit.expand,
               children: [
-                Text(
-                  kicker,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.8),
-                    fontSize: 12,
-                    letterSpacing: 1.4,
-                    fontWeight: FontWeight.w600,
-                  ),
+                Image.network(
+                  imageUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) =>
+                      const ColoredBox(color: Color(0xFF074A4E)),
                 ),
-                const SizedBox(height: 12),
-                Text(
-                  title,
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    height: 1.2,
-                    letterSpacing: -0.6,
-                    fontSize: compactTitle ? 26 : 36,
-                  ),
-                ),
-                const SizedBox(height: 12),
-                Text(
-                  lede,
-                  style: TextStyle(
-                    color: Colors.white.withValues(alpha: 0.88),
-                    fontSize: 14,
-                    height: 1.55,
-                  ),
-                ),
-                const Spacer(),
-                Material(
-                  color: solidCta ? Colors.white : Colors.white.withValues(alpha: 0.18),
-                  borderRadius: BorderRadius.circular(999),
-                  child: InkWell(
-                    onTap: onTap,
-                    borderRadius: BorderRadius.circular(999),
-                    child: Container(
-                      height: 44,
-                      padding: const EdgeInsets.symmetric(horizontal: 20),
-                      alignment: Alignment.center,
-                      decoration: solidCta
-                          ? null
-                          : BoxDecoration(
-                              borderRadius: BorderRadius.circular(999),
-                              border: Border.all(color: Colors.white.withValues(alpha: 0.5)),
-                            ),
-                      child: Text(
-                        cta,
+                DecoratedBox(decoration: BoxDecoration(gradient: gradient)),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        kicker,
                         style: TextStyle(
-                          fontWeight: FontWeight.w700,
-                          color: solidCta ? AppTheme.brandTeal : Colors.white,
+                          color: Colors.white.withValues(alpha: 0.8),
+                          fontSize: 11,
+                          letterSpacing: 1.2,
+                          fontWeight: FontWeight.w600,
                         ),
                       ),
-                    ),
+                      const SizedBox(height: 6),
+                      Text(
+                        title,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w700,
+                          height: 1.15,
+                          letterSpacing: -0.5,
+                          fontSize: 20,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        lede,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          color: Colors.white.withValues(alpha: 0.88),
+                          fontSize: 12,
+                          height: 1.4,
+                        ),
+                      ),
+                      const Spacer(),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: Container(
+                          height: 34,
+                          padding: const EdgeInsets.symmetric(horizontal: 14),
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: solidCta
+                                ? Colors.white
+                                : Colors.white.withValues(alpha: 0.18),
+                            borderRadius: BorderRadius.circular(999),
+                            border: solidCta
+                                ? null
+                                : Border.all(
+                                    color: Colors.white.withValues(alpha: 0.5),
+                                  ),
+                          ),
+                          child: Text(
+                            cta,
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: solidCta ? AppTheme.brandTeal : Colors.white,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
-        ],
+        ),
       ),
     );
   }
@@ -840,42 +876,37 @@ class _SiteFooter extends StatelessWidget {
   }
 }
 
-class _MajorCircleGrid extends StatelessWidget {
-  const _MajorCircleGrid({required this.majors, required this.onPick});
+class _MajorCircleRow extends StatelessWidget {
+  const _MajorCircleRow({required this.majors, required this.onPick});
+
+  static const _itemWidth = 72.0;
+  static const _circleSize = 56.0;
 
   final List<TableMajor> majors;
   final ValueChanged<String> onPick;
 
   @override
   Widget build(BuildContext context) {
-    final width = MediaQuery.sizeOf(context).width;
-    final cols = width < 600
-        ? 4
-        : (width < 900 ? 6 : (width < 1200 ? 8 : 10));
-
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      itemCount: majors.length,
-      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: cols,
-        mainAxisSpacing: 16,
-        crossAxisSpacing: 16,
-        childAspectRatio: 0.78,
-      ),
-      itemBuilder: (context, index) {
-        final m = majors[index];
-        final label = tableMajorLabel(m.name);
-        final imageUrl = tableMajorImageUrl(m.name);
-        return InkWell(
-          onTap: () => onPick(m.name),
-          borderRadius: BorderRadius.circular(16),
-          child: Column(
-            children: [
-              Expanded(
-                child: AspectRatio(
-                  aspectRatio: 1,
-                  child: Container(
+    return SizedBox(
+      height: 86,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: majors.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 12),
+        itemBuilder: (context, index) {
+          final m = majors[index];
+          final label = tableMajorLabel(m.name);
+          final imageUrl = tableMajorImageUrl(m.name);
+          return SizedBox(
+            width: _itemWidth,
+            child: InkWell(
+              onTap: () => onPick(m.name),
+              borderRadius: BorderRadius.circular(16),
+              child: Column(
+                children: [
+                  Container(
+                    width: _circleSize,
+                    height: _circleSize,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
                       color: const Color(0xFFEFF5F5),
@@ -883,8 +914,8 @@ class _MajorCircleGrid extends StatelessWidget {
                       boxShadow: const [
                         BoxShadow(
                           color: Color(0x0F074A4E),
-                          blurRadius: 16,
-                          offset: Offset(0, 6),
+                          blurRadius: 12,
+                          offset: Offset(0, 4),
                         ),
                       ],
                     ),
@@ -894,7 +925,7 @@ class _MajorCircleGrid extends StatelessWidget {
                             child: Text(
                               label.substring(0, 1),
                               style: const TextStyle(
-                                fontSize: 28,
+                                fontSize: 22,
                                 fontWeight: FontWeight.w700,
                                 color: AppTheme.brandTeal,
                               ),
@@ -907,7 +938,7 @@ class _MajorCircleGrid extends StatelessWidget {
                               child: Text(
                                 label.substring(0, 1),
                                 style: const TextStyle(
-                                  fontSize: 28,
+                                  fontSize: 22,
                                   fontWeight: FontWeight.w700,
                                   color: AppTheme.brandTeal,
                                 ),
@@ -915,24 +946,24 @@ class _MajorCircleGrid extends StatelessWidget {
                             ),
                           ),
                   ),
-                ),
+                  const SizedBox(height: 8),
+                  Text(
+                    label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    textAlign: TextAlign.center,
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppTheme.brandTeal,
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 10),
-              Text(
-                label,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  color: AppTheme.brandTeal,
-                ),
-              ),
-            ],
-          ),
-        );
-      },
+            ),
+          );
+        },
+      ),
     );
   }
 }
