@@ -155,3 +155,18 @@ Phase 2 DoD 이후 구매자 결제 경로 정합성·부하. Phase 3/3.5/4와 �
 Flutter → **Cloudflare Pages** (`mall.anoveli.com`). FastAPI → EC2 Docker (`mall-api` :8001). PostgreSQL → EC2 `mall-postgres`.  
 대표 상품 SSOT는 `data/aihub-catalog.csv` — `main` 배포 시 EC2에서 upsert.  
 브라우저 API: **`https://mall.anoveli.com/api`** (Pages Functions → Tunnel `mall-api.anoveli.com`). 원본 API 호스트는 프록시 백엔드용으로 유지.
+
+### 카탈로그 재병합 (맛·용량 → 대표 카드)
+
+- **병합 단위:** `제조사 + 소분류 + 유사 기본 품목명`. 용량·맛은 변형(`reference_variants`)으로 보존.
+- **규칙 버전:** `catalog_identity.NORMALIZATION_VERSION` (배포 fingerprint에 포함 → 규칙 변경 시 재import).
+- **고신뢰만 자동 병합.** 중간 신뢰는 dry-run 보고만, 별도 카드 유지.
+- **운영 적용 순서 (production):**
+  1. DB 백업
+  2. Alembic `007` 적용 (`reference_variants`, `catalog_product_aliases`)
+  3. `cd apps/api && python -m scripts.remerge_catalog` (dry-run 수치 확인)
+  4. `python -m scripts.remerge_catalog --apply`
+  5. CSV canonical import (`FORCE_CATALOG_IMPORT=1` 또는 fingerprint 갱신 배포)
+  6. smoke: 대표 카드 수·오퍼 수·옛 상세 UUID(alias)·장바구니/주문
+- 상세 API는 alias UUID를 생존 대표로 해석. AI-Hub 변형은 구매 불가 `referenceVariants`로만 노출.
+- **CSV dry-run (v1, `data/aihub-catalog.csv`):** source 9886 → high-confidence groups 9086 (−800 cards), medium candidates 857 (자동 병합 안 함).

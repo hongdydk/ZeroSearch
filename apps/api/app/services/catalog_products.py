@@ -10,8 +10,10 @@ from app.schemas.catalog_product import (
     CatalogOfferItem,
     CatalogProductDetailResponse,
     CatalogProductListItem,
+    CatalogReferenceVariant,
 )
 from app.schemas.seller import SellerSummary
+from app.services.catalog_remerge import resolve_catalog_product
 
 
 def _median(values: list[float]) -> float:
@@ -203,7 +205,7 @@ def get_catalog_product(
     volume_ml_min: int | None = None,
     volume_ml_max: int | None = None,
 ) -> CatalogProductDetailResponse:
-    catalog = db.scalar(select(CatalogProduct).where(CatalogProduct.id == catalog_id))
+    catalog = resolve_catalog_product(db, catalog_id)
     if catalog is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 상품을 찾을 수 없습니다.")
 
@@ -235,6 +237,12 @@ def get_catalog_product(
         for o in offers
     ]
 
+    reference_variants = [
+        CatalogReferenceVariant.model_validate(raw)
+        for raw in (catalog.reference_variants or [])
+        if isinstance(raw, dict)
+    ]
+
     return CatalogProductDetailResponse(
         id=str(catalog.id),
         title=catalog.title,
@@ -247,5 +255,6 @@ def get_catalog_product(
         volume_options=list(catalog.volume_options or []),
         offer_count=len(offer_items),
         offers=offer_items,
+        reference_variants=reference_variants,
         created_at=catalog.created_at,
     )

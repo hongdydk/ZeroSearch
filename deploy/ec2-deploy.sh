@@ -42,21 +42,25 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
   fi
 done
 
-# CSV unchanged → skip upsert. FORCE_CATALOG_IMPORT=1 forces re-import.
+# CSV unchanged AND same normalization rule → skip upsert.
+# FORCE_CATALOG_IMPORT=1 forces re-import.
 CACHE_DIR="$DEPLOY_DIR/.cache"
 HASH_FILE="$CACHE_DIR/aihub-catalog.sha256"
 FORCE_CATALOG_IMPORT="${FORCE_CATALOG_IMPORT:-0}"
+# Keep in sync with app.services.catalog_identity.NORMALIZATION_VERSION
+CATALOG_NORM_VERSION="${CATALOG_NORM_VERSION:-v1}"
 
 if [[ -f "$CATALOG_CSV" ]]; then
-  NEW_HASH="$(sha256sum "$CATALOG_CSV" | awk '{print $1}')"
+  CSV_HASH="$(sha256sum "$CATALOG_CSV" | awk '{print $1}')"
+  NEW_HASH="${CSV_HASH}:${CATALOG_NORM_VERSION}"
   OLD_HASH=""
   if [[ -f "$HASH_FILE" ]]; then
     OLD_HASH="$(tr -d '[:space:]' < "$HASH_FILE")"
   fi
   if [[ "$FORCE_CATALOG_IMPORT" != "1" && -n "$OLD_HASH" && "$NEW_HASH" == "$OLD_HASH" ]]; then
-    echo "skip catalog import (unchanged)"
+    echo "skip catalog import (unchanged csv+norm=$CATALOG_NORM_VERSION)"
   else
-    echo "importing catalog: $CATALOG_CSV"
+    echo "importing catalog: $CATALOG_CSV (norm=$CATALOG_NORM_VERSION)"
     docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
       -v "$CATALOG_CSV:/import/aihub-catalog.csv:ro" \
       api python -m scripts.import_aihub_catalog /import/aihub-catalog.csv

@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session, joinedload
 from app.models import CatalogProduct, Product, Seller
 from app.schemas.product import ProductResponse
 from app.schemas.seller import SellerProductCreateRequest, SellerProductUpdateRequest, SellerSummary
+from app.services.catalog_remerge import resolve_catalog_product
 
 
 def _product_response(product: Product) -> ProductResponse:
@@ -101,9 +102,7 @@ def _resolve_catalog_product(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="대표 상품을 목록에서 고르세요.",
         )
-    catalog = db.scalar(
-        select(CatalogProduct).where(CatalogProduct.id == UUID(payload.catalog_product_id))
-    )
+    catalog = resolve_catalog_product(db, UUID(payload.catalog_product_id))
     if catalog is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 상품을 찾을 수 없습니다.")
     return catalog

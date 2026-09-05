@@ -9,6 +9,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
 from app.models import CatalogProduct
+from app.services.catalog_identity import canonicalize_csv_rows
 
 BATCH = 500
 
@@ -33,53 +34,24 @@ def _iter_rows(text: str) -> Iterable[dict]:
         if not maker or not title or not category:
             continue
         yield {
-            "id": uuid.uuid4(),
             "manufacturer": maker,
             "title": title,
             "category": category,
             "category_major": _clip(row.get("대분류") or "", 120) or None,
             "category_mid": _clip(row.get("중분류") or "", 120) or None,
             "volume_options": _volume_options(row.get("용량") or ""),
+            "barcode": _clip(row.get("바코드") or "", 64) or None,
             "price_unit": "each",
         }
-
-
-def _merge_volume_options(*groups: list[str]) -> list[str]:
-    seen: set[str] = set()
-    merged: list[str] = []
-    for group in groups:
-        for item in group:
-            if item in seen:
-                continue
-            seen.add(item)
-            merged.append(item)
-    return merged
-
-
-def _dedupe_rows(rows: Iterable[dict]) -> list[dict]:
-    merged: dict[tuple[str, str, str], dict] = {}
-    for row in rows:
-        key = (row["manufacturer"], row["category"], row["title"])
-        prev = merged.get(key)
-        if prev is None:
-            merged[key] = row
-            continue
-        prev["volume_options"] = _merge_volume_options(
-            prev.get("volume_options") or [],
-            row.get("volume_options") or [],
-        )
-        if not prev.get("category_major"):
-            prev["category_major"] = row.get("category_major")
-        if not prev.get("category_mid"):
-            prev["category_mid"] = row.get("category_mid")
-    return list(merged.values())
 
 
 def import_catalog_csv(db: Session, content: bytes) -> dict[str, int]:
     text = content.decode("utf-8-sig")
     upserted = 0
     batch: list[dict] = []
-    source_rows = 0
+    raw_rows = list(_iter_rows(text))
+    source_rows = len(raw_rows)
+    groups, _medium = canonicalize_csv_rows(raw_rows)
 
     def flush() -> None:
         nonlocal upserted, batch
@@ -92,16 +64,27 @@ def import_catalog_csv(db: Session, content: bytes) -> dict[str, int]:
                 "category_major": stmt.excluded.category_major,
                 "category_mid": stmt.excluded.category_mid,
                 "volume_options": stmt.excluded.volume_options,
+                "reference_variants": stmt.excluded.reference_variants,
             },
         )
         db.execute(stmt)
         upserted += len(batch)
         batch = []
 
-    raw_rows = list(_iter_rows(text))
-    source_rows = len(raw_rows)
-    for row in _dedupe_rows(raw_rows):
-        batch.append(row)
+    for group in groups:
+        batch.append(
+            {
+                "id": uuid.uuid4(),
+                "manufacturer": group.manufacturer[:200],
+                "title": group.canonical_title[:200],
+                "category": group.category[:120],
+                "category_major": (group.category_major or None),
+                "category_mid": (group.category_mid or None),
+                "volume_options": group.volume_options,
+                "reference_variants": [v.to_dict() for v in group.reference_variants],
+                "price_unit": "each",
+            }
+        )
         if len(batch) >= BATCH:
             flush()
 
@@ -110,4 +93,5 @@ def import_catalog_csv(db: Session, content: bytes) -> dict[str, int]:
     return {
         "source_rows": source_rows,
         "upserted": upserted,
+        "canonical_groups": len(groups),
     }

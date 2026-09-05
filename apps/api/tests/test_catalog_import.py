@@ -1,6 +1,7 @@
 from unittest.mock import MagicMock, patch
 
-from app.services.catalog_import import _dedupe_rows, _iter_rows, _volume_options
+from app.services.catalog_identity import canonicalize_csv_rows
+from app.services.catalog_import import _iter_rows, _volume_options
 from tests.factories import make_user, override_current_user, override_db
 
 
@@ -12,7 +13,6 @@ def test_volume_options_split():
 def test_dedupe_rows_merges_volume_options():
     rows = [
         {
-            "id": "1",
             "manufacturer": "서울우유",
             "category": "가공우유",
             "title": "서울우유딸기",
@@ -21,7 +21,6 @@ def test_dedupe_rows_merges_volume_options():
             "category_mid": None,
         },
         {
-            "id": "2",
             "manufacturer": "서울우유",
             "category": "가공우유",
             "title": "서울우유딸기",
@@ -30,10 +29,10 @@ def test_dedupe_rows_merges_volume_options():
             "category_mid": "우유",
         },
     ]
-    merged = _dedupe_rows(rows)
-    assert len(merged) == 1
-    assert merged[0]["volume_options"] == ["200ml", "1000ml"]
-    assert merged[0]["category_mid"] == "우유"
+    groups, _ = canonicalize_csv_rows(rows)
+    assert len(groups) == 1
+    assert set(groups[0].volume_options) >= {"200ml", "1000ml"}
+    assert groups[0].category_mid == "우유"
 
 
 def test_iter_rows_skips_empty_maker():

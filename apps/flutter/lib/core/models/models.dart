@@ -385,6 +385,7 @@ class CatalogProductDetailModel {
     required this.offers,
     this.description,
     this.imageUrl,
+    this.referenceVariants = const [],
   });
 
   final String id;
@@ -394,4 +395,33 @@ class CatalogProductDetailModel {
   final List<CatalogOfferModel> offers;
   final String? description;
   final String? imageUrl;
+  final List<CatalogReferenceVariantModel> referenceVariants;
+}
+
+class CatalogReferenceVariantModel {
+  CatalogReferenceVariantModel({
+    required this.originalTitle,
+    this.flavors = const [],
+    this.volumes = const [],
+    this.barcode,
+  });
+
+  final String originalTitle;
+  final List<String> flavors;
+  final List<String> volumes;
+  final String? barcode;
+
+  String get displayLabel {
+    final parts = <String>[];
+    if (flavors.isNotEmpty) {
+      parts.add(flavors.join('/'));
+    }
+    if (volumes.isNotEmpty) {
+      parts.add(volumes.join(', '));
+    }
+    if (parts.isEmpty) {
+      return originalTitle;
+    }
+    return '${parts.join(' · ')} ($originalTitle)';
+  }
 }

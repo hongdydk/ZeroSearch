@@ -573,6 +573,17 @@
       },
       "CatalogImportResponse": {
         "properties": {
+          "canonicalGroups": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Canonicalgroups"
+          },
           "sourceRows": {
             "title": "Sourcerows",
             "type": "integer"
@@ -746,6 +757,13 @@
             "title": "Offers",
             "type": "array"
           },
+          "referenceVariants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogReferenceVariant"
+            },
+            "title": "Referencevariants",
+            "type": "array"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -907,6 +925,45 @@
           "total"
         ],
         "title": "CatalogProductListResponse",
+        "type": "object"
+      },
+      "CatalogReferenceVariant": {
+        "description": "AI-Hub 원본 맛·용량 변형. 구매·담기 불가 참고용.",
+        "properties": {
+          "barcode": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barcode"
+          },
+          "flavors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Flavors",
+            "type": "array"
+          },
+          "originalTitle": {
+            "title": "Originaltitle",
+            "type": "string"
+          },
+          "volumes": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Volumes",
+            "type": "array"
+          }
+        },
+        "required": [
+          "originalTitle"
+        ],
+        "title": "CatalogReferenceVariant",
         "type": "object"
       },
       "CheckoutResponse": {

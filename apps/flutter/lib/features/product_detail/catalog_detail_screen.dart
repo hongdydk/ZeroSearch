@@ -230,6 +230,40 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
                       ),
                 ),
               ),
+            if (detail.referenceVariants.isNotEmpty) ...[
+              const SizedBox(height: 24),
+              Text(
+                '참고 옵션 · 현재 판매 없음',
+                style: Theme.of(context).textTheme.titleMedium,
+              ),
+              const SizedBox(height: 4),
+              Text(
+                'AI-Hub 원본에 있던 맛·용량입니다. 구매·담기는 할 수 없습니다.',
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+              ),
+              const SizedBox(height: 8),
+              ...detail.referenceVariants.map((variant) {
+                return Card(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  color: Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.45),
+                  child: ListTile(
+                    enabled: false,
+                    title: Text(variant.displayLabel),
+                    subtitle: variant.barcode == null || variant.barcode!.isEmpty
+                        ? null
+                        : Text('바코드 ${variant.barcode}'),
+                    trailing: Text(
+                      '판매 없음',
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ),
+                );
+              }),
+            ],
           ],
         ),
       ),

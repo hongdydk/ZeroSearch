@@ -1,5 +1,5 @@
 from app.models.cart import CartItem
-from app.models.catalog_product import CatalogProduct
+from app.models.catalog_product import CatalogProduct, CatalogProductAlias
 from app.models.credit import CreditTransaction, CreditWallet
 from app.models.membership import MembershipPlan, Subscription
 from app.models.order import Order, OrderItem
@@ -11,6 +11,7 @@ __all__ = [
     "User",
     "Seller",
     "CatalogProduct",
+    "CatalogProductAlias",
     "CreditWallet",
     "CreditTransaction",
     "Product",
@@ -20,4 +21,4 @@ __all__ = [
     "MembershipPlan",
     "Subscription",
 ]
-
+

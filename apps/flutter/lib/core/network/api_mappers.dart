@@ -255,4 +255,13 @@ CatalogProductDetailModel catalogProductDetailFromGenerated(gen.CatalogProductDe
       imageUrl: detail.imageUrl,
       offerCount: detail.offerCount,
       offers: detail.offers.map(catalogOfferFromGenerated).toList(),
+      referenceVariants: [
+        for (final v in detail.referenceVariants ?? BuiltList<gen.CatalogReferenceVariant>())
+          CatalogReferenceVariantModel(
+            originalTitle: v.originalTitle,
+            flavors: (v.flavors ?? BuiltList<String>()).toList(),
+            volumes: (v.volumes ?? BuiltList<String>()).toList(),
+            barcode: v.barcode,
+          ),
+      ],
     );

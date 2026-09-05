@@ -57,6 +57,17 @@ class CatalogOfferItem(BaseModel):
         return str(value)
 
 
+class CatalogReferenceVariant(BaseModel):
+    """AI-Hub 원본 맛·용량 변형. 구매·담기 불가 참고용."""
+
+    original_title: str = Field(alias="originalTitle")
+    flavors: list[str] = Field(default_factory=list)
+    volumes: list[str] = Field(default_factory=list)
+    barcode: str | None = None
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
 class CatalogProductDetailResponse(BaseModel):
     id: str
     title: str
@@ -69,6 +80,9 @@ class CatalogProductDetailResponse(BaseModel):
     volume_options: list[str] = Field(default_factory=list, alias="volumeOptions")
     offer_count: int = Field(alias="offerCount")
     offers: list[CatalogOfferItem]
+    reference_variants: list[CatalogReferenceVariant] = Field(
+        default_factory=list, alias="referenceVariants"
+    )
     created_at: datetime | None = Field(default=None, alias="createdAt")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
@@ -82,6 +96,7 @@ class CatalogProductDetailResponse(BaseModel):
 class CatalogImportResponse(BaseModel):
     source_rows: int = Field(alias="sourceRows")
     upserted: int
+    canonical_groups: int | None = Field(default=None, alias="canonicalGroups")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

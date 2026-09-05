@@ -2,6 +2,10 @@
 """AI-Hub 상품 이미지 Validation 라벨 zip → 카탈로그 CSV.
 
 한 품목 폴더의 _meta.xml 하나에서 제조사·품목명·분류·용량을 읽는다.
+
+원본 품목명(맛·용량 변형 포함)을 그대로 둔다. DB upsert 시
+`apps/api/app/services/catalog_identity.py`의 canonicalize 규칙으로
+대표 카드·reference_variants로 합친다.
 """
 
 from __future__ import annotations
