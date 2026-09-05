@@ -15,6 +15,7 @@ from sqlalchemy.orm import Session, sessionmaker
 from app.models import CatalogProduct, CatalogProductAlias, Product, Seller, User
 from app.services.catalog_identity import canonicalize_csv_rows
 from app.services.catalog_remerge import (
+    VolumeTitleRepairReport,
     apply_db_remarge,
     apply_volume_title_repair,
     plan_db_remarge,
@@ -261,3 +262,50 @@ def test_pg_repair_volume_only_title_after_v2_import():
         db.rollback()
         db.close()
         engine.dispose()
+
+
+def test_apply_volume_title_repair_keeps_going_when_some_targets_missing(monkeypatch):
+    report = VolumeTitleRepairReport(
+        affected_rows=112,
+        source_variants=138,
+        target_groups=138,
+        missing_targets=[
+            {
+                "catalogId": "5ca4b52c-8136-400c-a9af-47aee7811fa3",
+                "manufacturer": "동원에프앤비덴마크",
+                "category": "마시는 요구르트",
+                "targetTitle": "덴마크드링킹요구르트( )",
+            }
+        ],
+        rows_with_offers=[],
+        aliases_repointed=0,
+        applied=False,
+    )
+    monkeypatch.setattr(
+        "app.services.catalog_remerge.plan_volume_title_repair",
+        lambda db: ([], report),
+    )
+
+    result = apply_volume_title_repair(MagicMock())
+    assert result.applied is True
+    assert len(result.missing_targets) == 1
+    assert result.aliases_repointed == 0
+
+
+def test_apply_volume_title_repair_still_stops_when_offers_exist(monkeypatch):
+    report = VolumeTitleRepairReport(
+        affected_rows=1,
+        source_variants=1,
+        target_groups=1,
+        missing_targets=[],
+        rows_with_offers=["aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"],
+        aliases_repointed=0,
+        applied=False,
+    )
+    monkeypatch.setattr(
+        "app.services.catalog_remerge.plan_volume_title_repair",
+        lambda db: ([], report),
+    )
+
+    with pytest.raises(RuntimeError, match="판매 오퍼"):
+        apply_volume_title_repair(MagicMock())
