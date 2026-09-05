@@ -300,6 +300,18 @@ def plan_volume_title_repair(
         (row.manufacturer, row.category, row.title): row
         for row in catalogs
     }
+    by_variant: dict[tuple[str, str, str], list[CatalogProduct]] = defaultdict(list)
+    for row in catalogs:
+        for raw_variant in list(row.reference_variants or []):
+            if not isinstance(raw_variant, dict):
+                continue
+            original_title = str(
+                raw_variant.get("originalTitle")
+                or raw_variant.get("original_title")
+                or ""
+            )
+            if original_title:
+                by_variant[(row.manufacturer, row.category, original_title)].append(row)
     plans: list[_VolumeTitleRepairPlan] = []
     missing_targets: list[dict[str, str]] = []
     source_variants = 0
@@ -334,6 +346,30 @@ def plan_volume_title_repair(
 
         for group in groups:
             target = by_key.get((bad.manufacturer, bad.category, group.canonical_title))
+            if target is None:
+                overlap: dict[UUID, tuple[CatalogProduct, int]] = {}
+                for member in group.members:
+                    for candidate in by_variant.get(
+                        (bad.manufacturer, bad.category, member.raw_title), []
+                    ):
+                        if candidate.id == bad.id or is_volume_only_title(candidate.title):
+                            continue
+                        current = overlap.get(candidate.id)
+                        overlap[candidate.id] = (
+                            candidate,
+                            (current[1] if current else 0) + 1,
+                        )
+                if overlap:
+                    ranked = sorted(
+                        overlap.values(),
+                        key=lambda item: (
+                            item[1],
+                            item[0].title == group.canonical_title,
+                        ),
+                        reverse=True,
+                    )
+                    if len(ranked) == 1 or ranked[0][1] > ranked[1][1]:
+                        target = ranked[0][0]
             if target is None or target.id == bad.id:
                 missing_targets.append(
                     {

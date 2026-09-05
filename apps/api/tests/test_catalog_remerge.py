@@ -224,11 +224,20 @@ def test_pg_repair_volume_only_title_after_v2_import():
         )
         target = CatalogProduct(
             id=uuid.uuid4(),
-            title="튀김우동(봉지)",
+            # v2 import에서 여러 변형의 다른 대표명이 선택돼도
+            # referenceVariants 원본 일치로 target을 찾는다.
+            title="튀김우동",
             manufacturer="농심",
             category="국물봉지라면",
             volume_options=["118G"],
-            reference_variants=[],
+            reference_variants=[
+                {
+                    "originalTitle": "농심튀김우동(봉지)118G",
+                    "flavors": [],
+                    "volumes": ["118G"],
+                    "barcode": None,
+                }
+            ],
             price_unit="each",
         )
         old_id = uuid.uuid4()
