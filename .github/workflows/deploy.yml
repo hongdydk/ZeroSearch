@@ -68,7 +68,12 @@ jobs:
           username: ${{ secrets.EC2_USER }}
           key: ${{ secrets.EC2_SSH_KEY }}
           script_stop: true
-          script: bash /opt/shopping-mall/deploy/ec2-deploy.sh
+          script: |
+            cd /opt/shopping-mall
+            git fetch origin main
+            git checkout main
+            git pull --ff-only origin main
+            bash deploy/ec2-deploy.sh
 
   build-flutter:
     needs: test-api
