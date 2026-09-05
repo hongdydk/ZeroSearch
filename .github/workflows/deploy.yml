@@ -44,8 +44,14 @@ jobs:
           python scripts/export_openapi.py
           git diff --exit-code -- scripts/openapi.json
 
+      - name: Alembic migrate
+        working-directory: apps/api
+        run: alembic upgrade head
+
       - name: pytest
         working-directory: apps/api
+        env:
+          RUN_PG_CONCURRENCY: "1"
         run: python -m pytest tests/ -q
 
   deploy-api:

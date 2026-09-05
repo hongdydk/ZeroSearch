@@ -136,6 +136,20 @@
 
 same-origin(`/api` 프록시)은 [follow-ups.md](./follow-ups.md) — Phase 2 DoD 밖.
 
+### 구매·주문 안정화
+
+Phase 2 DoD 이후 구매자 결제 경로 정합성·부하. Phase 3/3.5/4와 섞지 않는다.
+
+| # | 항목 | 상태 |
+|---|------|------|
+| 1 | **재고 동시성** — 같은 SKU 동시 주문에도 성공 수량 ≤ 재고, 재고 음수 금지 | **적용됨** |
+| 2 | **크레딧 동시성** — 같은 지갑 동시 결제의 이중 지출 금지 | 미적용 |
+| 3 | **체크아웃 idempotency** — 재시도·다중 탭 중복 주문/차감 금지 | 미적용 |
+| 4 | **인증 전환 안정성** — bootstrap 로그인 flash, 회원가입 `next` 유실 해소 | 미적용 |
+| 5 | **카탈로그 완결성** — 목록 50개 제한 해소 · 카드 그리드 스크롤 복원 | 미적용 |
+| 6 | **장바구니 최신성** — 품절·판매중지·판매자 정지를 결제 전에 표시 | 미적용 |
+| 7 | **동시 다량 주문 부하** — DB pool/worker/rate limit · 서로 다른 상품 대량 주문의 timeout 기준 검증 | 미적용 |
+
 ## 배포
 
 Flutter → **Cloudflare Pages** (`mall.anoveli.com`). FastAPI → EC2 Docker (`mall-api` :8001). PostgreSQL → EC2 `mall-postgres`.  
