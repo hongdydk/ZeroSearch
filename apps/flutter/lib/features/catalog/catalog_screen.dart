@@ -26,11 +26,23 @@ class CatalogScreen extends ConsumerStatefulWidget {
 class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   final _searchDebounce = CatalogSearchDebounce();
   String? _syncedQuery;
+  String? _pendingSyncKey;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _syncBrowseFromUri(GoRouterState.of(context).uri);
+    // Riverpod forbids provider writes during didChangeDependencies/build.
+    // Defer so go('/?major=') / deep-link sync actually applies.
+    if (GoRouter.maybeOf(context) == null) return;
+    final uri = GoRouterState.of(context).uri;
+    final key = uri.hasQuery ? uri.query : '';
+    if (_syncedQuery == key || _pendingSyncKey == key) return;
+    _pendingSyncKey = key;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _pendingSyncKey = null;
+      if (!mounted) return;
+      _syncBrowseFromUri(uri);
+    });
   }
 
   @override
@@ -81,6 +93,28 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     if (ref.read(catalogMidProvider) != mid) {
       ref.read(catalogMidProvider.notifier).state = mid;
     }
+  }
+
+  void _applyMajorDrill(String name) {
+    ref.read(catalogMidScrollOffsetProvider.notifier).state = 0;
+    ref.read(catalogSearchProvider.notifier).state = '';
+    ref.read(catalogDebouncedSearchProvider.notifier).state = '';
+    ref.read(catalogCategoryProvider.notifier).state = null;
+    ref.read(catalogFlavorFilterProvider.notifier).state = null;
+    ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
+    ref.read(catalogMidProvider.notifier).state = null;
+    ref.read(catalogMajorProvider.notifier).state = name;
+    // go (not push): one CatalogScreen + URL history. push stacked screens
+    // that share providers and left drill state stuck after pop.
+    context.go(browseLocation(major: name));
+  }
+
+  void _applyMidDrill(String major, String name) {
+    ref.read(catalogFlavorFilterProvider.notifier).state = null;
+    ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
+    ref.read(catalogCategoryProvider.notifier).state = null;
+    ref.read(catalogMidProvider.notifier).state = name;
+    context.go(browseLocation(major: major, mid: name));
   }
 
   void _onSearchTyped(String value) {
@@ -152,10 +186,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         initialScrollOffset: ref.watch(catalogLandingScrollOffsetProvider),
         onScrollOffset: (v) =>
             ref.read(catalogLandingScrollOffsetProvider.notifier).state = v,
-        onPickMajor: (name) {
-          ref.read(catalogMidScrollOffsetProvider.notifier).state = 0;
-          context.push(browseLocation(major: name));
-        },
+        onPickMajor: _applyMajorDrill,
         onSearchChanged: _onSearchTyped,
       );
     }
@@ -170,7 +201,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         onScrollOffset: (v) =>
             ref.read(catalogMidScrollOffsetProvider.notifier).state = v,
         onBack: () => popBrowseOrHome(context),
-        onPickMid: (name) => context.push(browseLocation(major: major, mid: name)),
+        onPickMid: (name) => _applyMidDrill(major!, name),
       );
     }
 

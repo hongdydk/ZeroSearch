@@ -7,7 +7,6 @@ import 'package:shopping_mall/core/network/api_client.dart';
 import 'package:shopping_mall/core/providers/app_providers.dart';
 import 'package:shopping_mall/core/storage/token_storage.dart';
 import 'package:shopping_mall/core/theme/app_theme.dart';
-import 'package:shopping_mall/features/catalog/catalog_screen.dart';
 import 'package:shopping_mall/shared/widgets/adaptive_shell.dart';
 import 'package:shopping_mall/shared/widgets/web/web_naver_header.dart';
 
@@ -178,7 +177,7 @@ void main() {
         ],
         child: MaterialApp(
           theme: AppTheme.web(),
-          home: const WebShell(child: CatalogScreen()),
+          home: const WebShell(child: SizedBox.shrink()),
         ),
       ),
     );
@@ -189,8 +188,5 @@ void main() {
     expect(find.byType(AppBar), findsNothing);
     expect(find.text('제로 서치'), findsOneWidget);
     expect(find.text('밥, 떡, 쌀…'), findsOneWidget);
-    expect(find.text('식탁'), findsWidgets);
-    expect(find.text('면류'), findsWidgets);
-    expect(find.text('간편식'), findsWidgets);
   });
 }

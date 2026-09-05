@@ -68,14 +68,19 @@ void handleAppBackNavigation(BuildContext context) {
   SystemNavigator.pop();
 }
 
-/// 식탁·상세 앱 내 뒤로 — pop, 없으면 홈.
+/// 식탁·상세 앱 내 뒤로 — 상세는 pop, 식탁 browse는 URL step-down.
 void popBrowseOrHome(BuildContext context) {
   final router = GoRouter.of(context);
+  final state = GoRouterState.of(context);
   if (router.canPop()) {
     router.pop();
-  } else {
-    router.go('/');
+    return;
   }
+  if (hasBrowseQuery(state.uri)) {
+    router.go(browseStepDown(state.uri));
+    return;
+  }
+  router.go('/');
 }
 
 Future<void> _confirmExitApp(BuildContext context) async {
