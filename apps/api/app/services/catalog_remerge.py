@@ -128,6 +128,63 @@ def _pick_survivor(rows: list[CatalogProduct], offer_counts: dict[UUID, int]) ->
     )
 
 
+def _temporary_title(row: CatalogProduct) -> str:
+    suffix = f"__rm_{row.id.hex[:8]}"
+    return f"{(row.title or '')[: 200 - len(suffix)]}{suffix}"
+
+
+def _rows_holding_title(
+    db: Session,
+    *,
+    manufacturer: str,
+    category: str,
+    title: str,
+    exclude_id: UUID,
+) -> list[CatalogProduct]:
+    return list(
+        db.scalars(
+            select(CatalogProduct).where(
+                CatalogProduct.manufacturer == manufacturer,
+                CatalogProduct.category == category,
+                CatalogProduct.title == title,
+                CatalogProduct.id != exclude_id,
+            )
+        )
+    )
+
+
+def _vacate_title_for_dupes(
+    db: Session,
+    *,
+    survivor: CatalogProduct,
+    title: str,
+    dupe_ids: set[UUID],
+) -> CatalogProduct | None:
+    """곧 삭제할 행이 unique 키를 잡고 있으면 임시 제목으로 비운다.
+
+    Session은 autoflush=False라서 생존 행 UPDATE와 중복 행 DELETE가
+    한 flush에 나가면 uq_catalog_products_maker_category_title 에 걸린다.
+    """
+    holders = _rows_holding_title(
+        db,
+        manufacturer=survivor.manufacturer,
+        category=survivor.category,
+        title=title,
+        exclude_id=survivor.id,
+    )
+    leftover: CatalogProduct | None = None
+    vacated = False
+    for holder in holders:
+        if holder.id in dupe_ids:
+            holder.title = _temporary_title(holder)
+            vacated = True
+        else:
+            leftover = holder
+    if vacated:
+        db.flush()
+    return leftover
+
+
 def apply_db_remarge(db: Session) -> RemargeReport:
     planned, report = plan_db_remarge(db)
     if not planned:
@@ -157,15 +214,14 @@ def apply_db_remarge(db: Session) -> RemargeReport:
             )
             if survivor.title != group.canonical_title:
                 # unique 충돌 피하려고 같은 키가 없을 때만 제목 변경
-                clash = db.scalar(
-                    select(CatalogProduct.id).where(
-                        CatalogProduct.manufacturer == survivor.manufacturer,
-                        CatalogProduct.category == survivor.category,
-                        CatalogProduct.title == group.canonical_title,
-                        CatalogProduct.id != survivor.id,
-                    )
+                clash = _rows_holding_title(
+                    db,
+                    manufacturer=survivor.manufacturer,
+                    category=survivor.category,
+                    title=group.canonical_title,
+                    exclude_id=survivor.id,
                 )
-                if clash is None:
+                if not clash:
                     survivor.title = group.canonical_title
             survivor.volume_options = _merge_volume_options(
                 list(survivor.volume_options or []),
@@ -176,6 +232,7 @@ def apply_db_remarge(db: Session) -> RemargeReport:
                 survivor.category_major = group.category_major
             if group.category_mid and not survivor.category_mid:
                 survivor.category_mid = group.category_mid
+            db.flush()
             continue
 
         survivor = _pick_survivor(rows, offer_counts)
@@ -221,18 +278,14 @@ def apply_db_remarge(db: Session) -> RemargeReport:
             group.volume_options,
         )
 
-        # unique: survivor title을 canonical로 바꾸기 전 충돌 행 정리
-        clash = db.scalar(
-            select(CatalogProduct).where(
-                CatalogProduct.manufacturer == survivor.manufacturer,
-                CatalogProduct.category == survivor.category,
-                CatalogProduct.title == group.canonical_title,
-                CatalogProduct.id != survivor.id,
-            )
+        # unique: 곧 삭제할 행이 canonical 제목을 잡고 있으면 먼저 비운다.
+        clash = _vacate_title_for_dupes(
+            db,
+            survivor=survivor,
+            title=group.canonical_title,
+            dupe_ids={d.id for d in dupes},
         )
-        if clash is not None and clash.id in {d.id for d in dupes}:
-            pass  # 곧 삭제
-        elif clash is not None:
+        if clash is not None:
             # 다른 생존 그룹과 충돌 — 제목은 유지
             group.canonical_title = survivor.title
 
@@ -251,8 +304,7 @@ def apply_db_remarge(db: Session) -> RemargeReport:
 
         for dupe in dupes:
             db.delete(dupe)
-
-    db.flush()
+        db.flush()
     report.offers_moved = offers_moved
     report.aliases_created = aliases_created
     report.applied = True

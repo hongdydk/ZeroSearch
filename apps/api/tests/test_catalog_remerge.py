@@ -89,8 +89,8 @@ def test_resolve_catalog_product_via_alias():
 
 
 @pytest.mark.skipif(
-    os.environ.get("RUN_PG_CATALOG_REMERGE") != "1",
-    reason="RUN_PG_CATALOG_REMERGE=1 일 때만 PostgreSQL 재병합 테스트 실행",
+    os.environ.get("RUN_PG_CONCURRENCY") != "1",
+    reason="RUN_PG_CONCURRENCY=1 일 때만 PostgreSQL 재병합 테스트 실행",
 )
 def test_pg_apply_remarge_moves_offers_and_aliases():
     database_url = os.environ.get("DATABASE_URL")
@@ -175,6 +175,92 @@ def test_pg_apply_remarge_moves_offers_and_aliases():
         # 멱등
         report2 = apply_db_remarge(db)
         assert report2.cards_reduced == 0
+
+        db.rollback()
+    finally:
+        db.rollback()
+        db.close()
+        engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.environ.get("RUN_PG_CONCURRENCY") != "1",
+    reason="RUN_PG_CONCURRENCY=1 일 때만 PostgreSQL 재병합 테스트 실행",
+)
+def test_pg_apply_remarge_when_dupe_already_has_canonical_title():
+    """생존 행 제목을 canonical로 바꿀 때, 그 제목을 가진 중복 행이 아직 있으면 unique 위반이 났었다."""
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url or "postgresql" not in database_url:
+        pytest.skip("DATABASE_URL(postgresql) 필요")
+
+    engine = create_engine(database_url, pool_pre_ping=True)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db: Session = SessionLocal()
+    maker = f"재병합-{uuid.uuid4().hex[:8]}"
+    try:
+        user = User(
+            id=uuid.uuid4(),
+            email=f"remerge-uq-{uuid.uuid4().hex[:8]}@example.com",
+            password_hash="x",
+            display_name="remerge",
+        )
+        db.add(user)
+        db.flush()
+        seller = Seller(
+            id=uuid.uuid4(),
+            user_id=user.id,
+            shop_name="remerge-uq-shop",
+            slug=f"remerge-uq-{uuid.uuid4().hex[:8]}",
+            status="active",
+            seller_type="platform",
+        )
+        db.add(seller)
+
+        canonical = CatalogProduct(
+            id=uuid.uuid4(),
+            title="프링글스",
+            manufacturer=maker,
+            category="감자스낵",
+            volume_options=["53G"],
+            reference_variants=[],
+            price_unit="each",
+        )
+        longer = CatalogProduct(
+            id=uuid.uuid4(),
+            title="프링글스클래식110G",
+            manufacturer=maker,
+            category="감자스낵",
+            volume_options=["110G"],
+            reference_variants=[],
+            price_unit="each",
+        )
+        db.add_all([canonical, longer])
+        db.flush()
+
+        offer = Product(
+            id=uuid.uuid4(),
+            seller_id=seller.id,
+            catalog_product_id=longer.id,
+            title="프링글스 오퍼",
+            price_credits=1000,
+            stock=5,
+            category="감자스낵",
+            status="published",
+            option_label="110G",
+        )
+        db.add(offer)
+        db.flush()
+
+        report = apply_db_remarge(db)
+        db.flush()
+        assert report.applied
+        assert report.cards_reduced >= 1
+
+        survivor = resolve_catalog_product(db, longer.id)
+        assert survivor is not None
+        assert survivor.title == "프링글스"
+        assert db.get(CatalogProduct, canonical.id) is None
+        assert resolve_catalog_product(db, canonical.id) is not None
 
         db.rollback()
     finally:
