@@ -3,7 +3,7 @@
 **사람용 기획·목업·논문은 `report/`.** gitignore. 사용자가 명시하지 않으면 읽지 않는다.  
 이 파일과 `docs/phaseN-spec.md`만 구현·Plan의 제품 근거로 쓴다.
 
-라우트·엔티티·API·DoD는 활성 [phase2-spec.md](./phase2-spec.md). Phase 1은 완료, Phase 3(토스 PG) 스펙은 아직 없음.
+라우트·엔티티·API·DoD는 활성 [phase2-spec.md](./phase2-spec.md). Phase 1은 완료. Phase 3(판매자·관리자)·배송지·취소/환불(Phase 4 직전·병행)·Phase 4(토스 PG)는 추후 스텁.
 
 ---
 
@@ -63,9 +63,9 @@
 
 ## 범위 밖
 
-외부 크롤·가격비교 본업, 택배사 API, 쿠팡급 SKU·광고, 입점 정산, 멤버십, 운영용 본인인증 결제. 결제는 Phase 3 토스. 지금은 크레딧 스텁.
+외부 크롤·가격비교 본업, 택배사 API, 쿠팡급 SKU·광고, 입점 정산, 멤버십, 운영용 본인인증 결제. 결제는 Phase 4 토스. 지금은 크레딧 스텁.
 
-배송지·취소/환불은 스펙에 아직 없지만, “산다”를 닫으려면 이후 phase에서 다룬다. 물류 API와 별개다.
+배송지·취소/환불은 Phase 4 **직전·병행 후보** — [phase4-spec.md](./phase4-spec.md) 「선행/병행」. 물류 API와 별개다.
 
 ---
 
@@ -74,5 +74,10 @@
 | 문서 | 상태 |
 |------|------|
 | [phase1-spec.md](./phase1-spec.md) | 완료 — 골격 |
-| [phase2-spec.md](./phase2-spec.md) | **활성** — 대표 상품·오퍼·입점 |
-| phase3-spec.md | 없음 — 토스 PG |
+| [phase2-spec.md](./phase2-spec.md) | **활성** — 대표 상품·오퍼·입점 · 구매자·장바구니 UX([ux-issues.md](./ux-issues.md) #1–9) |
+| [follow-ups.md](./follow-ups.md) 운영 A–C | Phase 2 병행·이후 — 배포 부담 · 관측 · OpenAPI 계약 |
+| [phase3-spec.md](./phase3-spec.md) | 추후 — 판매자·관리자 기능 추가 |
+| 3.5 (후보) | 추후 — 배송지·주문 취소·환불 (“산다” 마감). Phase 4 직전·병행 → [phase4-spec.md](./phase4-spec.md) |
+| [phase4-spec.md](./phase4-spec.md) | 추후 — 실 PG(토스) |
+
+**다음 적용 순서:** ① [follow-ups.md](./follow-ups.md) same-origin → ② [ux-issues.md](./ux-issues.md) Phase 2 #1–9 → ③ 운영 서브페이즈 A–C ([follow-ups.md](./follow-ups.md))

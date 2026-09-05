@@ -16,5 +16,9 @@ alwaysApply: true
 | Phase | 범위 | 스펙 |
 |-------|------|------|
 | **1** (완료) | 쇼핑몰 골격 — 상품·장바구니·크레딧 주문 | `docs/phase1-spec.md` |
-| **2** (활성) | 제로 서치 — 대표 상품 목록·오퍼·입점·공식 스토어 | `docs/phase2-spec.md` |
-| **3** (추후) | 실 PG(토스) | `docs/phase3-spec.md` |
+| **2** (활성) | 제로 서치 — 대표 상품·오퍼·입점 · 구매자·장바구니 UX(`docs/ux-issues.md`) | `docs/phase2-spec.md` |
+| **3** (추후) | 판매자·관리자 기능 추가 | `docs/phase3-spec.md` |
+| **3.5** (후보) | 배송지·취소/환불 — Phase 4 직전·병행 | `docs/phase4-spec.md` 「선행/병행」 |
+| **4** (추후) | 실 PG(토스) | `docs/phase4-spec.md` |
+
+운영 서브페이즈(배포 부담·관측·OpenAPI 계약)는 Phase 2 병행·이후 — SSOT `docs/follow-ups.md` (A–C). Phase 3/3.5/4와 섞지 않는다.
