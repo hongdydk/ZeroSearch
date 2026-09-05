@@ -12,3 +12,10 @@ alwaysApply: true
 - **그 외**(기능·UI·문서·리팩터): **커밋만**. push는 사용자가 말하기 전 금지.
 - `.env`·credentials 커밋 금지. `--force`·hook skip·`main` force-push는 사용자 명시 OK 시만.
 - PR 제목·Summary도 한국어 우선.
+
+## 작업 전 open PR
+
+- **비사소한 구현 시작 전**만: `gh pr list`로 open PR 확인. 관련 open Issue가 있으면 함께 본다.
+- Automations·CI 지적 PR/이슈를 우선 요약(1–3줄). **현재 작업에 합치기 전 사용자에게 확인.**
+- Ask 전용·짧은 질문·1파일 소수정은 생략.
+- open 목록을 현재 Plan 범위로 자동 확대·머지하지 않음.
