@@ -132,7 +132,7 @@ def list_catalog_products(
     volume_ml_max: int | None = None,
     offset: int = 0,
     limit: int = 50,
-    require_offers: bool = True,
+    require_offers: bool = False,
 ) -> tuple[list[CatalogProductListItem], int]:
     catalog_filters = _catalog_search_filter(
         q,

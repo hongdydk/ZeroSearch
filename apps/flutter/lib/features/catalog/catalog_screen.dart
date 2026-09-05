@@ -1283,6 +1283,8 @@ class _CatalogCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final hasPrice =
+        item.medianUnitPrice != null || item.medianPriceCredits != null;
     final priceLabel = formatCatalogRepresentativePrice(
       priceUnit: item.priceUnit,
       displayPriceLabel: item.displayPriceLabel,
@@ -1316,13 +1318,15 @@ class _CatalogCard extends StatelessWidget {
                   Text(
                     priceLabel,
                     style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          color: AppTheme.priceBurgundy,
+                          fontWeight: hasPrice ? FontWeight.w700 : FontWeight.w500,
+                          color: hasPrice
+                              ? AppTheme.priceBurgundy
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '오퍼 ${item.offerCount}',
+                    item.offerCount > 0 ? '오퍼 ${item.offerCount}' : '오퍼 없음',
                     style: Theme.of(context).textTheme.bodySmall?.copyWith(
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),

@@ -25,7 +25,8 @@ String formatCatalogRepresentativePrice({
   if (medianPriceCredits != null) {
     return '$displayPriceLabel ${formatWon(medianPriceCredits)}(보통)';
   }
-  return '—';
+  // 공개 오퍼가 없으면 카드는 유지하고 가격만 숨긴다.
+  return '가격 정보 없음';
 }
 
 /// 수량·단가 줄: `12,000원 × 2`

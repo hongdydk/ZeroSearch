@@ -102,6 +102,14 @@ def test_aggregate_median_credits_fallback():
     assert label == "크레딧(보통)"
 
 
+def test_aggregate_no_offers_returns_null_prices():
+    count, median_unit, median_credits, price_unit, _label = _aggregate_offers([])
+    assert count == 0
+    assert median_unit is None
+    assert median_credits is None
+    assert price_unit == "credits"
+
+
 def test_catalog_search_filter_compiles_for_query():
     stmt = select(CatalogProduct).where(*_catalog_search_filter("김치", None))
     sql = str(stmt.compile(dialect=postgresql.dialect()))
@@ -148,6 +156,35 @@ def test_list_catalog_products_flavor_filter(client):
     _, kwargs = mock_list.call_args
     assert kwargs["flavor"] == "레몬"
     assert kwargs["volume_ml_min"] == 2000
+    # 구매자 목록은 오퍼 없는 대표 상품도 포함 (기본 require_offers=False)
+    assert kwargs.get("require_offers", False) is False
+
+
+def test_list_catalog_products_includes_zero_offer_item(client):
+    catalog = _sample_catalog(title="등록 전 생수")
+    items = [
+        CatalogProductListItem(
+            id=str(catalog.id),
+            title="등록 전 생수",
+            category="생수",
+            offer_count=0,
+            median_unit_price=None,
+            median_price_credits=None,
+            price_unit="credits",
+            display_price_label="크레딧(보통)",
+        )
+    ]
+    override_db(MagicMock())
+
+    with patch("app.routers.catalog_products.list_catalog_products", return_value=(items, 1)):
+        response = client.get("/catalog-products?q=생수")
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["offerCount"] == 0
+    assert body["items"][0]["medianUnitPrice"] is None
+    assert body["items"][0]["medianPriceCredits"] is None
 
 
 def test_list_catalog_products_empty_volume_filters(client):
