@@ -1,6 +1,6 @@
 # 후속 작업 (미적용)
 
-**다음 적용 (1순위 진행 중):** same-origin API. 다음은 Phase 2 UX #1–9.
+**다음 적용:** Phase 2 UX #1–9 ([ux-issues.md](./ux-issues.md)). same-origin(§1)은 적용됨.
 
 구매자·장바구니 UX(#1–9)는 **Phase 2** — [ux-issues.md](./ux-issues.md) · DoD [phase2-spec.md](./phase2-spec.md).  
 이 문서는 Phase 2 DoD에 아직 안 넣은 **인프라·운영**만 둔다. 운영 서브페이즈 A–C가 SSOT.
@@ -11,7 +11,7 @@
 
 ## 1. `mall` + `mall-api` 동일 호스트
 
-**상태:** 적용 중 — Pages Functions `/api` 프록시 + 프로덕션 `API_BASE_URL=https://mall.anoveli.com/api`
+**상태:** 적용됨 — `https://mall.anoveli.com/api/health` → JSON ok (Pages Functions `/api` → mall-api)
 
 **현상(이전):** UI `https://mall.anoveli.com`, API `https://mall-api.anoveli.com` (CORS).
 
@@ -54,6 +54,6 @@ Phase 2 UX(#1–9)와 **병행 가능**. Phase 3 / 3.5 / 4와 무관. 제품 DoD
 
 ## 적용 순서
 
-1. **same-origin** 프록시 + `API_BASE_URL` + 헬스 확인 (이 문서 §1) — **적용 중**
+1. **same-origin** 프록시 + `API_BASE_URL` + 헬스 확인 (이 문서 §1) — **적용됨**
 2. (Phase 2) 구매자·장바구니 UX #1–9 — [ux-issues.md](./ux-issues.md) 적용 우선순위
 3. **운영 서브페이즈** A → B → C (병행 가능; UX와 겹치면 C를 해당 PR에 묶음)
