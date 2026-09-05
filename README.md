@@ -80,7 +80,7 @@ pnpm dev:flutter       # http://localhost:8080
 
 아노벨리(`api.anoveli.com`, `app.anoveli.com`)와 **공존**. 상세: [deploy/README.md](./deploy/README.md)
 
-목표 주소: `https://mall.anoveli.com/` · API: `https://mall-api.anoveli.com`
+목표 주소: `https://mall.anoveli.com/` · API(브라우저): `https://mall.anoveli.com/api` (원본 `mall-api.anoveli.com`은 프록시 백엔드)
 
 **자동 배포:** `main` push → GitHub Actions — EC2 API(+카탈로그 import) + Cloudflare Pages
 

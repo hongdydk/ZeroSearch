@@ -105,6 +105,14 @@ jobs:
           print("index.html base href OK")
           PY
 
+      - name: Attach Pages Functions (/api proxy)
+        run: |
+          cp -R deploy/cloudflare-pages/functions apps/flutter/build/web/functions
+          cp deploy/cloudflare-pages/_routes.json apps/flutter/build/web/_routes.json
+          ls -la apps/flutter/build/web/functions
+          test -f apps/flutter/build/web/functions/api.js
+          test -f apps/flutter/build/web/functions/_proxy.js
+
       - uses: actions/upload-artifact@v4
         with:
           name: flutter-web

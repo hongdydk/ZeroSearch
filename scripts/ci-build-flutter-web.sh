@@ -3,7 +3,14 @@
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-API_BASE_URL="${API_BASE_URL:-https://mall-api.anoveli.com}"
+API_BASE_URL="${API_BASE_URL:-https://mall.anoveli.com/api}"
+# Same-origin 이행: 예전 mall-api 직접 URL이면 Pages /api 프록시로 맞춤
+case "$API_BASE_URL" in
+  https://mall-api.anoveli.com|https://mall-api.anoveli.com/)
+    API_BASE_URL="https://mall.anoveli.com/api"
+    echo "API_BASE_URL migrated → $API_BASE_URL"
+    ;;
+esac
 GEN="$ROOT/apps/flutter/lib/api/generated"
 
 cd "$ROOT"

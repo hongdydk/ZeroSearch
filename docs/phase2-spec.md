@@ -115,11 +115,29 @@
 - `flavor=레몬` 필터 시 해당 오퍼만 반영된 집계·상세
 - 상세에서 맛·용량·가격·판매자(공식/입점·배송) **한 줄 비교**
 - 입점 신청 → 승인 → 오퍼 등록 → 주문에 `seller_id` 반영
-- 공식·입점 혼합 장바구니·결제 (크레딧 스텁 또는 토스 Plan 범위)
+- 공식·입점 혼합 장바구니·결제 (크레딧 스텁; 실 PG는 Phase 4)
 - `fulfillment_status` 전이 + 구매자 주문 화면 폴링
 - pytest·flutter analyze 통과
+
+### 구매자·장바구니 UX 이슈 해소
+
+[docs/ux-issues.md](./ux-issues.md) #1–9를 Phase 2에서 해소한다. **증상·원인·해결방향은 ux-issues만** — 여기서는 DoD 체크리스트만 둔다. UX 적용 순서는 ux-issues 「적용 순서」(#1–9). **same-origin(`/api`)은 DoD 밖이나 UX 구현보다 먼저 적용할 수 있다** — [follow-ups.md](./follow-ups.md). 판매자·관리자 보강은 Phase 3, 토스 PG는 Phase 4.
+| # | DoD (요약) |
+|---|------------|
+| 1 | 검색·필터 시 목록 유지 + debounce |
+| 2 | 주문 폴링 시 깜빡임 없음 |
+| 3 | 게스트 담기 → 로그인 후 `next` 복귀 |
+| 4 | `/cart` 가게별 묶음 |
+| 5 | 맛·용량 필터가 현재 종류에만 |
+| 6 | 검색 ↔ 식탁 drill 배타/정리 |
+| 7 | 상세 back · 배송 라벨 · 좁은 폭 overflow 없음 |
+| 8 | 빈·에러 카피 · 주문 empty CTA |
+| 9 | 모바일 뒤로가기 · 스크롤 복원 (Browse = URL 쿼리) |
+
+same-origin(`/api` 프록시)은 [follow-ups.md](./follow-ups.md) — Phase 2 DoD 밖.
 
 ## 배포
 
 Flutter → **Cloudflare Pages** (`mall.anoveli.com`). FastAPI → EC2 Docker (`mall-api` :8001). PostgreSQL → EC2 `mall-postgres`.  
-대표 상품 SSOT는 `data/aihub-catalog.csv` — `main` 배포 시 EC2에서 upsert. 주소 `https://mall.anoveli.com/` · API `https://mall-api.anoveli.com`
+대표 상품 SSOT는 `data/aihub-catalog.csv` — `main` 배포 시 EC2에서 upsert.  
+브라우저 API: **`https://mall.anoveli.com/api`** (Pages Functions → Tunnel `mall-api.anoveli.com`). 원본 API 호스트는 프록시 백엔드용으로 유지.

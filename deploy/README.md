@@ -3,7 +3,8 @@
 아노벨리(`/opt/anoveli`, `api.anoveli.com:8000`, `app.anoveli.com`)는 **건드리지 않고**, 제로 서치(쇼핑몰)만 **추가**한다.
 
 **앱 URL:** `https://mall.anoveli.com/` (아노벨리 `app.anoveli.com` 과 호스트 분리)  
-**API URL:** `https://mall-api.anoveli.com`
+**API URL (브라우저):** `https://mall.anoveli.com/api` → Pages Functions → `mall-api.anoveli.com` (:8001)  
+**API URL (원본/Tunnel):** `https://mall-api.anoveli.com`
 
 ## 현재 아노벨리 서버 (참고)
 
@@ -75,10 +76,11 @@ Cloudflare DNS에 `mall-api` CNAME → tunnel.
 cd apps/flutter
 flutter build web --base-href=/ \
   --pwa-strategy=none \
-  --dart-define=API_BASE_URL=https://mall-api.anoveli.com
+  --dart-define=API_BASE_URL=https://mall.anoveli.com/api
 ```
 
 Pages에는 `apps/flutter/build/web/` **내용**을 루트에 올린다 (`web/` 폴더 중첩 금지).  
+배포 전 `deploy/cloudflare-pages/functions`·`_routes.json`을 산출물에 붙여 **`/api/*` → mall-api** 프록시를 켠다 (CI가 자동).  
 자동 배포는 §5 GitHub Actions.
 
 ### 3.2 커스텀 도메인
@@ -94,10 +96,11 @@ SPA 폴백은 Pages 기본 동작(루트 `404.html` 없음)을 쓴다.
 ## 4. 체크리스트
 
 - [ ] `anoveli-api`(8000) / `api.anoveli.com` 정상
-- [ ] `mall-api`(8001) / `mall-api.anoveli.com/health` 정상
+- [ ] `mall-api`(8001) / `mall-api.anoveli.com/health` 정상 (프록시 백엔드)
 - [ ] Cloudflare Pages + `mall.anoveli.com` 커스텀 도메인
-- [ ] Flutter `API_BASE_URL` = mall API 도메인, **`base-href=/`**
-- [ ] EC2 `.env.prod` `CORS_ORIGINS=https://mall.anoveli.com`
+- [ ] `https://mall.anoveli.com/api/health` 정상 (same-origin)
+- [ ] Flutter `API_BASE_URL=https://mall.anoveli.com/api`, **`base-href=/`**
+- [ ] EC2 `.env.prod` `CORS_ORIGINS=https://mall.anoveli.com` (직접 mall-api 호출·프리뷰용)
 - [ ] `https://mall.anoveli.com/admin` · `/seller` 새로고침 시 쇼핑몰 유지
 - [ ] `.env.prod` git 미커밋
 
@@ -160,7 +163,7 @@ EC2에 repo clone·`.env.prod` 는 기존 §1과 동일. **이 workflow 파일�
 |----------|------|------|
 | `CLOUDFLARE_ACCOUNT_ID` | 대시보드 오른쪽 Account ID | wrangler 계정 |
 | `CLOUDFLARE_PAGES_PROJECT` | Pages 프로젝트 이름 | `pages deploy --project-name` |
-| `MALL_API_BASE_URL` | `https://mall-api.anoveli.com` | Flutter 빌드 `--dart-define` (미설정 시 스크립트 기본값) |
+| `MALL_API_BASE_URL` | `https://mall.anoveli.com/api` | Flutter 빌드 `--dart-define` (미설정·구 mall-api URL이면 스크립트가 same-origin으로 맞춤) |
 
 DummyJSON 등 **데모 시드**는 자동 배포에 포함하지 않는다. 필요 시 EC2에서:
 
