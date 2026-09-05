@@ -40,7 +40,10 @@ class CatalogScreen extends ConsumerWidget {
         ? (width < webCompactBreakpoint ? 2 : tokens.productGridColumns)
         : 2;
     final aspectRatio = isWebUi ? (width < webCompactBreakpoint ? 0.82 : 0.76) : 0.68;
-    final padding = EdgeInsets.all(isWebUi ? 24 : 16);
+    final padding = EdgeInsets.symmetric(
+      horizontal: isWebUi ? 24 : 16,
+      vertical: isWebUi ? 20 : 16,
+    );
 
     final isLanding = search.isEmpty && major == null && mid == null && category == null;
     final isMidBrowse = major != null && mid == null && search.isEmpty && category == null;
@@ -676,7 +679,9 @@ class _MajorCircleGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final cols = width < 600 ? 4 : (width < 960 ? 6 : 8);
+    final cols = width < 600
+        ? 4
+        : (width < 900 ? 6 : (width < 1200 ? 8 : 10));
 
     return GridView.builder(
       shrinkWrap: true,
@@ -771,7 +776,9 @@ class _TodayGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final cols = width < webCompactBreakpoint ? 2 : 4;
+    final cols = width < webCompactBreakpoint
+        ? 2
+        : (width < 1100 ? 4 : (width < 1400 ? 5 : 6));
 
     return GridView.builder(
       shrinkWrap: true,
@@ -909,7 +916,9 @@ class _MidBrowseView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final width = MediaQuery.sizeOf(context).width;
-    final cols = width < webCompactBreakpoint ? 2 : (width < 960 ? 3 : 4);
+    final cols = width < webCompactBreakpoint
+        ? 2
+        : (width < 900 ? 3 : (width < 1200 ? 4 : 5));
 
     return ListView(
       padding: padding,

@@ -20,8 +20,8 @@ class MallTokens extends ThemeExtension<MallTokens> {
     productCardAspectRatio: 0.78,
     listRowPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 10),
     navHeight: 56,
-    productGridColumns: 3,
-    contentMaxWidth: 960,
+    productGridColumns: 4,
+    contentMaxWidth: 1400,
   );
 
   static const app = MallTokens(

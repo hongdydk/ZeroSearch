@@ -8,8 +8,8 @@ bool debugForceWebUi = false;
 /// `true` on web (desktop + mobile browser) → 네이버 웹소설형 UI.
 bool get isWebUi => kIsWeb || debugForceWebUi;
 
-/// 목업 SSOT: report/mockup/index.html `.app { max-width: 960px }`
-const double webContentMaxWidth = 960;
+/// 넓은 웹은 좌우를 거의 채우고, 초광폭만 상한으로 자른다.
+const double webContentMaxWidth = 1400;
 
 const Color mallWebCanvasColor = Color(0xFFFFFFFF);
 

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../core/layout/ui_platform.dart';
 
-/// 목업(report/mockup) 기준: 회색 캔버스 + 중앙 흰 패널(max 960px).
+/// 웹 셸: 좌우를 거의 채우고([webContentMaxWidth] 상한), 좁은 화면은 여백만 둔다.
 class MallWebCanvas extends StatelessWidget {
   const MallWebCanvas({super.key, required this.child});
 
@@ -13,8 +13,7 @@ class MallWebCanvas extends StatelessWidget {
     if (!isWebUi) return child;
 
     final compact = isCompactWeb(context);
-    final hPad = compact ? 0.0 : 16.0;
-    final vPad = compact ? 0.0 : 12.0;
+    final hPad = compact ? 0.0 : 20.0;
 
     return ColoredBox(
       color: mallWebCanvasColor,
@@ -25,21 +24,12 @@ class MallWebCanvas extends StatelessWidget {
             maxWidth: webContentMaxWidth,
             minHeight: MediaQuery.sizeOf(context).height,
           ),
-          child: Container(
-            margin: EdgeInsets.fromLTRB(hPad, vPad, hPad, vPad),
-            decoration: BoxDecoration(
+          child: Padding(
+            padding: EdgeInsets.symmetric(horizontal: hPad),
+            child: ColoredBox(
               color: Colors.white,
-              boxShadow: compact
-                  ? null
-                  : const [
-                      BoxShadow(
-                        color: Color(0x14000000),
-                        blurRadius: 3,
-                        offset: Offset(0, 1),
-                      ),
-                    ],
+              child: child,
             ),
-            child: child,
           ),
         ),
       ),
