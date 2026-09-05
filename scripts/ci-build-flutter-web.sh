@@ -44,9 +44,16 @@ p.write_text(new, encoding="utf-8", newline="\n")
 print('Forced <base href="/">')
 PY
 
-if [[ -f build/web/flutter_service_worker.js ]]; then
-  echo "ERROR: flutter_service_worker.js present (PWA must be disabled)" >&2
-  exit 1
+# --pwa-strategy=none is deprecated and still writes flutter_service_worker.js
+# (empty body). Shipping that empty worker is the cache risk this guard exists for.
+sw="build/web/flutter_service_worker.js"
+if [[ -f "$sw" ]]; then
+  if [[ -s "$sw" ]]; then
+    echo "ERROR: flutter_service_worker.js is non-empty (PWA must be disabled)" >&2
+    exit 1
+  fi
+  rm -f "$sw"
+  echo "Removed empty flutter_service_worker.js"
 fi
 echo "OK: no flutter_service_worker.js"
 
