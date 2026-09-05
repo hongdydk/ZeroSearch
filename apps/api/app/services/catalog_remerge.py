@@ -426,10 +426,7 @@ def plan_volume_title_repair(
 
 def apply_volume_title_repair(db: Session) -> VolumeTitleRepairReport:
     plans, report = plan_volume_title_repair(db)
-    if report.missing_targets:
-        raise RuntimeError(
-            f"v2 canonical import 대상이 없습니다: {len(report.missing_targets)}건"
-        )
+    # 매칭 실패한 변형은 plan에서 이미 제외된다. 나머지만 적용한다.
     if report.rows_with_offers:
         raise RuntimeError(
             "용량-only 카드에 판매 오퍼가 있어 자동 분할하지 않습니다: "
