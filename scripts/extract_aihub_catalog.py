@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-"""AI-Hub 상품 이미지 Validation 라벨 zip → 카탈로그 CSV.
+"""AI-Hub 상품 이미지 Training/Validation 라벨 zip → 카탈로그 CSV.
 
 한 품목 폴더의 _meta.xml 하나에서 제조사·품목명·분류·용량을 읽는다.
+두 split에 중복된 품목은 item_no로 한 번만 보존하고, 검토된 분류
+override를 적용한다.
 
 원본 품목명(맛·용량 변형 포함)을 그대로 둔다. DB upsert 시
 `apps/api/app/services/catalog_identity.py`의 canonicalize 규칙으로
@@ -18,8 +20,9 @@ from pathlib import Path
 from xml.etree import ElementTree
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-DEFAULT_SRC = Path(r"C:\Users\ghddy\Downloads\상품 이미지\Validation")
+DEFAULT_SRC = REPO_ROOT / "상품 이미지"
 DEFAULT_OUT = REPO_ROOT / "data" / "aihub-catalog.csv"
+DEFAULT_OVERRIDES = REPO_ROOT / "data" / "catalog-category-overrides.csv"
 
 TAG = re.compile(r"<([a-z_]+)>([^<]*)</\1>", re.IGNORECASE)
 
@@ -57,15 +60,30 @@ def parse_meta(raw: bytes) -> dict[str, str] | None:
     return row
 
 
-def extract(src: Path, out: Path) -> int:
+def load_overrides(path: Path) -> dict[str, dict[str, str]]:
+    if not path.is_file():
+        return {}
+    with path.open(encoding="utf-8-sig", newline="") as handle:
+        rows = csv.DictReader(handle)
+        return {
+            (row.get("원본품목번호") or "").strip(): row
+            for row in rows
+            if (row.get("원본품목번호") or "").strip()
+        }
+
+
+def extract(src: Path, out: Path, overrides_path: Path = DEFAULT_OVERRIDES) -> int:
     zips = sorted(
-        p for p in src.glob("*.zip") if p.name.startswith("[라벨]")
+        p for p in src.rglob("*.zip") if p.name.startswith("[라벨]")
     )
     if not zips:
         raise SystemExit(f"라벨 zip이 없습니다: {src}")
 
     by_item: dict[str, dict[str, str]] = {}
+    source_records = 0
+    duplicate_records = 0
     for zip_path in zips:
+        split = "Training" if "Training" in zip_path.parts else "Validation"
         with zipfile.ZipFile(zip_path) as archive:
             seen_folders: set[str] = set()
             for name in archive.namelist():
@@ -78,20 +96,51 @@ def extract(src: Path, out: Path) -> int:
                 row = parse_meta(archive.read(name))
                 if row is None:
                     continue
+                source_records += 1
                 key = row["item_no"] or f"{row['comp_nm']}|{row['img_prod_nm']}"
                 prev = by_item.get(key)
                 if prev is None:
+                    row["_splits"] = split
                     by_item[key] = row
                     continue
+                comparable = ("div_l", "div_m", "div_s", "comp_nm", "img_prod_nm")
+                if any(prev.get(field) != row.get(field) for field in comparable):
+                    raise SystemExit(
+                        f"동일 item_no 메타 충돌: {key} "
+                        f"({prev.get('img_prod_nm')} / {row.get('img_prod_nm')})"
+                    )
+                duplicate_records += 1
                 vols = {v for v in (prev["volume"], row["volume"]) if v}
                 prev["volume"] = "|".join(sorted(vols))
+                splits = set((prev.get("_splits") or "").split("|"))
+                splits.add(split)
+                prev["_splits"] = "|".join(sorted(filter(None, splits)))
 
+    overrides = load_overrides(overrides_path)
+    overrides_applied = 0
     out.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames = ["대분류", "중분류", "소분류", "품목명", "제조사", "용량"]
+    fieldnames = [
+        "원본품목번호",
+        "원본분할",
+        "대분류",
+        "중분류",
+        "소분류",
+        "품목명",
+        "제조사",
+        "용량",
+    ]
     rows = []
     for row in by_item.values():
+        override = overrides.get(row["item_no"])
+        if override:
+            row["div_l"] = (override.get("대분류") or row["div_l"]).strip()
+            row["div_m"] = (override.get("중분류") or row["div_m"]).strip()
+            row["div_s"] = (override.get("소분류") or row["div_s"]).strip()
+            overrides_applied += 1
         rows.append(
             {
+                "원본품목번호": row["item_no"],
+                "원본분할": row.get("_splits") or "",
                 "대분류": row["div_l"],
                 "중분류": row["div_m"],
                 "소분류": row["div_s"] or row["div_m"] or row["div_l"],
@@ -105,7 +154,11 @@ def extract(src: Path, out: Path) -> int:
         writer = csv.DictWriter(handle, fieldnames=fieldnames)
         writer.writeheader()
         writer.writerows(rows)
-    print(f"zips={len(zips)} cards={len(rows)} -> {out}")
+    print(
+        f"zips={len(zips)} source_records={source_records} "
+        f"duplicates={duplicate_records} items={len(rows)} "
+        f"overrides={overrides_applied} -> {out}"
+    )
     return len(rows)
 
 
@@ -113,10 +166,11 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="AI-Hub 상품 이미지 라벨 → catalog CSV")
     parser.add_argument("--src", type=Path, default=DEFAULT_SRC)
     parser.add_argument("--out", type=Path, default=DEFAULT_OUT)
+    parser.add_argument("--overrides", type=Path, default=DEFAULT_OVERRIDES)
     args = parser.parse_args()
     if not args.src.is_dir():
         raise SystemExit(f"source dir not found: {args.src}")
-    extract(args.src, args.out)
+    extract(args.src, args.out, args.overrides)
 
 
 if __name__ == "__main__":

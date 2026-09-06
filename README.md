@@ -86,8 +86,10 @@ pnpm dev:flutter       # http://localhost:8080
 
 ### 카탈로그 CSV (MD SSOT)
 
-- 파일: [`data/aihub-catalog.csv`](./data/aihub-catalog.csv) (대·중·소분류 · 품목명 · 제조사 · 용량)
-- Validation 라벨 zip에서 갱신: `python scripts/extract_aihub_catalog.py`
+- 파일: [`data/aihub-catalog.csv`](./data/aihub-catalog.csv) (원본 품목번호·split · 대·중·소분류 · 품목명 · 제조사 · 용량)
+- 로컬 `상품 이미지/`의 Training·Validation 라벨 ZIP에서 `item_no` 중복을 제거해 갱신: `python scripts/extract_aihub_catalog.py`
+- 검토된 원본 분류 오류는 [`data/catalog-category-overrides.csv`](./data/catalog-category-overrides.csv)에 기록
+- 분류 충돌 후보 갱신: `python scripts/audit_aihub_catalog.py` → [`data/catalog-category-conflicts.csv`](./data/catalog-category-conflicts.csv)
 - 판매자 요청 품목은 CSV에 한 줄 추가 후 `main` push → 서버가 자동 import
 - 관리자 화면 CSV 업로드는 비상용으로 유지
 
