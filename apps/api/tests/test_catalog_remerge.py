@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.models import CatalogProduct, CatalogProductAlias, Product, Seller, User
 from app.services.catalog_identity import canonicalize_csv_rows
+from app.services.catalog_import import import_catalog_csv
 from app.services.catalog_remerge import (
     apply_db_remarge,
     apply_volume_title_repair,
@@ -259,6 +260,72 @@ def test_pg_repair_volume_only_title_after_v2_import():
         assert result.applied
         assert db.get(CatalogProduct, bad.id) is None
         assert resolve_catalog_product(db, bad.id).id == target.id
+        assert resolve_catalog_product(db, old_id).id == target.id
+
+        db.rollback()
+    finally:
+        db.rollback()
+        db.close()
+        engine.dispose()
+
+
+@pytest.mark.skipif(
+    os.environ.get("RUN_PG_CATALOG_REMERGE") != "1",
+    reason="RUN_PG_CATALOG_REMERGE=1 일 때만 PostgreSQL 재병합 테스트 실행",
+)
+def test_pg_explicit_category_override_remerges_stale_card():
+    database_url = os.environ.get("DATABASE_URL")
+    if not database_url or "postgresql" not in database_url:
+        pytest.skip("DATABASE_URL(postgresql) 필요")
+
+    engine = create_engine(database_url, pool_pre_ping=True)
+    SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False)
+    db: Session = SessionLocal()
+    try:
+        target = CatalogProduct(
+            id=uuid.uuid4(),
+            title="백산수",
+            manufacturer="농심",
+            category="일반생수",
+            category_major="음료",
+            category_mid="생수",
+            volume_options=["330ML"],
+            reference_variants=[],
+            price_unit="each",
+        )
+        stale = CatalogProduct(
+            id=uuid.uuid4(),
+            title="백산수",
+            manufacturer="농심",
+            category="혼합탄산",
+            category_major="음료",
+            category_mid="탄산음료",
+            volume_options=["500ML"],
+            reference_variants=[],
+            price_unit="each",
+        )
+        old_id = uuid.uuid4()
+        db.add_all([target, stale])
+        db.flush()
+        db.add(
+            CatalogProductAlias(
+                alias_id=old_id,
+                canonical_id=stale.id,
+                original_title="농심백산수500ML",
+            )
+        )
+        db.flush()
+
+        csv_text = (
+            "원본품목번호,원본분할,대분류,중분류,소분류,품목명,제조사,용량,분류교정사유\n"
+            "60048,Training|Validation,음료,생수,일반생수,농심백산수500ML,농심,500ML,검토\n"
+        )
+        result = import_catalog_csv(db, csv_text.encode("utf-8"))
+        db.flush()
+
+        assert result["category_remerged"] == 1
+        assert db.get(CatalogProduct, stale.id) is None
+        assert resolve_catalog_product(db, stale.id).id == target.id
         assert resolve_catalog_product(db, old_id).id == target.id
 
         db.rollback()

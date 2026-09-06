@@ -584,6 +584,17 @@
             ],
             "title": "Canonicalgroups"
           },
+          "categoryRemerged": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Categoryremerged"
+          },
           "sourceRows": {
             "title": "Sourcerows",
             "type": "integer"

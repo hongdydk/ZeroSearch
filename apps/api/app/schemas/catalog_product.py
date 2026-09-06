@@ -96,6 +96,7 @@ class CatalogImportResponse(BaseModel):
     source_rows: int = Field(alias="sourceRows")
     upserted: int
     canonical_groups: int | None = Field(default=None, alias="canonicalGroups")
+    category_remerged: int | None = Field(default=None, alias="categoryRemerged")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

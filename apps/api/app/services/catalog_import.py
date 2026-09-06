@@ -5,10 +5,11 @@ import io
 import uuid
 from collections.abc import Iterable
 
+from sqlalchemy import select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
-from app.models import CatalogProduct
+from app.models import CatalogProduct, CatalogProductAlias, Product
 from app.services.catalog_identity import canonicalize_csv_rows
 
 BATCH = 500
@@ -40,8 +41,75 @@ def _iter_rows(text: str) -> Iterable[dict]:
             "category_major": _clip(row.get("대분류") or "", 120) or None,
             "category_mid": _clip(row.get("중분류") or "", 120) or None,
             "volume_options": _volume_options(row.get("용량") or ""),
+            "category_override_reason": _clip(row.get("분류교정사유") or "", 500) or None,
             "price_unit": "each",
         }
+
+
+def _apply_explicit_category_overrides(db: Session, corrected_rows: list[dict]) -> int:
+    if not corrected_rows:
+        return 0
+    corrected_groups, _ = canonicalize_csv_rows(corrected_rows)
+    targets: dict[tuple[str, str], str] = {}
+    for group in corrected_groups:
+        key = (group.manufacturer, group.canonical_title)
+        previous = targets.get(key)
+        if previous is not None and previous != group.category:
+            raise RuntimeError(
+                f"분류 override 충돌: {group.manufacturer} / {group.canonical_title}"
+            )
+        targets[key] = group.category
+
+    remerged = 0
+    for (manufacturer, title), category in targets.items():
+        target = db.scalar(
+            select(CatalogProduct).where(
+                CatalogProduct.manufacturer == manufacturer,
+                CatalogProduct.category == category,
+                CatalogProduct.title == title,
+            )
+        )
+        if target is None:
+            raise RuntimeError(
+                f"분류 override target 없음: {manufacturer} / {category} / {title}"
+            )
+        stale_rows = list(
+            db.scalars(
+                select(CatalogProduct).where(
+                    CatalogProduct.manufacturer == manufacturer,
+                    CatalogProduct.title == title,
+                    CatalogProduct.category != category,
+                )
+            ).all()
+        )
+        for stale in stale_rows:
+            db.execute(
+                update(Product)
+                .where(Product.catalog_product_id == stale.id)
+                .values(catalog_product_id=target.id)
+            )
+            db.execute(
+                update(CatalogProductAlias)
+                .where(CatalogProductAlias.canonical_id == stale.id)
+                .values(canonical_id=target.id)
+            )
+            own_alias = db.get(CatalogProductAlias, stale.id)
+            if own_alias is None:
+                db.add(
+                    CatalogProductAlias(
+                        alias_id=stale.id,
+                        canonical_id=target.id,
+                        original_title=stale.title,
+                    )
+                )
+            else:
+                own_alias.canonical_id = target.id
+            if not target.image_url and stale.image_url:
+                target.image_url = stale.image_url
+            db.delete(stale)
+            db.flush()
+            remerged += 1
+    return remerged
 
 
 def import_catalog_csv(db: Session, content: bytes) -> dict[str, int]:
@@ -89,8 +157,13 @@ def import_catalog_csv(db: Session, content: bytes) -> dict[str, int]:
 
     flush()
     db.flush()
+    category_remerged = _apply_explicit_category_overrides(
+        db,
+        [row for row in raw_rows if row.get("category_override_reason")],
+    )
     return {
         "source_rows": source_rows,
         "upserted": upserted,
         "canonical_groups": len(groups),
+        "category_remerged": category_remerged,
     }

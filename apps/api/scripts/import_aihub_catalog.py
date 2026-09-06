@@ -45,7 +45,10 @@ def main() -> None:
     try:
         result = import_catalog_csv(db, args.csv_path.read_bytes())
         db.commit()
-        print(f"source_rows={result['source_rows']} upserted={result['upserted']}")
+        print(
+            f"source_rows={result['source_rows']} upserted={result['upserted']} "
+            f"category_remerged={result['category_remerged']}"
+        )
     except Exception:
         db.rollback()
         raise

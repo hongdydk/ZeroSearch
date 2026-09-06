@@ -128,6 +128,7 @@ def extract(src: Path, out: Path, overrides_path: Path = DEFAULT_OVERRIDES) -> i
         "품목명",
         "제조사",
         "용량",
+        "분류교정사유",
     ]
     rows = []
     for row in by_item.values():
@@ -147,6 +148,7 @@ def extract(src: Path, out: Path, overrides_path: Path = DEFAULT_OVERRIDES) -> i
                 "품목명": row["img_prod_nm"],
                 "제조사": row["comp_nm"],
                 "용량": row["volume"],
+                "분류교정사유": (override.get("사유") or "").strip() if override else "",
             }
         )
     rows.sort(key=lambda r: (r["대분류"], r["소분류"], r["제조사"], r["품목명"]))
