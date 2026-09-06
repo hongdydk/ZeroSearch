@@ -51,7 +51,6 @@ def parse_meta(raw: bytes) -> dict[str, str] | None:
         "comp_nm": text(src, "comp_nm"),
         "img_prod_nm": text(src, "img_prod_nm"),
         "volume": text(src, "volume"),
-        "barcd": text(src, "barcd"),
     }
     if not row["img_prod_nm"] or not row["comp_nm"]:
         return None
@@ -79,7 +78,7 @@ def extract(src: Path, out: Path) -> int:
                 row = parse_meta(archive.read(name))
                 if row is None:
                     continue
-                key = row["item_no"] or row["barcd"] or f"{row['comp_nm']}|{row['img_prod_nm']}"
+                key = row["item_no"] or f"{row['comp_nm']}|{row['img_prod_nm']}"
                 prev = by_item.get(key)
                 if prev is None:
                     by_item[key] = row
@@ -88,7 +87,7 @@ def extract(src: Path, out: Path) -> int:
                 prev["volume"] = "|".join(sorted(vols))
 
     out.parent.mkdir(parents=True, exist_ok=True)
-    fieldnames = ["대분류", "중분류", "소분류", "품목명", "제조사", "용량", "바코드"]
+    fieldnames = ["대분류", "중분류", "소분류", "품목명", "제조사", "용량"]
     rows = []
     for row in by_item.values():
         rows.append(
@@ -99,7 +98,6 @@ def extract(src: Path, out: Path) -> int:
                 "품목명": row["img_prod_nm"],
                 "제조사": row["comp_nm"],
                 "용량": row["volume"],
-                "바코드": row["barcd"],
             }
         )
     rows.sort(key=lambda r: (r["대분류"], r["소분류"], r["제조사"], r["품목명"]))

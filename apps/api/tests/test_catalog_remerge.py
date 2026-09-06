@@ -45,7 +45,6 @@ def test_csv_full_dry_run_canonical_reduces_cards():
                     "title": title,
                     "category": category,
                     "volume_options": vols,
-                    "barcode": (raw.get("바코드") or "").strip() or None,
                     "category_major": (raw.get("대분류") or "").strip() or None,
                     "category_mid": (raw.get("중분류") or "").strip() or None,
                 }
@@ -211,13 +210,11 @@ def test_pg_repair_volume_only_title_after_v2_import():
                     "originalTitle": "농심튀김우동(봉지)118G",
                     "flavors": [],
                     "volumes": ["118G"],
-                    "barcode": None,
                 },
                 {
                     "originalTitle": "118G",
                     "flavors": [],
                     "volumes": ["118G"],
-                    "barcode": None,
                 },
             ],
             price_unit="each",
@@ -235,7 +232,6 @@ def test_pg_repair_volume_only_title_after_v2_import():
                     "originalTitle": "농심튀김우동(봉지)118G",
                     "flavors": [],
                     "volumes": ["118G"],
-                    "barcode": None,
                 }
             ],
             price_unit="each",

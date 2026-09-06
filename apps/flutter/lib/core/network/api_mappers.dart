@@ -261,7 +261,6 @@ CatalogProductDetailModel catalogProductDetailFromGenerated(gen.CatalogProductDe
             originalTitle: v.originalTitle,
             flavors: (v.flavors ?? BuiltList<String>()).toList(),
             volumes: (v.volumes ?? BuiltList<String>()).toList(),
-            barcode: v.barcode,
           ),
       ],
     );

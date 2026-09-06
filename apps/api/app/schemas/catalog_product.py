@@ -63,7 +63,6 @@ class CatalogReferenceVariant(BaseModel):
     original_title: str = Field(alias="originalTitle")
     flavors: list[str] = Field(default_factory=list)
     volumes: list[str] = Field(default_factory=list)
-    barcode: str | None = None
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

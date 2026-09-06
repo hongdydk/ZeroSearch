@@ -40,7 +40,6 @@ def _iter_rows(text: str) -> Iterable[dict]:
             "category_major": _clip(row.get("대분류") or "", 120) or None,
             "category_mid": _clip(row.get("중분류") or "", 120) or None,
             "volume_options": _volume_options(row.get("용량") or ""),
-            "barcode": _clip(row.get("바코드") or "", 64) or None,
             "price_unit": "each",
         }
 

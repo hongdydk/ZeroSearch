@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 from typing import Iterable, Sequence
 
 # 규칙 변경 시 bump — deploy fingerprint에 포함.
-NORMALIZATION_VERSION = "v2"
+NORMALIZATION_VERSION = "v3"
 
 # 자동 병합 임계값 (고신뢰만 자동 적용).
 HIGH_CONFIDENCE = 0.92
@@ -104,7 +104,6 @@ class ParsedCatalogTitle:
     base_key: str
     flavors: tuple[str, ...]
     volumes: tuple[str, ...]
-    barcode: str | None = None
 
 
 @dataclass
@@ -112,14 +111,12 @@ class ReferenceVariant:
     original_title: str
     flavors: list[str] = field(default_factory=list)
     volumes: list[str] = field(default_factory=list)
-    barcode: str | None = None
 
     def to_dict(self) -> dict:
         return {
             "originalTitle": self.original_title,
             "flavors": list(self.flavors),
             "volumes": list(self.volumes),
-            "barcode": self.barcode,
         }
 
     @classmethod
@@ -128,7 +125,6 @@ class ReferenceVariant:
             original_title=str(data.get("originalTitle") or data.get("original_title") or ""),
             flavors=list(data.get("flavors") or []),
             volumes=list(data.get("volumes") or []),
-            barcode=data.get("barcode"),
         )
 
 
@@ -237,7 +233,6 @@ def parse_catalog_title(
     category: str,
     title: str,
     volumes_hint: Sequence[str] | None = None,
-    barcode: str | None = None,
 ) -> ParsedCatalogTitle:
     raw = unicodedata.normalize("NFKC", (title or "").strip())
     maker = unicodedata.normalize("NFKC", (manufacturer or "").strip())
@@ -271,7 +266,6 @@ def parse_catalog_title(
         base_key=base_key,
         flavors=tuple(dict.fromkeys(flavors)),
         volumes=tuple(dict.fromkeys(vols)),
-        barcode=(barcode or None),
     )
 
 
@@ -393,7 +387,6 @@ def _build_group(
                     original_title=m.raw_title,
                     flavors=list(m.flavors),
                     volumes=list(m.volumes),
-                    barcode=m.barcode,
                 )
             )
         for other in members:
@@ -415,7 +408,7 @@ def _build_group(
 def canonicalize_csv_rows(rows: Iterable[dict]) -> tuple[list[CanonicalGroup], list[dict]]:
     """CSV row dict → canonical groups.
 
-    각 row는 manufacturer/category/title/volume_options/barcode 및 선택적 major/mid.
+    각 row는 manufacturer/category/title/volume_options 및 선택적 major/mid.
     """
     parsed: list[ParsedCatalogTitle] = []
     meta: dict[tuple[str, str, str], dict] = {}
@@ -431,7 +424,6 @@ def canonicalize_csv_rows(rows: Iterable[dict]) -> tuple[list[CanonicalGroup], l
             category=category,
             title=title,
             volumes_hint=vols,
-            barcode=row.get("barcode"),
         )
         parsed.append(item)
         key = (item.manufacturer, item.category, item.raw_title)

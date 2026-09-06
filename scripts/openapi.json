@@ -930,17 +930,6 @@
       "CatalogReferenceVariant": {
         "description": "AI-Hub 원본 맛·용량 변형. 구매·담기 불가 참고용.",
         "properties": {
-          "barcode": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Barcode"
-          },
           "flavors": {
             "items": {
               "type": "string"

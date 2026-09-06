@@ -331,7 +331,6 @@ def plan_volume_title_repair(
                     category=bad.category,
                     title=variant.original_title,
                     volumes_hint=variant.volumes,
-                    barcode=variant.barcode,
                 )
             )
 

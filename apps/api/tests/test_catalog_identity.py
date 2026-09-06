@@ -89,14 +89,12 @@ def test_canonicalize_csv_rows_builds_reference_variants():
             "volume_options": ["110G"],
             "category_major": "과자",
             "category_mid": "스낵",
-            "barcode": "1",
         },
         {
             "manufacturer": "농심",
             "category": "감자스낵",
             "title": "프링글스양파맛 53G",
             "volume_options": ["53G"],
-            "barcode": "2",
         },
     ]
     groups, medium = canonicalize_csv_rows(rows)

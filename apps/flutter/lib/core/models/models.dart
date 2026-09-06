@@ -403,13 +403,11 @@ class CatalogReferenceVariantModel {
     required this.originalTitle,
     this.flavors = const [],
     this.volumes = const [],
-    this.barcode,
   });
 
   final String originalTitle;
   final List<String> flavors;
   final List<String> volumes;
-  final String? barcode;
 
   String get displayLabel {
     final parts = <String>[];

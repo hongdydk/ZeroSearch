@@ -251,9 +251,6 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
                   child: ListTile(
                     enabled: false,
                     title: Text(variant.displayLabel),
-                    subtitle: variant.barcode == null || variant.barcode!.isEmpty
-                        ? null
-                        : Text('바코드 ${variant.barcode}'),
                     trailing: Text(
                       '판매 없음',
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
