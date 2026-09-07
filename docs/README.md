@@ -80,4 +80,4 @@
 | 3.5 (후보) | 추후 — 배송지·주문 취소·환불 (“산다” 마감). Phase 4 직전·병행 → [phase4-spec.md](./phase4-spec.md) |
 | [phase4-spec.md](./phase4-spec.md) | 추후 — 실 PG(토스) |
 
-**다음 적용 순서:** ① [follow-ups.md](./follow-ups.md) same-origin → ② [ux-issues.md](./ux-issues.md) Phase 2 #1–9 → ③ 운영 서브페이즈 A–C ([follow-ups.md](./follow-ups.md))
+**다음 적용 순서:** ①–③ 적용됨 (same-origin · UX #1–9 · 운영 A–C). ④ [follow-ups.md](./follow-ups.md) §1b S3+CloudFront · `mall-api` 공개 제거 (**AWS 계정 대기**)

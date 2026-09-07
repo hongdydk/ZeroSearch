@@ -1,6 +1,6 @@
 # 후속 작업 (미적용)
 
-**다음 적용:** §1b `mall-api` 공개 호스트 정리 (또는 Phase 3). 운영 서브페이즈 A–C는 **적용됨**.
+**다음 적용:** §1b S3 + CloudFront · `mall-api` 공개 호스트 정리 (AWS 계정 대기). 운영 서브페이즈 A–C는 **적용됨**.
 
 구매자·장바구니 UX(#1–9)는 **Phase 2** — [ux-issues.md](./ux-issues.md) · DoD [phase2-spec.md](./phase2-spec.md) — **적용됨**.  
 이 문서는 Phase 2 DoD에 아직 안 넣은 **인프라·운영**만 둔다. 운영 서브페이즈 A–C가 SSOT.
@@ -25,15 +25,20 @@
 
 **하지 않음(당시):** 아노벨리 `api.anoveli.com`과 합치기, Pages에 FastAPI 올리기, `mall-api` DNS 즉시 삭제
 
-### 1b. `mall-api` 공개 호스트 정리 (나중)
+### 1b. S3 + CloudFront · `mall-api` 공개 호스트 정리
 
-**상태:** 미적용 · §1 이후 · **다음 적용**
+**상태:** 예정 · **AWS 계정 오류로 대기** · 계정 준비 전 구현·CI 변경 금지
 
-**목표:** 브라우저·문서에서 `mall-api.anoveli.com`을 없앤다. Pages Functions(또는 Tunnel)가 **비공개/내부 origin**으로만 :8001에 붙게 한 뒤, 공개 DNS·Tunnel hostname `mall-api` 제거.
+**현재:** Flutter → Cloudflare Pages. 브라우저 `/api`는 Pages Functions → 공개 `mall-api.anoveli.com` → EC2 `:8001`.
 
-**선행:** 프록시 `MALL_API_ORIGIN`을 공개 `mall-api`가 아닌 경로로 변경·검증. 그 전 삭제 금지.
+**목표 (한 번에):**
+- 웹 원본: Pages → **S3 + CloudFront**. 호스트는 `mall.anoveli.com` 유지
+- 브라우저 API: 계속 `https://mall.anoveli.com/api` — CloudFront가 `/api`를 EC2 `:8001`로 넘김
+- 공개 `mall-api.anoveli.com` DNS·Tunnel hostname 제거 (프록시 origin을 내부로 바꾼 뒤)
 
-**오류 감소:** same-origin(§1)이 이미 CORS·이중 URL 혼선을 줄인 상태. 공개 `mall-api` 제거는 **추가 공개 엔드포인트·잘못된 직접 호출**을 줄이는 쪽에 가깝고, EC2/배포 瞬时 장애 자체는 A·B(배포·관측)가 더 효과적이다.
+**선행:** AWS 계정 사용 가능. 그 전 Pages·Functions·공개 `mall-api` 백엔드는 유지. `mall-api` DNS는 origin 교체·검증 전에 삭제 금지.
+
+**하지 않음(이 항목):** FastAPI를 S3/CloudFront에 올리기, 아노벨리 `api.anoveli.com`과 합치기.
 
 
 ---
@@ -104,4 +109,4 @@ Sentry는 **선택·나중** — 필수는 아님.
 1. **same-origin** 프록시 + `API_BASE_URL` + 헬스 확인 (이 문서 §1) — **적용됨**
 2. (Phase 2) 구매자·장바구니 UX #1–9 — [ux-issues.md](./ux-issues.md) — **적용됨**
 3. **운영 서브페이즈** A → B → C — **적용됨**
-4. **§1b** `mall-api` 공개 호스트 정리 (프록시 origin 교체 후) — **다음**
+4. **§1b** S3 + CloudFront · `mall-api` 공개 제거 (AWS 계정 대기) — **다음**
