@@ -22,6 +22,7 @@ import '../../features/seller/seller_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../shared/widgets/adaptive_shell.dart';
 import '../../shared/widgets/portal_shell.dart';
+import '../../shared/widgets/portal_workspace.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final listenable = _AuthListenable(ref);
@@ -66,15 +67,13 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/', builder: (_, _) => const CatalogScreen()),
           GoRoute(
             path: '/catalog/:id',
-            builder: (_, state) => CatalogDetailScreen(
-              catalogId: state.pathParameters['id']!,
-            ),
+            builder: (_, state) =>
+                CatalogDetailScreen(catalogId: state.pathParameters['id']!),
           ),
           GoRoute(
             path: '/products/:id',
-            builder: (_, state) => ProductDetailScreen(
-              productId: state.pathParameters['id']!,
-            ),
+            builder: (_, state) =>
+                ProductDetailScreen(productId: state.pathParameters['id']!),
           ),
           GoRoute(
             path: '/cart',
@@ -101,18 +100,14 @@ final routerProvider = Provider<GoRouter>((ref) {
           ),
           GoRoute(
             path: '/register',
-            builder: (_, state) => RegisterScreen(
-              next: state.uri.queryParameters['next'],
-            ),
+            builder: (_, state) =>
+                RegisterScreen(next: state.uri.queryParameters['next']),
           ),
         ],
       ),
       ShellRoute(
-        builder: (context, state, child) => PortalShell(
-          title: '판매자 센터',
-          homePath: '/seller',
-          child: child,
-        ),
+        builder: (context, state, child) =>
+            PortalShell(title: '판매자 센터', homePath: '/seller', child: child),
         routes: [
           GoRoute(
             path: '/seller',
@@ -135,20 +130,150 @@ final routerProvider = Provider<GoRouter>((ref) {
               child: SellerOrdersScreen(),
             ),
           ),
+          GoRoute(
+            path: '/seller/stats',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.seller,
+              child: PortalComingSoonScreen(
+                role: PortalWorkspaceRole.seller,
+                activePath: '/seller/stats',
+                title: '통계',
+                description: '주문·배송·오퍼 운영 추이를 한곳에서 확인하는 화면입니다.',
+                items: ['기간별 주문 줄 추이', '배송 상태 분포', '오퍼 노출·품절 비율'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/alerts',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.seller,
+              child: PortalComingSoonScreen(
+                role: PortalWorkspaceRole.seller,
+                activePath: '/seller/alerts',
+                title: '알림',
+                description: '즉시 확인해야 할 판매 운영 변화를 모아 보는 화면입니다.',
+                items: ['신규 주문', '재고 부족·품절', '카탈로그 검수 결과'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/saved-filters',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.seller,
+              child: PortalComingSoonScreen(
+                role: PortalWorkspaceRole.seller,
+                activePath: '/seller/saved-filters',
+                title: '저장 필터',
+                description: '자주 보는 주문·오퍼 조건을 저장하는 화면입니다.',
+                items: ['오늘 출고', '재고 5개 이하', '숨김 오퍼'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/activity',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.seller,
+              child: PortalComingSoonScreen(
+                role: PortalWorkspaceRole.seller,
+                activePath: '/seller/activity',
+                title: '작업 기록',
+                description: '오퍼와 주문 상태 변경 이력을 확인하는 화면입니다.',
+                items: ['가격·재고 변경', '노출 상태 변경', '주문 배송 상태 변경'],
+              ),
+            ),
+          ),
         ],
       ),
       ShellRoute(
-        builder: (context, state, child) => PortalShell(
-          title: '관리자',
-          homePath: '/admin',
-          child: child,
-        ),
+        builder: (context, state, child) =>
+            PortalShell(title: '관리자', homePath: '/admin', child: child),
         routes: [
           GoRoute(
             path: '/admin',
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.admin,
-              child: AdminScreen(),
+              child: AdminScreen(section: AdminSection.home),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/stats',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.admin,
+              child: AdminScreen(section: AdminSection.stats),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/sellers',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.admin,
+              child: AdminScreen(section: AdminSection.sellers),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/orders',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.admin,
+              child: AdminScreen(section: AdminSection.orders),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/catalog',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.admin,
+              child: AdminScreen(section: AdminSection.catalog),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/users',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.admin,
+              child: AdminScreen(section: AdminSection.users),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/tools',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.admin,
+              child: AdminScreen(section: AdminSection.tools),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/alerts',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.admin,
+              child: PortalComingSoonScreen(
+                role: PortalWorkspaceRole.admin,
+                activePath: '/admin/alerts',
+                title: '알림',
+                description: '운영자가 처리할 대기·지연 항목을 모아 보는 화면입니다.',
+                items: ['입점 승인 대기', '카탈로그 연결 충돌', '오래 멈춘 주문 줄'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/saved-filters',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.admin,
+              child: PortalComingSoonScreen(
+                role: PortalWorkspaceRole.admin,
+                activePath: '/admin/saved-filters',
+                title: '저장 필터',
+                description: '반복 점검하는 운영 조건을 저장하는 화면입니다.',
+                items: ['오래된 승격 대기', '정지 판매자', '공개 오퍼 없는 카드'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/admin/audit',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.admin,
+              child: PortalComingSoonScreen(
+                role: PortalWorkspaceRole.admin,
+                activePath: '/admin/audit',
+                title: '감사 로그',
+                description: '관리자 변경 작업의 주체와 전후 상태를 확인하는 화면입니다.',
+                items: ['입점 승인·정지', '카드 연결·승격', '주문 상태 보정'],
+              ),
             ),
           ),
         ],
