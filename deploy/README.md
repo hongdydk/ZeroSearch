@@ -4,7 +4,8 @@
 
 **앱 URL:** `https://mall.anoveli.com/` (아노벨리 `app.anoveli.com` 과 호스트 분리)  
 **API URL (브라우저):** `https://mall.anoveli.com/api` → Pages Functions → `mall-api.anoveli.com` (:8001)  
-**API URL (원본/Tunnel):** `https://mall-api.anoveli.com`
+**API URL (원본/Tunnel):** `https://mall-api.anoveli.com`  
+**예정:** 웹 원본 S3 + CloudFront (`mall.anoveli.com` 유지), 공개 `mall-api` 제거. AWS 계정 대기. SSOT: [docs/follow-ups.md](../docs/follow-ups.md) §1b.
 
 ## 현재 아노벨리 서버 (참고)
 
@@ -14,7 +15,7 @@
 | API 포트 | **8000** | **8001** |
 | Tunnel | `api.anoveli.com` → 8000 | `mall-api.anoveli.com` → 8001 (추가) |
 | 웹 호스트 | `app.anoveli.com` | **`mall.anoveli.com`** |
-| 웹 원본 | (아노벨리 쪽) | **Cloudflare Pages** (S3 sync 안 함) |
+| 웹 원본 | (아노벨리 쪽) | **Cloudflare Pages** (지금은 S3 sync 안 함. 예정: S3 + CloudFront) |
 | DB | `anoveli-postgres` / chatbot | `mall-postgres` / mall |
 
 ---
@@ -157,7 +158,7 @@ EC2에 repo clone·`.env.prod` 는 기존 §1과 동일. **이 workflow 파일�
 | `CLOUDFLARE_API_TOKEN` | Pages 업로드. 권한: **Account → Cloudflare Pages → Edit** |
 
 토큰: Cloudflare → My Profile → API Tokens → Create.  
-웹 원본은 **Cloudflare Pages**다. S3 sync는 쓰지 않는다.
+웹 원본은 **지금은 Cloudflare Pages**다. S3 + CloudFront는 [docs/follow-ups.md](../docs/follow-ups.md) §1b 예정(AWS 계정 대기).
 
 ### Repository variables (Settings → Variables)
 
