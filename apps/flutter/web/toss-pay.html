@@ -14,7 +14,7 @@
 <body>
   <p id="status">결제창으로 이동 중…</p>
   <script>
-    (function () {
+    (async function () {
       var params = new URLSearchParams(window.location.search);
       var clientKey = params.get("clientKey") || "";
       var customerKey = params.get("customerKey") || "";
@@ -31,6 +31,22 @@
           message + '<br><a href="' + href + '">장바구니로 돌아가기</a>';
       }
 
+      function failToPayUrl(message) {
+        if (failUrl) {
+          var next = new URL(failUrl, window.location.origin);
+          next.searchParams.set("code", "PAY_WINDOW");
+          next.searchParams.set("message", message);
+          if (orderId) next.searchParams.set("orderId", orderId);
+          fail(message, next.pathname + next.search);
+          return;
+        }
+        fail(message);
+      }
+
+      function errorMessage(e) {
+        return (e && (e.message || e.code)) || "결제창을 열지 못했습니다.";
+      }
+
       if (typeof TossPayments !== "function") {
         fail("토스 결제 SDK를 불러오지 못했습니다.");
         return;
@@ -40,30 +56,35 @@
         return;
       }
 
-      TossPayments(clientKey)
-        .payment({ customerKey: customerKey })
-        .requestPayment({
-          method: "CARD",
-          amount: { currency: "KRW", value: amount },
-          orderId: orderId,
-          orderName: orderName,
-          successUrl: successUrl,
-          failUrl: failUrl,
-          windowTarget: "self",
-        })
-        .catch(function (e) {
-          var message =
-            (e && (e.message || e.code)) || "결제창을 열지 못했습니다.";
-          if (failUrl) {
-            var next = new URL(failUrl, window.location.origin);
-            next.searchParams.set("code", "PAY_WINDOW");
-            next.searchParams.set("message", message);
-            if (orderId) next.searchParams.set("orderId", orderId);
-            fail(message, next.pathname + next.search);
-            return;
-          }
-          fail(message);
+      try {
+        var tossPayments = TossPayments(clientKey);
+        var widgets = tossPayments.widgets({ customerKey: customerKey });
+        await widgets.setAmount({ currency: "KRW", value: amount });
+        var paymentWindow = await widgets.renderPaymentWindow({
+          variantKey: {
+            paymentMethod: "DEFAULT",
+            agreement: "AGREEMENT",
+          },
         });
+        paymentWindow.on("paymentRequest", async function () {
+          try {
+            await widgets.requestPayment({
+              orderId: orderId,
+              orderName: orderName,
+              successUrl: successUrl,
+              failUrl: failUrl,
+              windowTarget: "self",
+            });
+          } catch (e) {
+            failToPayUrl(errorMessage(e));
+          }
+        });
+        paymentWindow.on("cancel", function () {
+          failToPayUrl("결제를 취소했습니다.");
+        });
+      } catch (e) {
+        failToPayUrl(errorMessage(e));
+      }
     })();
   </script>
 </body>

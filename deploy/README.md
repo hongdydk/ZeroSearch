@@ -51,6 +51,7 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ### 1.1 토스 카드 테스트 결제
 
 토스 개발자센터의 같은 테스트 키 세트에서 클라이언트 키와 시크릿 키를 복사해 EC2의 `.env.prod`에만 넣는다.
+주문서형·결제창형 연동 키(`test_gck_` / `test_gsk_`)를 쓴다. API 개별 연동(`test_ck_` / `test_sk_`)은 결제창(구버전)이라 현재 `toss-pay.html`과 맞지 않는다.
 
 ```dotenv
 TOSS_CLIENT_KEY=test_gck_...
