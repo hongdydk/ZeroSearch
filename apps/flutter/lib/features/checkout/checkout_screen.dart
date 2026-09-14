@@ -65,17 +65,19 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
         SnackBar(
           content: Text(e.message),
           backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 6),
         ),
       );
     } catch (e) {
       if (!mounted) return;
       final message = e is StateError
           ? e.message
-          : '결제창을 열지 못했습니다. 다시 시도해 주세요.';
+          : '결제 페이지로 이동하지 못했습니다. $e';
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(message),
           backgroundColor: Theme.of(context).colorScheme.error,
+          duration: const Duration(seconds: 6),
         ),
       );
     } finally {

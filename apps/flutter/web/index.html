@@ -36,9 +36,6 @@
 <body>
   <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
   <script>
-    window.goToTossPay = function (url) {
-      window.location.replace(url);
-    };
     window.requestDaumPostcode = function () {
       return new Promise(function (resolve, reject) {
         if (typeof daum === "undefined" || !daum.Postcode) {
