@@ -198,7 +198,7 @@ EC2에 repo clone·`.env.prod` 는 기존 §1과 동일. **이 workflow 파일�
 |----------|------|------|
 | `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::…:role/github-…` | GitHub OIDC 배포 역할 |
 | `S3_BUCKET` | `mall-web-poc` | Flutter 웹 버킷 |
-| `CLOUDFRONT_DISTRIBUTION_ID` | `E…` | 배포 후 캐시 무효화 |
+| `CLOUDFRONT_DISTRIBUTION_ID` | `E…` | 배포 후 캐시 무효화. 비어 있으면 Cloudflare Pages로 웹 배포 |
 | `MALL_API_BASE_URL` | `https://mall.anoveli.com/api` | Flutter 빌드 `--dart-define` (미설정·구 mall-api URL이면 스크립트가 same-origin으로 맞춤) |
 
 OIDC 역할에는 해당 버킷의 `ListBucket`, `GetObject`, `PutObject`, `DeleteObject`와 해당 배포의 `cloudfront:CreateInvalidation`만 허용한다.

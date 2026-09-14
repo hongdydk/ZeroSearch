@@ -132,12 +132,14 @@ jobs:
       id-token: write
       contents: read
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           name: flutter-web
           path: dist
 
-      - name: Resolve Pages root (index.html)
+      - name: Resolve web root (index.html)
         id: root
         run: |
           if [ -f dist/index.html ]; then
@@ -153,7 +155,20 @@ jobs:
             exit 1
           fi
 
+      - name: Choose web origin
+        id: dest
+        env:
+          CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
+        run: |
+          if [ -n "$CLOUDFRONT_DISTRIBUTION_ID" ]; then
+            echo "mode=cloudfront" >> "$GITHUB_OUTPUT"
+          else
+            echo "mode=pages" >> "$GITHUB_OUTPUT"
+            echo "::warning::CLOUDFRONT_DISTRIBUTION_ID unset; deploying to Cloudflare Pages"
+          fi
+
       - name: Validate AWS deployment variables
+        if: steps.dest.outputs.mode == 'cloudfront'
         env:
           AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           S3_BUCKET: ${{ vars.S3_BUCKET }}
@@ -164,12 +179,14 @@ jobs:
           test -n "$CLOUDFRONT_DISTRIBUTION_ID" || { echo "::error::CLOUDFRONT_DISTRIBUTION_ID is not set"; exit 1; }
 
       - name: Configure AWS credentials
+        if: steps.dest.outputs.mode == 'cloudfront'
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
           aws-region: ap-northeast-2
 
       - name: Sync Flutter web to S3
+        if: steps.dest.outputs.mode == 'cloudfront'
         env:
           S3_BUCKET: ${{ vars.S3_BUCKET }}
           WEB_ROOT: ${{ steps.root.outputs.dir }}
@@ -187,12 +204,50 @@ jobs:
           done
 
       - name: Invalidate CloudFront cache
+        if: steps.dest.outputs.mode == 'cloudfront'
         env:
           CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
         run: |
           aws cloudfront create-invalidation \
             --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
             --paths "/*"
+
+      - name: Stage Pages Functions at repo root
+        if: steps.dest.outputs.mode == 'pages'
+        run: |
+          rm -rf functions "${{ steps.root.outputs.dir }}/functions"
+          cp -R deploy/cloudflare-pages/functions ./functions
+          cp deploy/cloudflare-pages/_routes.json "${{ steps.root.outputs.dir }}/_routes.json"
+          cp deploy/cloudflare-pages/_headers "${{ steps.root.outputs.dir }}/_headers"
+          test -f functions/api.js
+          test -f "functions/api/[[path]].js"
+          test -f "${{ steps.root.outputs.dir }}/_headers"
+
+      - uses: actions/setup-node@v4
+        if: steps.dest.outputs.mode == 'pages'
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: .github/wrangler/package-lock.json
+
+      - name: Install wrangler
+        if: steps.dest.outputs.mode == 'pages'
+        working-directory: .github/wrangler
+        run: npm ci
+
+      - name: Deploy to Cloudflare Pages (production)
+        if: steps.dest.outputs.mode == 'pages'
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          OUT=$(.github/wrangler/node_modules/.bin/wrangler pages deploy "${{ steps.root.outputs.dir }}" \
+            --project-name="${{ vars.CLOUDFLARE_PAGES_PROJECT }}" \
+            --branch=main \
+            --commit-dirty=true 2>&1)
+          echo "$OUT"
+          echo "$OUT" | grep -qiE 'function|Compiled|bundl' \
+            || echo "::warning::wrangler log had no Functions compile line — check /api/health"
 
   notify-failure:
     needs: [test-api, deploy-api, build-flutter, deploy-web]
