@@ -36,6 +36,8 @@
 <body>
   <script src="https://js.tosspayments.com/v2/standard"></script>
   <script>
+    // Flutter web covers the viewport; iframe overlays sit behind it.
+    // windowTarget "self" navigates this tab to Toss instead.
     window.requestTossCardPayment = async function (
       clientKey,
       customerKey,
@@ -45,16 +47,33 @@
       successUrl,
       failUrl
     ) {
-      const tossPayments = TossPayments(clientKey);
-      const payment = tossPayments.payment({ customerKey });
-      await payment.requestPayment({
-        method: "CARD",
-        amount: { currency: "KRW", value: amount },
-        orderId,
-        orderName,
-        successUrl,
-        failUrl
-      });
+      if (typeof TossPayments !== "function") {
+        throw new Error("토스 결제 SDK를 불러오지 못했습니다.");
+      }
+      if (!clientKey) {
+        throw new Error("결제 키가 없습니다. 서버 설정을 확인해 주세요.");
+      }
+      try {
+        const tossPayments = TossPayments(String(clientKey));
+        const payment = tossPayments.payment({
+          customerKey: String(customerKey),
+        });
+        await payment.requestPayment({
+          method: "CARD",
+          amount: { currency: "KRW", value: Number(amount) },
+          orderId: String(orderId),
+          orderName: String(orderName),
+          successUrl: String(successUrl),
+          failUrl: String(failUrl),
+          windowTarget: "self",
+        });
+      } catch (e) {
+        const message =
+          e && (e.message || e.code)
+            ? String(e.message || e.code)
+            : String(e);
+        throw new Error(message || "결제창을 열지 못했습니다.");
+      }
     };
   </script>
   <!--

@@ -117,10 +117,16 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
-    } catch (_) {
+    } catch (e) {
       if (!mounted) return;
+      final message = e is StateError
+          ? e.message
+          : '결제창을 열지 못했습니다. 다시 시도해 주세요.';
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('결제창을 열지 못했습니다. 다시 시도해 주세요.')),
+        SnackBar(
+          content: Text(message),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
       );
     } finally {
       if (mounted) setState(() => _checkingOut = false);
