@@ -51,6 +51,10 @@ void handleAppBackNavigation(BuildContext context) {
     router.go('/cart');
     return;
   }
+  if (location == '/toss-pay') {
+    router.go('/checkout');
+    return;
+  }
   if (location.startsWith('/settings/addresses')) {
     router.go('/settings');
     return;

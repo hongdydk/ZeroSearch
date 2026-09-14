@@ -59,4 +59,9 @@ else
   echo "OK: no flutter_service_worker.js"
 fi
 
+if [[ ! -f build/web/toss-pay.html ]]; then
+  echo "ERROR: toss-pay.html missing from web build" >&2
+  exit 1
+fi
+
 echo "Built: apps/flutter/build/web"

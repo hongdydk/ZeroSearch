@@ -18,6 +18,7 @@ import '../../features/catalog/catalog_screen.dart';
 import '../../features/membership/membership_screen.dart';
 import '../../features/orders/orders_screen.dart';
 import '../../features/payment/payment_result_screen.dart';
+import '../../features/payment/toss_pay_exit_screen.dart';
 import '../../features/product_detail/catalog_detail_screen.dart';
 import '../../features/product_detail/product_detail_screen.dart';
 import '../../features/seller/seller_orders_screen.dart';
@@ -65,6 +66,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/toss-pay',
+        builder: (_, _) => const TossPayExitScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => AdaptiveShell(child: child),
         routes: [
@@ -332,6 +337,7 @@ bool _requiresAuth(String path) {
   if (path.startsWith('/catalog/')) return false;
   if (path.startsWith('/login') || path.startsWith('/register')) return false;
   if (path.startsWith('/seller') || path.startsWith('/admin')) return false;
+  if (path == '/toss-pay') return false;
   return true;
 }
 

@@ -8,3 +8,6 @@
 
 /toss-pay.html
   Cache-Control: no-cache
+
+/toss-pay
+  Cache-Control: no-cache

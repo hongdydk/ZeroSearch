@@ -56,7 +56,7 @@ void main() {
           cartProvider.overrideWith((ref) async => _cart()),
           addressesProvider.overrideWith((ref) async => []),
         ],
-        child: const MaterialApp(home: CheckoutScreen()),
+        child: const MaterialApp(home: Scaffold(body: CheckoutScreen())),
       ),
     );
     await tester.pumpAndSettle();
@@ -88,7 +88,7 @@ void main() {
             ],
           ),
         ],
-        child: const MaterialApp(home: CheckoutScreen()),
+        child: const MaterialApp(home: Scaffold(body: CheckoutScreen())),
       ),
     );
     await tester.pumpAndSettle();

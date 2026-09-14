@@ -1,26 +1,12 @@
-import 'package:web/web.dart' as web;
+import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 bool get tossPaymentSupported => true;
 
-Future<void> requestTossCardPayment({
-  required String clientKey,
-  required String customerKey,
-  required String orderId,
-  required String orderName,
-  required int amount,
-  required String successUrl,
-  required String failUrl,
-}) async {
-  final uri = Uri.parse('${Uri.base.origin}/toss-pay').replace(
-    queryParameters: {
-      'clientKey': clientKey,
-      'customerKey': customerKey,
-      'orderId': orderId,
-      'orderName': orderName,
-      'amount': '$amount',
-      'successUrl': successUrl,
-      'failUrl': failUrl,
-    },
-  );
-  web.window.location.replace(uri.toString());
+/// Reloads the current URL so Cloudflare serves `toss-pay.html`.
+///
+/// Call only after go_router has set the path to `/toss-pay?…`. A Dart-built
+/// URL passed to `location.replace` is swallowed by dart2js / PathUrlStrategy.
+void reloadCurrentDocument() {
+  globalContext.callMethod('eval'.toJS, 'window.location.reload()'.toJS);
 }

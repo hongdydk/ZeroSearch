@@ -8,6 +8,7 @@ import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/payment/toss_pay_uri.dart';
 import '../../core/payment/toss_payment_bridge.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/async_busy.dart';
@@ -45,44 +46,50 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       final prepared = await ref
           .read(apiClientProvider)
           .prepareTossPayment(idempotencyKey: key, addressId: address.id);
+      if (!mounted) return;
       final origin = Uri.base.origin;
-      await requestTossCardPayment(
-        clientKey: prepared.clientKey,
-        customerKey: prepared.customerKey,
-        orderId: prepared.orderId,
-        orderName: prepared.orderName,
-        amount: prepared.amount,
-        successUrl: '$origin/payment/success',
-        failUrl: '$origin/payment/fail',
+      context.go(
+        tossPayAppUri(
+          clientKey: prepared.clientKey,
+          customerKey: prepared.customerKey,
+          orderId: prepared.orderId,
+          orderName: prepared.orderName,
+          amount: prepared.amount,
+          successUrl: '$origin/payment/success',
+          failUrl: '$origin/payment/fail',
+        ).toString(),
       );
     } on ApiException catch (e) {
       final retryable = e.message.contains('시간') || e.message.contains('연결');
       if (!retryable) {
         _invalidateCheckoutKey();
       }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          duration: const Duration(seconds: 6),
-        ),
-      );
+      await _showPayError(e.message);
     } catch (e) {
-      if (!mounted) return;
       final message = e is StateError
           ? e.message
           : '결제 페이지로 이동하지 못했습니다. $e';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Theme.of(context).colorScheme.error,
-          duration: const Duration(seconds: 6),
-        ),
-      );
+      await _showPayError(message);
     } finally {
       if (mounted) setState(() => _checkingOut = false);
     }
+  }
+
+  Future<void> _showPayError(String message) async {
+    if (!mounted) return;
+    await showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('결제를 시작하지 못했습니다'),
+        content: Text(message),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
