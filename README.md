@@ -72,7 +72,7 @@ pnpm dev:flutter       # http://localhost:8080
 
 | 구분 | 구성 |
 |------|------|
-| 화면 | Flutter → **Cloudflare Pages** · 호스트 `mall.anoveli.com` |
+| 화면 | Flutter → **S3 + CloudFront** · 호스트 `mall.anoveli.com` |
 | API | FastAPI → EC2 **8001** (`/opt/shopping-mall`) |
 | DB | PostgreSQL 16 → Docker `mall-postgres` (EC2) |
 | 카탈로그 | `data/aihub-catalog.csv` → 배포 시 EC2에서 upsert |
@@ -80,9 +80,9 @@ pnpm dev:flutter       # http://localhost:8080
 
 아노벨리(`api.anoveli.com`, `app.anoveli.com`)와 **공존**. 상세: [deploy/README.md](./deploy/README.md)
 
-목표 주소: `https://mall.anoveli.com/` · API(브라우저): `https://mall.anoveli.com/api` (원본 `mall-api.anoveli.com`은 프록시 백엔드)
+목표 주소: `https://mall.anoveli.com/` · API(브라우저): `https://mall.anoveli.com/api` (CloudFront가 원본 `mall-api.anoveli.com`으로 전달)
 
-**자동 배포:** `main` push → GitHub Actions — EC2 API(+카탈로그 import) + Cloudflare Pages
+**자동 배포:** `main` push → GitHub Actions — EC2 API(+카탈로그 import) + S3 sync/CloudFront invalidation
 
 ### 카탈로그 CSV (MD SSOT)
 

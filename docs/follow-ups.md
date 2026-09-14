@@ -11,25 +11,26 @@
 
 ## 1. `mall` + `mall-api` 동일 호스트
 
-**상태:** 적용됨 — `https://mall.anoveli.com/api/health` → JSON ok (Pages Functions `/api` → mall-api)
+**상태:** CloudFront 이전 준비됨 — DNS 전환 전까지 Pages Functions 운영
 
 **현상(이전):** UI `https://mall.anoveli.com`, API `https://mall-api.anoveli.com` (CORS).
 
 **구현:**
-- [`deploy/cloudflare-pages/functions/`](../deploy/cloudflare-pages/functions/) — `/api/*` → `https://mall-api.anoveli.com/*` (`/api` prefix strip)
-- CI가 Flutter web 산출물에 `functions/` + `_routes.json`을 붙여 Pages에 배포
+- [`deploy/cloudfront/strip-api-prefix.js`](../deploy/cloudfront/strip-api-prefix.js) — CloudFront `/api*` behavior에서 `/api` prefix strip 후 `mall-api` origin
+- [`deploy/cloudfront/spa-route-rewrite.js`](../deploy/cloudfront/spa-route-rewrite.js) — 기본 S3 behavior의 확장자 없는 Flutter route만 `/index.html`로 rewrite
+- CI가 Flutter web 산출물을 S3에 sync하고 CloudFront cache invalidation
 - `scripts/ci-build-flutter-web.sh` 기본·구 `mall-api` 직접 URL → `https://mall.anoveli.com/api`
 - 백엔드(Tunnel `mall-api.anoveli.com` → :8001)는 유지. 브라우저는 same-origin만 사용
 
-**확인:** `https://mall.anoveli.com/api/health` → `{"status":"ok",...}` · 사이트 로그인·목록 정상
+**전환 확인:** CloudFront 배포 도메인에서 `/`·`/admin`·`/seller`·`/api/health`, 이후 `mall.anoveli.com` 로그인·목록 정상
 
-**하지 않음(당시):** 아노벨리 `api.anoveli.com`과 합치기, Pages에 FastAPI 올리기, `mall-api` DNS 즉시 삭제
+**하지 않음:** 아노벨리 `api.anoveli.com`과 합치기, CloudFront에 FastAPI 올리기, `mall-api` DNS 즉시 삭제
 
 ### 1b. `mall-api` 공개 호스트 정리 (나중)
 
 **상태:** 미적용 · §1 이후 · **다음 적용**
 
-**목표:** 브라우저·문서에서 `mall-api.anoveli.com`을 없앤다. Pages Functions(또는 Tunnel)가 **비공개/내부 origin**으로만 :8001에 붙게 한 뒤, 공개 DNS·Tunnel hostname `mall-api` 제거.
+**목표:** 브라우저·문서에서 `mall-api.anoveli.com`을 없앤다. CloudFront가 **비공개/내부 origin**으로만 :8001에 붙게 한 뒤, 공개 DNS·Tunnel hostname `mall-api` 제거.
 
 **선행:** 프록시 `MALL_API_ORIGIN`을 공개 `mall-api`가 아닌 경로로 변경·검증. 그 전 삭제 금지.
 
@@ -51,7 +52,7 @@ Phase 2 UX(#1–9)와 **병행 가능**. Phase 3 / 3.5 / 4와 무관. 제품 DoD
 **구현:**
 - [`deploy/ec2-deploy.sh`](../deploy/ec2-deploy.sh) — CSV `sha256` vs `$DEPLOY_DIR/.cache/aihub-catalog.sha256`; 동일 → skip. 강제: `FORCE_CATALOG_IMPORT=1`
 - [`scripts/ci-build-flutter-web.sh`](../scripts/ci-build-flutter-web.sh) — `--pwa-strategy=none` 후에도 Flutter가 빈 `flutter_service_worker.js` stub을 남기므로 삭제; 비어 있지 않으면 fail
-- [`deploy/cloudflare-pages/_headers`](../deploy/cloudflare-pages/_headers) — `/index.html`·`/flutter_bootstrap.js` → `Cache-Control: no-cache` (CI가 Pages 산출물에 복사)
+- [`.github/workflows/deploy.yml`](../.github/workflows/deploy.yml) — `/index.html`·`/flutter_bootstrap.js`를 S3에 `Cache-Control: no-cache`로 업로드
 
 ### B. 관측 (최소 알림) — Cursor Automations
 

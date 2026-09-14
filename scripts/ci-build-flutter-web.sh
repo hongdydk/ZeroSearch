@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CI: OpenAPI codegen + Flutter web build (Cloudflare Pages 사이트 루트).
+# CI: OpenAPI codegen + Flutter web build (S3/CloudFront 사이트 루트).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
