@@ -152,10 +152,10 @@ Phase 2 DoD 이후 구매자 결제 경로 정합성·부하. Phase 3/3.5/4와 �
 
 ## 배포
 
-Flutter → **S3 + CloudFront** (`mall.anoveli.com`). FastAPI → EC2 Docker (`mall-api` :8001). PostgreSQL → EC2 `mall-postgres`.
+Flutter → **Cloudflare Pages** (`mall.anoveli.com`). FastAPI → EC2 Docker (`mall-api` :8001). PostgreSQL → EC2 `mall-postgres`.
 
 대표 상품 SSOT는 `data/aihub-catalog.csv` — `main` 배포 시 EC2에서 upsert.  
-브라우저 API: **`https://mall.anoveli.com/api`** (CloudFront `/api*` → Tunnel `mall-api.anoveli.com`). 원본 API 호스트는 프록시 백엔드용으로 유지.
+브라우저 API: **`https://mall.anoveli.com/api`** (Pages Functions → Tunnel `mall-api.anoveli.com`). 원본 API 호스트는 프록시 백엔드용으로 유지.
 
 ### 카탈로그 재병합 (맛·용량 → 대표 카드)
 

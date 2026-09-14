@@ -117,6 +117,13 @@ jobs:
           print("index.html base href OK")
           PY
 
+      - name: Attach Pages _routes.json and _headers
+        run: |
+          cp deploy/cloudflare-pages/_routes.json apps/flutter/build/web/_routes.json
+          cp deploy/cloudflare-pages/_headers apps/flutter/build/web/_headers
+          test -f apps/flutter/build/web/_routes.json
+          test -f apps/flutter/build/web/_headers
+
       - uses: actions/upload-artifact@v4
         with:
           name: flutter-web
@@ -128,9 +135,6 @@ jobs:
     needs: build-flutter
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
-    permissions:
-      id-token: write
-      contents: read
     steps:
       - uses: actions/checkout@v4
 
@@ -139,15 +143,15 @@ jobs:
           name: flutter-web
           path: dist
 
-      - name: Resolve web root (index.html)
+      - name: Resolve Pages root (index.html)
         id: root
         run: |
           if [ -f dist/index.html ]; then
             echo "dir=dist" >> "$GITHUB_OUTPUT"
-            echo "Web root=dist"
+            echo "Pages root=dist"
           elif [ -f dist/web/index.html ]; then
             echo "dir=dist/web" >> "$GITHUB_OUTPUT"
-            echo "Web root=dist/web"
+            echo "Pages root=dist/web"
           else
             echo "Artifact layout:"
             find dist -name index.html -print
@@ -155,88 +159,28 @@ jobs:
             exit 1
           fi
 
-      - name: Choose web origin
-        id: dest
-        env:
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
-        run: |
-          if [ -n "$CLOUDFRONT_DISTRIBUTION_ID" ]; then
-            echo "mode=cloudfront" >> "$GITHUB_OUTPUT"
-          else
-            echo "mode=pages" >> "$GITHUB_OUTPUT"
-            echo "::warning::CLOUDFRONT_DISTRIBUTION_ID unset; deploying to Cloudflare Pages"
-          fi
-
-      - name: Validate AWS deployment variables
-        if: steps.dest.outputs.mode == 'cloudfront'
-        env:
-          AWS_DEPLOY_ROLE_ARN: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          S3_BUCKET: ${{ vars.S3_BUCKET }}
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
-        run: |
-          test -n "$AWS_DEPLOY_ROLE_ARN" || { echo "::error::AWS_DEPLOY_ROLE_ARN is not set"; exit 1; }
-          test -n "$S3_BUCKET" || { echo "::error::S3_BUCKET is not set"; exit 1; }
-          test -n "$CLOUDFRONT_DISTRIBUTION_ID" || { echo "::error::CLOUDFRONT_DISTRIBUTION_ID is not set"; exit 1; }
-
-      - name: Configure AWS credentials
-        if: steps.dest.outputs.mode == 'cloudfront'
-        uses: aws-actions/configure-aws-credentials@v4
-        with:
-          role-to-assume: ${{ vars.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ap-northeast-2
-
-      - name: Sync Flutter web to S3
-        if: steps.dest.outputs.mode == 'cloudfront'
-        env:
-          S3_BUCKET: ${{ vars.S3_BUCKET }}
-          WEB_ROOT: ${{ steps.root.outputs.dir }}
-        run: |
-          aws s3 sync "${WEB_ROOT}/" "s3://${S3_BUCKET}/" \
-            --delete \
-            --exclude "index.html" \
-            --exclude "flutter_bootstrap.js"
-
-          for file in index.html flutter_bootstrap.js; do
-            test -f "${WEB_ROOT}/${file}" || { echo "::error::missing ${WEB_ROOT}/${file}"; exit 1; }
-            aws s3 cp "${WEB_ROOT}/${file}" "s3://${S3_BUCKET}/${file}" \
-              --cache-control "no-cache" \
-              --content-type "$(case "$file" in *.html) echo text/html;; *) echo application/javascript;; esac)"
-          done
-
-      - name: Invalidate CloudFront cache
-        if: steps.dest.outputs.mode == 'cloudfront'
-        env:
-          CLOUDFRONT_DISTRIBUTION_ID: ${{ vars.CLOUDFRONT_DISTRIBUTION_ID }}
-        run: |
-          aws cloudfront create-invalidation \
-            --distribution-id "$CLOUDFRONT_DISTRIBUTION_ID" \
-            --paths "/*"
-
       - name: Stage Pages Functions at repo root
-        if: steps.dest.outputs.mode == 'pages'
         run: |
           rm -rf functions "${{ steps.root.outputs.dir }}/functions"
           cp -R deploy/cloudflare-pages/functions ./functions
           cp deploy/cloudflare-pages/_routes.json "${{ steps.root.outputs.dir }}/_routes.json"
           cp deploy/cloudflare-pages/_headers "${{ steps.root.outputs.dir }}/_headers"
+          ls -la functions functions/api
           test -f functions/api.js
           test -f "functions/api/[[path]].js"
           test -f "${{ steps.root.outputs.dir }}/_headers"
 
       - uses: actions/setup-node@v4
-        if: steps.dest.outputs.mode == 'pages'
         with:
           node-version: "22"
           cache: npm
           cache-dependency-path: .github/wrangler/package-lock.json
 
       - name: Install wrangler
-        if: steps.dest.outputs.mode == 'pages'
         working-directory: .github/wrangler
         run: npm ci
 
       - name: Deploy to Cloudflare Pages (production)
-        if: steps.dest.outputs.mode == 'pages'
         env:
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ vars.CLOUDFLARE_ACCOUNT_ID }}

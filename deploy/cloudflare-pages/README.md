@@ -1,5 +1,5 @@
-# Cloudflare Pages 레거시
+# Cloudflare Pages (현재 웹 원본)
 
-Flutter 웹 배포는 S3 + CloudFront로 이전한다. 이 디렉터리의 Functions·라우트·헤더는 DNS 전환이 검증될 때까지 롤백 참고용으로만 유지하며 CI에서는 사용하지 않는다.
+Flutter 웹은 `mall.anoveli.com` Cloudflare Pages로 배포한다. CI `deploy-web`이 이 디렉터리의 Functions·라우트·헤더를 산출물에 붙인다.
 
-전환 확인 후 이 디렉터리와 `.github/wrangler/`를 삭제할 수 있다.
+S3 + CloudFront 이전은 당장 실행하지 않는다. 설정 초안은 [`../cloudfront/`](../cloudfront/)에만 둔다.

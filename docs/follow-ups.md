@@ -11,18 +11,18 @@
 
 ## 1. `mall` + `mall-api` 동일 호스트
 
-**상태:** CloudFront 이전 준비됨 — DNS 전환 전까지 Pages Functions 운영
+**상태:** 운영은 Cloudflare Pages Functions. S3 + CloudFront 이전은 당장 실행하지 않음
 
 **현상(이전):** UI `https://mall.anoveli.com`, API `https://mall-api.anoveli.com` (CORS).
 
 **구현:**
-- [`deploy/cloudfront/strip-api-prefix.js`](../deploy/cloudfront/strip-api-prefix.js) — CloudFront `/api*` behavior에서 `/api` prefix strip 후 `mall-api` origin
-- [`deploy/cloudfront/spa-route-rewrite.js`](../deploy/cloudfront/spa-route-rewrite.js) — 기본 S3 behavior의 확장자 없는 Flutter route만 `/index.html`로 rewrite
-- CI가 Flutter web 산출물을 S3에 sync하고 CloudFront cache invalidation
+- [`deploy/cloudflare-pages/`](../deploy/cloudflare-pages/) — Pages Functions가 `/api*`를 `mall-api.anoveli.com`으로 프록시
+- CI가 Flutter web 산출물을 Cloudflare Pages에 배포
 - `scripts/ci-build-flutter-web.sh` 기본·구 `mall-api` 직접 URL → `https://mall.anoveli.com/api`
 - 백엔드(Tunnel `mall-api.anoveli.com` → :8001)는 유지. 브라우저는 same-origin만 사용
+- S3 + CloudFront 초안은 [`deploy/cloudfront/`](../deploy/cloudfront/)에만 둠 (당장 미실행)
 
-**전환 확인:** CloudFront 배포 도메인에서 `/`·`/admin`·`/seller`·`/api/health`, 이후 `mall.anoveli.com` 로그인·목록 정상
+**확인:** `mall.anoveli.com`에서 `/`·`/admin`·`/seller`·`/api/health`
 
 **하지 않음:** 아노벨리 `api.anoveli.com`과 합치기, CloudFront에 FastAPI 올리기, `mall-api` DNS 즉시 삭제
 

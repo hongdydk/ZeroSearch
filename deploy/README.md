@@ -1,9 +1,9 @@
-# EC2 + S3/CloudFront 배포 (아노벨리와 공존)
+# EC2 + Cloudflare Pages 배포 (아노벨리와 공존)
 
 아노벨리(`/opt/anoveli`, `api.anoveli.com:8000`, `app.anoveli.com`)는 **건드리지 않고**, 제로 서치(쇼핑몰)만 **추가**한다.
 
 **앱 URL:** `https://mall.anoveli.com/` (아노벨리 `app.anoveli.com` 과 호스트 분리)  
-**API URL (브라우저):** `https://mall.anoveli.com/api` → CloudFront → `mall-api.anoveli.com` (:8001)
+**API URL (브라우저):** `https://mall.anoveli.com/api` → Pages Functions → `mall-api.anoveli.com` (:8001)
 
 **API URL (원본/Tunnel):** `https://mall-api.anoveli.com`
 
@@ -15,7 +15,7 @@
 | API 포트 | **8000** | **8001** |
 | Tunnel | `api.anoveli.com` → 8000 | `mall-api.anoveli.com` → 8001 (추가) |
 | 웹 호스트 | `app.anoveli.com` | **`mall.anoveli.com`** |
-| 웹 원본 | (아노벨리 쪽) | **S3 + CloudFront** |
+| 웹 원본 | (아노벨리 쪽) | **Cloudflare Pages** |
 | DB | `anoveli-postgres` / chatbot | `mall-postgres` / mall |
 
 ---
@@ -64,7 +64,7 @@ TOSS_API_TIMEOUT=10
 https://mall.anoveli.com/api/payments/toss/webhook
 ```
 
-CloudFront `/api*` behavior가 POST 요청을 `mall-api` origin으로 전달해야 한다. 테스트 결제 성공·실패 후 주문, 재고, 장바구니가 함께 맞는지 확인한 뒤에만 라이브 키 전환을 별도 진행한다.
+Pages Functions가 `/api*` POST를 `mall-api` origin으로 전달한다. 테스트 결제 성공·실패 후 주문, 재고, 장바구니가 함께 맞는지 확인한 뒤에만 라이브 키 전환을 별도 진행한다.
 
 ---
 
@@ -86,9 +86,9 @@ Cloudflare DNS에 `mall-api` CNAME → tunnel.
 
 ---
 
-## 3. S3 + CloudFront — Flutter 웹 (`mall.anoveli.com`)
+## 3. Cloudflare Pages — Flutter 웹 (`mall.anoveli.com`)
 
-브라우저에는 **`https://mall.anoveli.com/`** (`base-href=/`). CI가 `main` push 시 S3 버킷 루트에 올리고 CloudFront 캐시를 무효화한다.
+브라우저에는 **`https://mall.anoveli.com/`** (`base-href=/`). CI가 `main` push 시 Pages에 올린다. S3 + CloudFront 이전은 당장 실행하지 않으며 설정 초안만 [`cloudfront/`](./cloudfront/)에 둔다.
 
 ### 3.1 로컬 빌드 (수동 업로드할 때만)
 
@@ -99,30 +99,15 @@ flutter build web --base-href=/ \
   --dart-define=API_BASE_URL=https://mall.anoveli.com/api
 ```
 
-S3에는 `apps/flutter/build/web/` **내용**을 버킷 루트에 올린다 (`web/` 폴더 중첩 금지).
-
-CI는 `index.html`·`flutter_bootstrap.js`에 `Cache-Control: no-cache`를 지정하고 나머지 산출물을 동기화한다.
+Pages에는 `apps/flutter/build/web/` **내용**을 루트에 올린다 (`web/` 폴더 중첩 금지).  
+배포 시 `deploy/cloudflare-pages/functions`·`_routes.json`·`_headers`를 산출물에 붙여 **`/api/*` → mall-api** 프록시와 `index.html`/`flutter_bootstrap.js` no-cache를 켠다 (CI가 자동).  
 자동 배포는 §5 GitHub Actions.
 
-### 3.2 CloudFront 1회 설정
+### 3.2 커스텀 도메인
 
-1. 전용 S3 버킷(예: `mall-web-poc`)은 퍼블릭 액세스를 차단하고 CloudFront OAC만 읽게 한다.
-2. ACM 인증서는 `us-east-1`에 `mall.anoveli.com`으로 만들고 Cloudflare DNS에서 검증한다.
-3. CloudFront origin:
-   - 기본 origin: S3 + OAC
-   - API origin: `mall-api.anoveli.com`, HTTPS only
-4. cache behavior `/api*`는 API origin, 캐시 비활성, 모든 HTTP method 허용, `Host`를 제외한 요청 헤더·쿠키·쿼리를 전달한다. Viewer request에 [`cloudfront/strip-api-prefix.js`](./cloudfront/strip-api-prefix.js)를 연결한다.
-5. 기본 S3 behavior의 Viewer request에 [`cloudfront/spa-route-rewrite.js`](./cloudfront/spa-route-rewrite.js)를 연결한다. 확장자 없는 `/admin`·`/seller`만 `/index.html`로 바꾸므로 없는 API·JS를 HTML로 오인하지 않는다.
-6. Alternate domain에 `mall.anoveli.com`과 ACM 인증서를 지정한다.
-
-CloudFront의 전역 403/404 custom error response를 `/index.html`로 매핑하지 않는다. 그 방식은 API 404까지 HTML 200으로 바꿀 수 있다.
-
-### 3.3 DNS 전환
-
-1. CloudFront 배포 도메인에서 `/`, `/admin`, `/api/health`를 먼저 확인한다.
-2. Cloudflare DNS `mall` CNAME을 CloudFront 배포 도메인으로 바꾸고 **DNS only(회색 구름)** 로 둔다.
-3. 정상 확인 후에만 기존 Pages 프로젝트에서 `mall.anoveli.com` 커스텀 도메인을 제거한다.
-4. `mall-api.anoveli.com` DNS·Tunnel은 CloudFront API origin이므로 유지한다.
+Pages 프로젝트에 `mall.anoveli.com` 커스텀 도메인을 붙인다.  
+SPA 폴백은 Pages 기본 동작(루트 `404.html` 없음)에 둔다.  
+`/* → /index.html 200` `_redirects`는 `main.dart.js` 등 정적 자산까지 rewrite되어 쓰지 않는다.
 
 접속: `https://mall.anoveli.com/` · 관리자 `…/admin` · 판매자 `…/seller`
 
@@ -132,7 +117,7 @@ CloudFront의 전역 403/404 custom error response를 `/index.html`로 매핑하
 
 - [ ] `anoveli-api`(8000) / `api.anoveli.com` 정상
 - [ ] `mall-api`(8001) / `mall-api.anoveli.com/health` 정상 (프록시 백엔드)
-- [ ] S3 + CloudFront + `mall.anoveli.com` alternate domain
+- [ ] Cloudflare Pages + `mall.anoveli.com` 커스텀 도메인
 - [ ] `https://mall.anoveli.com/api/health` 정상 (same-origin)
 - [ ] Flutter `API_BASE_URL=https://mall.anoveli.com/api`, **`base-href=/`**
 - [ ] EC2 `.env.prod` `CORS_ORIGINS=https://mall.anoveli.com` (직접 mall-api 호출·프리뷰용)
@@ -150,7 +135,7 @@ CloudFront의 전역 403/404 custom error response를 `/index.html`로 매핑하
 | `test-api` | pytest |
 | `deploy-api` | EC2 SSH → `deploy/ec2-deploy.sh` (git pull + docker rebuild + **aihub CSV import**) |
 | `build-flutter` | Flutter web 빌드 → artifact |
-| `deploy-web` | artifact → S3 sync → CloudFront invalidation |
+| `deploy-web` | artifact → Cloudflare Pages (`wrangler`) |
 
 업로드만 실패하면 Actions에서 **Re-run failed jobs** — `deploy-web`만 다시 돈다.
 
@@ -189,19 +174,17 @@ EC2에 repo clone·`.env.prod` 는 기존 §1과 동일. **이 workflow 파일�
 | `EC2_HOST` | EC2 호스트 (IP 또는 DNS) |
 | `EC2_USER` | SSH 사용자 (예: `ubuntu`) |
 | `EC2_SSH_KEY` | EC2 API 배포용 SSH private key |
+| `CLOUDFLARE_API_TOKEN` | Pages 배포 (Account · Cloudflare Pages · Edit) |
 
-웹 배포는 GitHub OIDC를 사용하므로 장기 AWS access key를 저장하지 않는다.
+웹 배포는 Cloudflare Pages다. S3 + CloudFront는 추후이며 지금은 CI에서 쓰지 않는다.
 
 ### Repository variables (Settings → Variables)
 
 | Variable | 예시 | 용도 |
 |----------|------|------|
-| `AWS_DEPLOY_ROLE_ARN` | `arn:aws:iam::…:role/github-…` | GitHub OIDC 배포 역할 |
-| `S3_BUCKET` | `mall-web-poc` | Flutter 웹 버킷 |
-| `CLOUDFRONT_DISTRIBUTION_ID` | `E…` | 배포 후 캐시 무효화. 비어 있으면 Cloudflare Pages로 웹 배포 |
+| `CLOUDFLARE_ACCOUNT_ID` | (계정 ID) | wrangler Pages 배포 |
+| `CLOUDFLARE_PAGES_PROJECT` | `zero-search` | Pages 프로젝트 이름 |
 | `MALL_API_BASE_URL` | `https://mall.anoveli.com/api` | Flutter 빌드 `--dart-define` (미설정·구 mall-api URL이면 스크립트가 same-origin으로 맞춤) |
-
-OIDC 역할에는 해당 버킷의 `ListBucket`, `GetObject`, `PutObject`, `DeleteObject`와 해당 배포의 `cloudfront:CreateInvalidation`만 허용한다.
 
 DummyJSON 등 **데모 시드**는 자동 배포에 포함하지 않는다. 필요 시 EC2에서:
 
@@ -219,5 +202,5 @@ AI-Hub 카탈로그는 위 §5 「카탈로그 CSV」대로 배포 시 반영(�
 - `/opt/anoveli` 덮어쓰기 또는 compose 중지
 - Tunnel에서 `api.anoveli.com`을 8001로 변경
 - 목표 URL을 다시 `app.anoveli.com/mall/` 로 되돌리기 (호스트 겹침·SPA 깨짐)
-- CloudFront 확인 전에 Pages 커스텀 도메인 제거
+- `mall.anoveli.com` Pages 커스텀 도메인을 CloudFront 준비 전에 제거
 - `mall-api.anoveli.com` Tunnel 삭제 또는 EC2 8001 직접 공개
