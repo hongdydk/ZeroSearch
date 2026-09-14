@@ -25,19 +25,10 @@
       var failUrl = params.get("failUrl") || "";
       var status = document.getElementById("status");
 
-      function fail(message) {
-        status.textContent = message;
-        if (failUrl) {
-          var next = new URL(failUrl, window.location.origin);
-          next.searchParams.set("code", "PAY_WINDOW");
-          next.searchParams.set("message", message);
-          if (orderId) next.searchParams.set("orderId", orderId);
-          status.innerHTML =
-            message +
-            '<br><a href="' +
-            next.toString() +
-            '">주문서로 돌아가기</a>';
-        }
+      function fail(message, homeHref) {
+        var href = homeHref || "/cart";
+        status.innerHTML =
+          message + '<br><a href="' + href + '">장바구니로 돌아가기</a>';
       }
 
       if (typeof TossPayments !== "function") {
@@ -45,7 +36,7 @@
         return;
       }
       if (!clientKey || !customerKey || !orderId || !orderName || !amount || !successUrl || !failUrl) {
-        fail("결제 정보가 올바르지 않습니다.");
+        fail("이 주소는 주문서에서 「토스로 결제하기」를 눌렀을 때 열립니다.");
         return;
       }
 
@@ -61,7 +52,17 @@
           windowTarget: "self",
         })
         .catch(function (e) {
-          fail((e && (e.message || e.code)) || "결제창을 열지 못했습니다.");
+          var message =
+            (e && (e.message || e.code)) || "결제창을 열지 못했습니다.";
+          if (failUrl) {
+            var next = new URL(failUrl, window.location.origin);
+            next.searchParams.set("code", "PAY_WINDOW");
+            next.searchParams.set("message", message);
+            if (orderId) next.searchParams.set("orderId", orderId);
+            fail(message, next.pathname + next.search);
+            return;
+          }
+          fail(message);
         });
     })();
   </script>
