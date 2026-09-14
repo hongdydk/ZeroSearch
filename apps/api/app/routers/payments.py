@@ -8,6 +8,7 @@ from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
 from app.schemas.order import CheckoutResponse
+from app.schemas.address import TossPrepareRequest
 from app.schemas.payment import (
     TossConfirmRequest,
     TossPaymentStatusResponse,
@@ -27,6 +28,7 @@ router = APIRouter(prefix="/payments/toss", tags=["payments"])
 
 @router.post("/prepare", response_model=TossPrepareResponse)
 def prepare_toss_payment(
+    payload: TossPrepareRequest,
     db: Annotated[Session, Depends(get_db)],
     current_user: Annotated[User, Depends(get_current_user)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
@@ -36,6 +38,7 @@ def prepare_toss_payment(
         current_user,
         get_settings(),
         idempotency_key=idempotency_key,
+        address_id=payload.address_id,
     )
     db.commit()
     return result

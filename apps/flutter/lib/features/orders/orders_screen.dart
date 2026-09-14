@@ -85,20 +85,32 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                     subtitle: Text(
                       '${_statusLabel(order.status)} · ${formatWon(order.totalCredits)}',
                     ),
-                    children: order.items
-                        .map(
-                          (item) => ListTile(
-                            dense: true,
-                            title: Text(item.productTitle),
-                            subtitle: Text(
-                              '${shippingOwnerLabel(item.sellerType)} · '
-                              '${item.shopName} · '
-                              '${fulfillmentStatusLabel(item.fulfillmentStatus)}',
-                            ),
-                            trailing: Text(formatWonLine(item.unitPriceCredits, item.qty)),
+                    children: [
+                      if (order.shipping != null)
+                        ListTile(
+                          dense: true,
+                          title: const Text('배송지'),
+                          subtitle: Text(
+                            '${order.shipping!.recipientName} · '
+                            '${order.shipping!.phone}\n'
+                            '${order.shipping!.line}',
                           ),
-                        )
-                        .toList(),
+                        ),
+                      ...order.items.map(
+                        (item) => ListTile(
+                          dense: true,
+                          title: Text(item.productTitle),
+                          subtitle: Text(
+                            '${shippingOwnerLabel(item.sellerType)} · '
+                            '${item.shopName} · '
+                            '${fulfillmentStatusLabel(item.fulfillmentStatus)}',
+                          ),
+                          trailing: Text(
+                            formatWonLine(item.unitPriceCredits, item.qty),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ),

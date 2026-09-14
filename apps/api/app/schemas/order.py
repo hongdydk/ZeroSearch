@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 
 
 
+from app.schemas.address import ShippingSnapshot
 from app.schemas.seller import FulfillmentStatus, SellerType
 
 
@@ -57,6 +58,8 @@ class OrderResponse(BaseModel):
     total_credits: int = Field(alias="totalCredits")
 
     items: list[OrderItemResponse]
+
+    shipping: ShippingSnapshot | None = None
 
     created_at: datetime | None = Field(default=None, alias="createdAt")
 

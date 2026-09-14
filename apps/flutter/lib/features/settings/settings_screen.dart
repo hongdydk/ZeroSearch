@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
@@ -33,6 +34,25 @@ class SettingsScreen extends ConsumerWidget {
                     contentPadding: EdgeInsets.zero,
                     title: const Text('이메일'),
                     subtitle: Text(user?.email ?? '—'),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Card(
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('배송', style: Theme.of(context).textTheme.titleMedium),
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('배송지'),
+                    subtitle: const Text('받는 분·주소 관리'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => context.push('/settings/addresses'),
                   ),
                 ],
               ),

@@ -134,11 +134,35 @@ OrderItemModel orderItemFromGenerated(gen.OrderItemResponse item) => OrderItemMo
           ) as String,
     );
 
+ShippingAddressModel? shippingFromGenerated(Object? shipping) {
+  if (shipping == null) return null;
+  try {
+    final value = shipping as dynamic;
+    return ShippingAddressModel(
+      id: '',
+      recipientName: '${value.recipientName ?? ''}',
+      phone: '${value.phone ?? ''}',
+      zonecode: '${value.zonecode ?? ''}',
+      address: '${value.address ?? ''}',
+      detailAddress: '${value.detailAddress ?? ''}',
+    );
+  } on NoSuchMethodError {
+    return null;
+  }
+}
+
 OrderModel orderModelFromGenerated(gen.OrderResponse order) => OrderModel(
       id: order.id,
       status: _orderStatusWire(order.status),
       totalCredits: order.totalCredits,
       items: order.items.map(orderItemFromGenerated).toList(),
+      shipping: () {
+        try {
+          return shippingFromGenerated((order as dynamic).shipping);
+        } on NoSuchMethodError {
+          return null;
+        }
+      }(),
       createdAt: order.createdAt,
     );
 

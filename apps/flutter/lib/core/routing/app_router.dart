@@ -10,7 +10,10 @@ import '../../features/auth/buyer_auth_gate.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/portal_auth_gate.dart';
 import '../../features/auth/register_screen.dart';
+import '../../features/addresses/address_form_screen.dart';
+import '../../features/addresses/address_list_screen.dart';
 import '../../features/cart/cart_screen.dart';
+import '../../features/checkout/checkout_screen.dart';
 import '../../features/catalog/catalog_screen.dart';
 import '../../features/membership/membership_screen.dart';
 import '../../features/orders/orders_screen.dart';
@@ -81,6 +84,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const BuyerAuthGate(child: CartScreen()),
           ),
           GoRoute(
+            path: '/checkout',
+            builder: (_, _) => const BuyerAuthGate(child: CheckoutScreen()),
+          ),
+          GoRoute(
             path: '/orders',
             builder: (_, _) => const BuyerAuthGate(child: OrdersScreen()),
           ),
@@ -111,6 +118,22 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/settings',
             builder: (_, _) => const BuyerAuthGate(child: SettingsScreen()),
+          ),
+          GoRoute(
+            path: '/settings/addresses',
+            builder: (_, _) =>
+                const BuyerAuthGate(child: AddressListScreen()),
+          ),
+          GoRoute(
+            path: '/settings/addresses/new',
+            builder: (_, _) =>
+                const BuyerAuthGate(child: AddressFormScreen()),
+          ),
+          GoRoute(
+            path: '/settings/addresses/:id',
+            builder: (_, state) => BuyerAuthGate(
+              child: AddressFormScreen(addressId: state.pathParameters['id']),
+            ),
           ),
           GoRoute(
             path: '/login',

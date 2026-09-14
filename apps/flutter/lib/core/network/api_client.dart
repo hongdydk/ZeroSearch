@@ -304,22 +304,116 @@ class ApiClient {
     }
   }
 
+  Future<List<ShippingAddressModel>> addresses() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('me/addresses');
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      final items = data['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map((e) => ShippingAddressModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<ShippingAddressModel> createAddress({
+    required String recipientName,
+    required String phone,
+    required String zonecode,
+    required String address,
+    required String detailAddress,
+    bool isDefault = false,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'me/addresses',
+        data: {
+          'recipientName': recipientName,
+          'phone': phone,
+          'zonecode': zonecode,
+          'address': address,
+          'detailAddress': detailAddress,
+          'isDefault': isDefault,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return ShippingAddressModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<ShippingAddressModel> updateAddress(
+    String id, {
+    String? recipientName,
+    String? phone,
+    String? zonecode,
+    String? address,
+    String? detailAddress,
+    bool? isDefault,
+  }) async {
+    try {
+      final body = <String, dynamic>{
+        if (recipientName != null) 'recipientName': recipientName,
+        if (phone != null) 'phone': phone,
+        if (zonecode != null) 'zonecode': zonecode,
+        if (address != null) 'address': address,
+        if (detailAddress != null) 'detailAddress': detailAddress,
+        if (isDefault != null) 'isDefault': isDefault,
+      };
+      final response = await _dio.patch<Map<String, dynamic>>(
+        'me/addresses/$id',
+        data: body,
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return ShippingAddressModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<List<ShippingAddressModel>> deleteAddress(String id) async {
+    try {
+      final response = await _dio.delete<Map<String, dynamic>>('me/addresses/$id');
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      final items = data['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map((e) => ShippingAddressModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<TossPrepareModel> prepareTossPayment({
     required String idempotencyKey,
+    required String addressId,
   }) async {
-    final data = await _generatedCall(
-      () =>
-          _generated.getPaymentsApi().prepareTossPaymentPaymentsTossPreparePost(
-            idempotencyKey: idempotencyKey,
-          ),
-    );
-    return TossPrepareModel(
-      orderId: data.orderId,
-      amount: data.amount,
-      orderName: data.orderName,
-      clientKey: data.clientKey,
-      customerKey: data.customerKey,
-    );
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'payments/toss/prepare',
+        data: {'addressId': addressId},
+        options: Options(headers: {'Idempotency-Key': idempotencyKey}),
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return TossPrepareModel(
+        orderId: data['orderId'] as String,
+        amount: (data['amount'] as num).toInt(),
+        orderName: data['orderName'] as String,
+        clientKey: data['clientKey'] as String,
+        customerKey: data['customerKey'] as String,
+      );
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<OrderModel> confirmTossPayment({

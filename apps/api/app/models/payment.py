@@ -28,6 +28,7 @@ class PaymentIntent(Base):
     order_name: Mapped[str] = mapped_column(String(100), nullable=False)
     status: Mapped[str] = mapped_column(String(24), nullable=False, server_default="ready")
     cart_snapshot: Mapped[list[dict]] = mapped_column(JSONB, nullable=False)
+    shipping_snapshot: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     failure_code: Mapped[str | None] = mapped_column(String(100), nullable=True)
     failure_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     requested_at: Mapped[datetime] = mapped_column(

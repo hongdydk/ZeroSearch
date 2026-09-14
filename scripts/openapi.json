@@ -1257,6 +1257,16 @@
             "title": "Items",
             "type": "array"
           },
+          "shipping": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShippingSnapshot"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "status": {
             "enum": [
               "pending",
@@ -1899,6 +1909,240 @@
         "title": "SellerSummary",
         "type": "object"
       },
+      "ShippingAddressCreateRequest": {
+        "properties": {
+          "address": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Address",
+            "type": "string"
+          },
+          "detailAddress": {
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Detailaddress",
+            "type": "string"
+          },
+          "isDefault": {
+            "default": false,
+            "title": "Isdefault",
+            "type": "boolean"
+          },
+          "phone": {
+            "maxLength": 20,
+            "minLength": 8,
+            "title": "Phone",
+            "type": "string"
+          },
+          "recipientName": {
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Recipientname",
+            "type": "string"
+          },
+          "zonecode": {
+            "maxLength": 10,
+            "minLength": 4,
+            "title": "Zonecode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipientName",
+          "phone",
+          "zonecode",
+          "address",
+          "detailAddress"
+        ],
+        "title": "ShippingAddressCreateRequest",
+        "type": "object"
+      },
+      "ShippingAddressListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ShippingAddressResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "ShippingAddressListResponse",
+        "type": "object"
+      },
+      "ShippingAddressResponse": {
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "detailAddress": {
+            "title": "Detailaddress",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "isDefault": {
+            "title": "Isdefault",
+            "type": "boolean"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "recipientName": {
+            "title": "Recipientname",
+            "type": "string"
+          },
+          "zonecode": {
+            "title": "Zonecode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipientName",
+          "phone",
+          "zonecode",
+          "address",
+          "detailAddress",
+          "id",
+          "isDefault"
+        ],
+        "title": "ShippingAddressResponse",
+        "type": "object"
+      },
+      "ShippingAddressUpdateRequest": {
+        "properties": {
+          "address": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Address"
+          },
+          "detailAddress": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailaddress"
+          },
+          "isDefault": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isdefault"
+          },
+          "phone": {
+            "anyOf": [
+              {
+                "maxLength": 20,
+                "minLength": 8,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Phone"
+          },
+          "recipientName": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "minLength": 1,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Recipientname"
+          },
+          "zonecode": {
+            "anyOf": [
+              {
+                "maxLength": 10,
+                "minLength": 4,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Zonecode"
+          }
+        },
+        "title": "ShippingAddressUpdateRequest",
+        "type": "object"
+      },
+      "ShippingSnapshot": {
+        "properties": {
+          "address": {
+            "title": "Address",
+            "type": "string"
+          },
+          "detailAddress": {
+            "title": "Detailaddress",
+            "type": "string"
+          },
+          "phone": {
+            "title": "Phone",
+            "type": "string"
+          },
+          "recipientName": {
+            "title": "Recipientname",
+            "type": "string"
+          },
+          "zonecode": {
+            "title": "Zonecode",
+            "type": "string"
+          }
+        },
+        "required": [
+          "recipientName",
+          "phone",
+          "zonecode",
+          "address",
+          "detailAddress"
+        ],
+        "title": "ShippingSnapshot",
+        "type": "object"
+      },
       "SubscribeRequest": {
         "properties": {
           "planSlug": {
@@ -2061,6 +2305,20 @@
           "updatedAt"
         ],
         "title": "TossPaymentStatusResponse",
+        "type": "object"
+      },
+      "TossPrepareRequest": {
+        "properties": {
+          "addressId": {
+            "format": "uuid",
+            "title": "Addressid",
+            "type": "string"
+          }
+        },
+        "required": [
+          "addressId"
+        ],
+        "title": "TossPrepareRequest",
         "type": "object"
       },
       "TossPrepareResponse": {
@@ -3331,6 +3589,180 @@
         ]
       }
     },
+    "/me/addresses": {
+      "get": {
+        "operationId": "read_addresses_me_addresses_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShippingAddressListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Addresses",
+        "tags": [
+          "addresses"
+        ]
+      },
+      "post": {
+        "operationId": "create_shipping_address_me_addresses_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShippingAddressCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShippingAddressResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Shipping Address",
+        "tags": [
+          "addresses"
+        ]
+      }
+    },
+    "/me/addresses/{address_id}": {
+      "delete": {
+        "operationId": "remove_shipping_address_me_addresses__address_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "address_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Address Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShippingAddressListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Shipping Address",
+        "tags": [
+          "addresses"
+        ]
+      },
+      "patch": {
+        "operationId": "patch_shipping_address_me_addresses__address_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "address_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Address Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ShippingAddressUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ShippingAddressResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Patch Shipping Address",
+        "tags": [
+          "addresses"
+        ]
+      }
+    },
     "/me/cart": {
       "delete": {
         "operationId": "delete_cart_item_me_cart_delete",
@@ -3836,6 +4268,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TossPrepareRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {

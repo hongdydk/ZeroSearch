@@ -6,6 +6,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import CartItem, Order, OrderItem, Product, User
+from app.schemas.address import ShippingSnapshot
 from app.schemas.order import OrderItemResponse, OrderResponse
 from app.services.credits import debit_credits
 
@@ -26,6 +27,12 @@ def _order_item_response(item: OrderItem) -> OrderItemResponse:
     )
 
 
+def _shipping_response(snapshot: dict | None) -> ShippingSnapshot | None:
+    if not snapshot:
+        return None
+    return ShippingSnapshot.model_validate(snapshot)
+
+
 def _order_response(order: Order) -> OrderResponse:
     items = [_order_item_response(item) for item in order.items]
     return OrderResponse(
@@ -33,6 +40,7 @@ def _order_response(order: Order) -> OrderResponse:
         status=order.status,  # type: ignore[arg-type]
         total_credits=order.total_credits,
         items=items,
+        shipping=_shipping_response(getattr(order, "shipping_snapshot", None)),
         created_at=order.created_at,
     )
 
@@ -109,6 +117,7 @@ def create_paid_order_from_snapshot(
     snapshot: list[dict],
     *,
     idempotency_key: str,
+    shipping_snapshot: dict | None = None,
 ) -> Order:
     existing = _find_order_by_idempotency_key(db, user.id, idempotency_key)
     if existing is not None:
@@ -119,6 +128,7 @@ def create_paid_order_from_snapshot(
         status="paid",
         total_credits=total,
         idempotency_key=idempotency_key,
+        shipping_snapshot=shipping_snapshot,
     )
     db.add(order)
     db.flush()

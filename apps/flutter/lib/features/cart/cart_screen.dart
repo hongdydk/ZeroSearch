@@ -1,5 +1,3 @@
-import 'dart:math';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -8,7 +6,6 @@ import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
-import '../../core/payment/toss_payment_bridge.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
@@ -28,11 +25,6 @@ List<List<CartItemModel>> _groupCartBySeller(List<CartItemModel> items) {
   return [for (final id in order) groups[id]!];
 }
 
-String _newIdempotencyKey() {
-  final rand = Random.secure().nextInt(1 << 32).toRadixString(16);
-  return '${DateTime.now().toUtc().microsecondsSinceEpoch}-$rand';
-}
-
 class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
 
@@ -41,15 +33,7 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
-  bool _checkingOut = false;
-  String? _checkoutKey;
-
-  void _invalidateCheckoutKey() {
-    _checkoutKey = null;
-  }
-
   Future<void> _updateQty(String productId, int qty) async {
-    _invalidateCheckoutKey();
     await runBusy('cart:$productId', () async {
       try {
         await ref.read(apiClientProvider).updateCartItem(productId, qty);
@@ -67,7 +51,6 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
   }
 
   Future<void> _remove(String productId) async {
-    _invalidateCheckoutKey();
     await runBusy('cart:$productId', () async {
       try {
         await ref.read(apiClientProvider).removeFromCart(productId);
@@ -82,55 +65,6 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
         );
       }
     });
-  }
-
-  Future<void> _checkout() async {
-    setState(() {
-      _checkingOut = true;
-      _checkoutKey ??= _newIdempotencyKey();
-    });
-    final key = _checkoutKey!;
-    try {
-      final prepared = await ref
-          .read(apiClientProvider)
-          .prepareTossPayment(idempotencyKey: key);
-      final origin = Uri.base.origin;
-      await requestTossCardPayment(
-        clientKey: prepared.clientKey,
-        customerKey: prepared.customerKey,
-        orderId: prepared.orderId,
-        orderName: prepared.orderName,
-        amount: prepared.amount,
-        successUrl: '$origin/payment/success',
-        failUrl: '$origin/payment/fail',
-      );
-    } on ApiException catch (e) {
-      // timeout/네트워크는 같은 키 재사용. 확정 4xx(타임아웃 메시지 제외)는 새 키.
-      final retryable = e.message.contains('시간') || e.message.contains('연결');
-      if (!retryable) {
-        _invalidateCheckoutKey();
-      }
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(e.message),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    } catch (e) {
-      if (!mounted) return;
-      final message = e is StateError
-          ? e.message
-          : '결제창을 열지 못했습니다. 다시 시도해 주세요.';
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(message),
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    } finally {
-      if (mounted) setState(() => _checkingOut = false);
-    }
   }
 
   @override
@@ -170,11 +104,7 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
             );
           }
 
-          final canCheckout =
-              tossPaymentSupported &&
-              !cart.checkoutBlocked &&
-              !_checkingOut &&
-              !isBusy();
+          final canCheckout = !cart.checkoutBlocked && !isBusy();
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -194,8 +124,7 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
                     ),
                   ),
                   ...group.map((item) {
-                    final rowBusy =
-                        isBusy('cart:${item.productId}') || _checkingOut;
+                    final rowBusy = isBusy('cart:${item.productId}');
                     final muted = !item.isAvailable;
                     final canIncrease = !muted && item.qty < item.maxQty;
                     return Opacity(
@@ -274,14 +203,11 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
                 ),
               ],
               const SizedBox(height: 16),
-              if (!tossPaymentSupported)
-                const Padding(
-                  padding: EdgeInsets.only(bottom: 8),
-                  child: Text('토스 결제는 현재 웹에서만 지원합니다.'),
-                ),
               FilledButton(
-                onPressed: canCheckout ? _checkout : null,
-                child: Text(_checkingOut ? '결제 준비 중…' : '토스로 결제하기'),
+                onPressed: canCheckout
+                    ? () => context.push('/checkout')
+                    : null,
+                child: const Text('주문하기'),
               ),
             ],
           );

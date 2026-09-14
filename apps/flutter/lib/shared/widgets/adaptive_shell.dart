@@ -62,7 +62,9 @@ class MallShell extends ConsumerWidget {
 
   int _indexForLocation(String location) {
     if (location == '/' || location.startsWith('/products/')) return 0;
-    if (location.startsWith('/cart')) return 1;
+    if (location.startsWith('/cart') || location.startsWith('/checkout')) {
+      return 1;
+    }
     if (location.startsWith('/orders')) return 2;
     if (location.startsWith('/membership')) return 3;
     if (location.startsWith('/settings')) return 4;

@@ -47,6 +47,15 @@ void handleAppBackNavigation(BuildContext context) {
     return;
   }
 
+  if (location == '/checkout') {
+    router.go('/cart');
+    return;
+  }
+  if (location.startsWith('/settings/addresses')) {
+    router.go('/settings');
+    return;
+  }
+
   if (location.startsWith('/seller/')) {
     router.go('/seller');
     return;

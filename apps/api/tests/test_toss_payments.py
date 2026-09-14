@@ -10,6 +10,15 @@ from app.schemas.payment import TossPaymentStatusResponse, TossPrepareResponse
 from app.services import toss_payments
 from tests.factories import make_user, override_current_user, override_db
 
+_ADDRESS_ID = uuid.uuid4()
+_SHIPPING = {
+    "recipientName": "홍길동",
+    "phone": "01012345678",
+    "zonecode": "12345",
+    "address": "서울 강남구 테헤란로 1",
+    "detailAddress": "101호",
+}
+
 
 def test_prepare_returns_server_payment_quote(client):
     user = make_user()
@@ -26,11 +35,24 @@ def test_prepare_returns_server_payment_quote(client):
         response = client.post(
             "/payments/toss/prepare",
             headers={"Authorization": "Bearer fake", "Idempotency-Key": "prepare-1"},
+            json={"addressId": str(_ADDRESS_ID)},
         )
 
     assert response.status_code == 200
     assert response.json()["amount"] == 12900
     assert response.json()["clientKey"] == "test_ck_public"
+
+
+def test_prepare_requires_address_id(client):
+    user = make_user()
+    override_current_user(user)
+    override_db(MagicMock())
+    response = client.post(
+        "/payments/toss/prepare",
+        headers={"Authorization": "Bearer fake", "Idempotency-Key": "prepare-1"},
+        json={},
+    )
+    assert response.status_code == 422
 
 
 def test_confirm_returns_paid_order(client):
@@ -159,7 +181,13 @@ def test_prepare_unavailable_without_keys():
     user = make_user()
     settings = MagicMock(toss_client_key=None, toss_secret_key=None)
     with pytest.raises(HTTPException) as exc:
-        toss_payments.prepare_payment(MagicMock(), user, settings, idempotency_key=None)
+        toss_payments.prepare_payment(
+            MagicMock(),
+            user,
+            settings,
+            idempotency_key=None,
+            address_id=_ADDRESS_ID,
+        )
     assert exc.value.status_code == 503
     assert "설정되지 않았습니다" in exc.value.detail
 
@@ -180,12 +208,19 @@ def test_prepare_quotes_server_cart_total():
     db.scalar.return_value = None
     db.scalars.return_value.all.return_value = [item]
 
-    result = toss_payments.prepare_payment(db, user, settings, idempotency_key="prep-1")
+    with (
+        patch.object(toss_payments, "get_owned_address"),
+        patch.object(toss_payments, "snapshot_from_address", return_value=_SHIPPING),
+    ):
+        result = toss_payments.prepare_payment(
+            db, user, settings, idempotency_key="prep-1", address_id=_ADDRESS_ID
+        )
 
     assert result.amount == 25800
     added = db.add.call_args[0][0]
     assert added.amount == 25800
     assert added.cart_snapshot[0]["unitPrice"] == 12900
+    assert added.shipping_snapshot == _SHIPPING
 
 
 def test_prepare_reuses_idempotent_intent():
@@ -195,13 +230,40 @@ def test_prepare_reuses_idempotent_intent():
     existing.provider_order_id = "zs_existing"
     existing.amount = 12900
     existing.order_name = "농심 백산수"
+    existing.shipping_snapshot = _SHIPPING
     db = MagicMock()
     db.scalar.return_value = existing
 
-    result = toss_payments.prepare_payment(db, user, settings, idempotency_key="prep-1")
+    with (
+        patch.object(toss_payments, "get_owned_address"),
+        patch.object(toss_payments, "snapshot_from_address", return_value=_SHIPPING),
+    ):
+        result = toss_payments.prepare_payment(
+            db, user, settings, idempotency_key="prep-1", address_id=_ADDRESS_ID
+        )
 
     assert result.order_id == "zs_existing"
     db.add.assert_not_called()
+
+
+def test_prepare_rejects_idempotent_address_change():
+    user = make_user()
+    settings = MagicMock(toss_client_key="ck", toss_secret_key="sk")
+    existing = MagicMock()
+    existing.shipping_snapshot = {**_SHIPPING, "detailAddress": "202호"}
+    db = MagicMock()
+    db.scalar.return_value = existing
+
+    with (
+        patch.object(toss_payments, "get_owned_address"),
+        patch.object(toss_payments, "snapshot_from_address", return_value=_SHIPPING),
+        pytest.raises(HTTPException) as exc,
+    ):
+        toss_payments.prepare_payment(
+            db, user, settings, idempotency_key="prep-1", address_id=_ADDRESS_ID
+        )
+
+    assert exc.value.status_code == 409
 
 
 def test_confirm_paid_intent_is_idempotent():
@@ -354,6 +416,7 @@ def test_confirm_success_marks_paid_and_creates_order():
     intent.amount = 12900
     intent.payment_key = None
     intent.cart_snapshot = [{"productId": str(uuid.uuid4()), "qty": 1}]
+    intent.shipping_snapshot = _SHIPPING
     order = MagicMock()
     order.id = uuid.uuid4()
     response = OrderResponse(
@@ -373,7 +436,7 @@ def test_confirm_success_marks_paid_and_creates_order():
     with (
         patch.object(toss_payments, "_locked_intent", return_value=intent),
         patch.object(toss_payments, "reserve_snapshot_stock") as reserve,
-        patch.object(toss_payments, "create_paid_order_from_snapshot", return_value=order),
+        patch.object(toss_payments, "create_paid_order_from_snapshot", return_value=order) as create,
         patch.object(toss_payments, "_order_response", return_value=response),
     ):
         result = toss_payments.confirm_payment(
@@ -386,6 +449,7 @@ def test_confirm_success_marks_paid_and_creates_order():
         )
 
     reserve.assert_called_once()
+    assert create.call_args.kwargs["shipping_snapshot"] == _SHIPPING
     assert intent.status == "paid"
     assert intent.order_id == order.id
     assert result.status == "paid"

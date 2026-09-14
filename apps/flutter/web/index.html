@@ -34,6 +34,7 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script src="https://t1.daumcdn.net/mapjsapi/bundle/postcode/prod/postcode.v2.js"></script>
   <script src="https://js.tosspayments.com/v2/standard"></script>
   <script>
     // Flutter web covers the viewport; iframe overlays sit behind it.
@@ -74,6 +75,27 @@
             : String(e);
         throw new Error(message || "결제창을 열지 못했습니다.");
       }
+    };
+    window.requestDaumPostcode = function () {
+      return new Promise(function (resolve, reject) {
+        if (typeof daum === "undefined" || !daum.Postcode) {
+          reject(new Error("주소 검색을 불러오지 못했습니다."));
+          return;
+        }
+        var done = false;
+        new daum.Postcode({
+          oncomplete: function (data) {
+            done = true;
+            resolve({
+              zonecode: String(data.zonecode || ""),
+              address: String(data.roadAddress || data.jibunAddress || data.address || ""),
+            });
+          },
+          onclose: function () {
+            if (!done) reject(new Error("주소 검색이 취소되었습니다."));
+          },
+        }).open();
+      });
     };
   </script>
   <!--

@@ -252,6 +252,11 @@ final ordersProvider = FutureProvider.autoDispose<List<OrderModel>>((ref) async 
   return ref.watch(apiClientProvider).orders();
 });
 
+final addressesProvider =
+    FutureProvider.autoDispose<List<ShippingAddressModel>>((ref) async {
+  return ref.watch(apiClientProvider).addresses();
+});
+
 final membershipPlansProvider = FutureProvider.autoDispose<List<MembershipPlanModel>>((ref) async {
   return ref.watch(apiClientProvider).membershipPlans();
 });

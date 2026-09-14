@@ -1,3 +1,4 @@
+from app.models.address import ShippingAddress
 from app.models.cart import CartItem
 from app.models.catalog_product import CatalogProduct, CatalogProductAlias
 from app.models.credit import CreditTransaction, CreditWallet
@@ -10,6 +11,7 @@ from app.models.user import User
 
 __all__ = [
     "User",
+    "ShippingAddress",
     "Seller",
     "CatalogProduct",
     "CatalogProductAlias",

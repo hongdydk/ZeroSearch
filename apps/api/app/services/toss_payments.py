@@ -2,6 +2,7 @@ import base64
 import uuid
 from datetime import UTC, datetime
 from typing import Any
+from uuid import UUID
 
 import httpx
 from fastapi import HTTPException, status
@@ -12,6 +13,7 @@ from app.config import Settings
 from app.models import CartItem, Order, OrderItem, PaymentIntent, Product, User
 from app.schemas.order import OrderResponse
 from app.schemas.payment import TossPaymentStatusResponse, TossPrepareResponse
+from app.services.addresses import get_owned_address, snapshot_from_address
 from app.services.orders import (
     _order_response,
     create_paid_order_from_snapshot,
@@ -97,6 +99,7 @@ def prepare_payment(
     settings: Settings,
     *,
     idempotency_key: str | None,
+    address_id: UUID,
 ) -> TossPrepareResponse:
     if not settings.toss_client_key or not settings.toss_secret_key:
         raise HTTPException(
@@ -106,6 +109,7 @@ def prepare_payment(
     key = idempotency_key.strip() if idempotency_key else None
     if key and len(key) > 64:
         raise HTTPException(status_code=400, detail="Idempotency-Key는 64자 이하여야 합니다.")
+    shipping = snapshot_from_address(get_owned_address(db, user, address_id))
     if key:
         existing = db.scalar(
             select(PaymentIntent).where(
@@ -114,6 +118,11 @@ def prepare_payment(
             )
         )
         if existing:
+            if existing.shipping_snapshot != shipping:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail="같은 결제 요청에 다른 배송지를 쓸 수 없습니다.",
+                )
             return _prepare_response(existing, user, settings.toss_client_key)
 
     cart_items = list(
@@ -157,6 +166,7 @@ def prepare_payment(
         amount=amount,
         order_name=order_name[:100],
         cart_snapshot=snapshot,
+        shipping_snapshot=shipping,
         status="ready",
     )
     db.add(intent)
@@ -210,6 +220,7 @@ def confirm_payment(
             user,
             intent.cart_snapshot,
             idempotency_key=provider_order_id,
+            shipping_snapshot=intent.shipping_snapshot,
         )
         intent.order_id = order.id
         intent.status = "paid"
@@ -257,7 +268,11 @@ def reconcile_webhook(
             if user is None:
                 raise HTTPException(status_code=404, detail="사용자를 찾을 수 없습니다.")
             order = create_paid_order_from_snapshot(
-                db, user, intent.cart_snapshot, idempotency_key=provider_order_id
+                db,
+                user,
+                intent.cart_snapshot,
+                idempotency_key=provider_order_id,
+                shipping_snapshot=intent.shipping_snapshot,
             )
             intent.order_id = order.id
             intent.status = "paid"

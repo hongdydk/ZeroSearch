@@ -218,23 +218,62 @@ class OrderItemModel {
   bool get isOfficialShipping => sellerType == 'platform';
 }
 
+class ShippingAddressModel {
+  ShippingAddressModel({
+    required this.id,
+    required this.recipientName,
+    required this.phone,
+    required this.zonecode,
+    required this.address,
+    required this.detailAddress,
+    this.isDefault = false,
+  });
+
+  factory ShippingAddressModel.fromJson(Map<String, dynamic> json) {
+    return ShippingAddressModel(
+      id: json['id'] as String? ?? '',
+      recipientName: json['recipientName'] as String? ?? '',
+      phone: json['phone'] as String? ?? '',
+      zonecode: json['zonecode'] as String? ?? '',
+      address: json['address'] as String? ?? '',
+      detailAddress: json['detailAddress'] as String? ?? '',
+      isDefault: json['isDefault'] as bool? ?? false,
+    );
+  }
+
+  final String id;
+  final String recipientName;
+  final String phone;
+  final String zonecode;
+  final String address;
+  final String detailAddress;
+  final bool isDefault;
+
+  String get line => '($zonecode) $address $detailAddress';
+}
+
 class OrderModel {
   OrderModel({
     required this.id,
     required this.status,
     required this.totalCredits,
     required this.items,
+    this.shipping,
     this.createdAt,
   });
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'] as List<dynamic>? ?? [];
+    final rawShipping = json['shipping'];
     return OrderModel(
       id: json['id'] as String,
       status: json['status'] as String? ?? 'paid',
       totalCredits: json['totalCredits'] as int? ?? 0,
       createdAt: json['createdAt'] != null
           ? DateTime.tryParse(json['createdAt'].toString())
+          : null,
+      shipping: rawShipping is Map
+          ? ShippingAddressModel.fromJson(Map<String, dynamic>.from(rawShipping))
           : null,
       items: rawItems.whereType<Map>().map((e) {
         final m = Map<String, dynamic>.from(e);
@@ -256,6 +295,7 @@ class OrderModel {
   final String status;
   final int totalCredits;
   final List<OrderItemModel> items;
+  final ShippingAddressModel? shipping;
   final DateTime? createdAt;
 }
 
