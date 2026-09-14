@@ -41,13 +41,21 @@ def _seller_order_item_response(item: OrderItem) -> SellerOrderItemResponse:
 def list_seller_order_items(
     db: Session, seller: Seller, *, offset: int = 0, limit: int = 50
 ) -> tuple[list[OrderItem], int]:
-    base = select(OrderItem).where(OrderItem.seller_id == seller.id)
-    total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    filters = (OrderItem.seller_id == seller.id, Order.status == "paid")
+    total = (
+        db.scalar(
+            select(func.count())
+            .select_from(OrderItem)
+            .join(Order, OrderItem.order_id == Order.id)
+            .where(*filters)
+        )
+        or 0
+    )
     items = db.scalars(
         select(OrderItem)
-        .where(OrderItem.seller_id == seller.id)
-        .options(joinedload(OrderItem.order))
         .join(Order, OrderItem.order_id == Order.id)
+        .where(*filters)
+        .options(joinedload(OrderItem.order))
         .order_by(Order.created_at.desc())
         .offset(offset)
         .limit(limit)

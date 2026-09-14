@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     jwt_secret: str = "dev-secret-change-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expire_minutes: int = 60 * 24 * 7
+    toss_client_key: str | None = None
+    toss_secret_key: str | None = None
+    toss_api_timeout: float = 10.0
     admin_email: str | None = None
     admin_password: str | None = None
     allow_db_reset: bool = False

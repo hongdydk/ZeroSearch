@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 from app.models import CartItem, Product, Seller
 from app.schemas.cart import CartItemResponse, CartResponse
-from app.schemas.order import OrderItemResponse, OrderResponse
+from app.schemas.order import OrderResponse
 from app.services.cart import _cart_item_response
 from tests.factories import make_user, override_current_user, override_db
 
@@ -163,84 +163,15 @@ def test_get_cart_sets_checkout_blocked(client):
     assert body["items"][0]["issueCode"] == "out_of_stock"
 
 
-def test_checkout_creates_paid_order(client):
-    user = make_user()
-    override_current_user(user)
-    mock_db = MagicMock()
-    override_db(mock_db)
-
-    order_id = str(uuid.uuid4())
-    order = OrderResponse(
-        id=order_id,
-        status="paid",
-        total_credits=24,
-        items=[
-            OrderItemResponse(
-                id=str(uuid.uuid4()),
-                product_id=str(uuid.uuid4()),
-                product_title="텀블러",
-                seller_id=str(uuid.uuid4()),
-                shop_name="공식 스토어",
-                seller_type="platform",
-                qty=2,
-                unit_price_credits=12,
-                line_total_credits=24,
-                fulfillment_status="paid",
-            )
-        ],
-        created_at=datetime.now(UTC),
-    )
-
-    with patch("app.routers.orders.checkout", return_value=(order, True)):
-        response = client.post("/me/orders", headers={"Authorization": "Bearer fake"})
-
-    assert response.status_code == 201
-    body = response.json()["order"]
-    assert body["status"] == "paid"
-    assert body["totalCredits"] == 24
-
-
-def test_checkout_response_shape(client):
+def test_legacy_credit_checkout_is_disabled(client):
     user = make_user()
     override_current_user(user)
     override_db(MagicMock())
 
-    order = OrderResponse(
-        id=str(uuid.uuid4()),
-        status="paid",
-        total_credits=45,
-        items=[],
-        created_at=datetime.now(UTC),
-    )
+    response = client.post("/me/orders", headers={"Authorization": "Bearer fake"})
 
-    with patch("app.routers.orders.checkout", return_value=(order, True)):
-        response = client.post("/me/orders", headers={"Authorization": "Bearer fake"})
-
-    assert response.status_code == 201
-    assert "order" in response.json()
-
-
-def test_checkout_idempotent_replay_returns_200(client):
-    user = make_user()
-    override_current_user(user)
-    override_db(MagicMock())
-
-    order = OrderResponse(
-        id=str(uuid.uuid4()),
-        status="paid",
-        total_credits=45,
-        items=[],
-        created_at=datetime.now(UTC),
-    )
-
-    with patch("app.routers.orders.checkout", return_value=(order, False)):
-        response = client.post(
-            "/me/orders",
-            headers={"Authorization": "Bearer fake", "Idempotency-Key": "same-key-1"},
-        )
-
-    assert response.status_code == 200
-    assert response.json()["order"]["id"] == order.id
+    assert response.status_code == 410
+    assert "토스 결제" in response.json()["detail"]
 
 
 def test_list_orders(client):

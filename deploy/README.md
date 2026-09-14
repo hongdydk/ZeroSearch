@@ -29,7 +29,8 @@ cd /opt/shopping-mall
 git clone <ShoppingMall-repo-url> .
 
 cp .env.prod.example .env.prod
-# POSTGRES_PASSWORD, JWT_SECRET, ADMIN_PASSWORD, CORS_ORIGINS 등 채우기
+# POSTGRES_PASSWORD, JWT_SECRET, ADMIN_PASSWORD, CORS_ORIGINS,
+# TOSS_CLIENT_KEY, TOSS_SECRET_KEY 등 채우기
 # CORS_ORIGINS=https://mall.anoveli.com
 
 docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
@@ -46,6 +47,24 @@ docker compose -f docker-compose.prod.yml --env-file .env.prod up -d --build
 ```
 
 이미 배포된 서버: `.env.prod`의 `CORS_ORIGINS`를 `https://mall.anoveli.com`으로 바꾼 뒤 API 재시작.
+
+### 1.1 토스 카드 테스트 결제
+
+토스 개발자센터의 같은 테스트 키 세트에서 클라이언트 키와 시크릿 키를 복사해 EC2의 `.env.prod`에만 넣는다.
+
+```dotenv
+TOSS_CLIENT_KEY=test_gck_...
+TOSS_SECRET_KEY=test_gsk_...
+TOSS_API_TIMEOUT=10
+```
+
+시크릿 키는 Flutter 빌드·GitHub 변수·로그에 넣지 않는다. 토스 개발자센터 웹훅에는 아래 URL과 `PAYMENT_STATUS_CHANGED` 이벤트를 등록한다.
+
+```text
+https://mall.anoveli.com/api/payments/toss/webhook
+```
+
+CloudFront `/api*` behavior가 POST 요청을 `mall-api` origin으로 전달해야 한다. 테스트 결제 성공·실패 후 주문, 재고, 장바구니가 함께 맞는지 확인한 뒤에만 라이브 키 전환을 별도 진행한다.
 
 ---
 

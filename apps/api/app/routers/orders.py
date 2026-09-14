@@ -1,14 +1,14 @@
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, Header, Query, Response, status
+from fastapi import APIRouter, Depends, Header, HTTPException, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.deps import get_current_user
 from app.models import User
 from app.schemas.order import CheckoutResponse, OrderListResponse, OrderResponse
-from app.services.orders import checkout, get_order, list_orders, _order_response
+from app.services.orders import get_order, list_orders, _order_response
 
 router = APIRouter(prefix="/me/orders", tags=["orders"])
 
@@ -20,10 +20,11 @@ def create_order(
     current_user: Annotated[User, Depends(get_current_user)],
     idempotency_key: Annotated[str | None, Header(alias="Idempotency-Key")] = None,
 ) -> CheckoutResponse:
-    order, created = checkout(db, current_user, idempotency_key=idempotency_key)
-    db.commit()
-    response.status_code = status.HTTP_201_CREATED if created else status.HTTP_200_OK
-    return CheckoutResponse(order=order)
+    del response, db, current_user, idempotency_key
+    raise HTTPException(
+        status_code=status.HTTP_410_GONE,
+        detail="토스 결제 준비 API를 이용해 주세요.",
+    )
 
 
 @router.get("", response_model=OrderListResponse)

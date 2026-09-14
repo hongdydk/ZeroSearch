@@ -14,6 +14,7 @@ import '../../features/cart/cart_screen.dart';
 import '../../features/catalog/catalog_screen.dart';
 import '../../features/membership/membership_screen.dart';
 import '../../features/orders/orders_screen.dart';
+import '../../features/payment/payment_result_screen.dart';
 import '../../features/product_detail/catalog_detail_screen.dart';
 import '../../features/product_detail/product_detail_screen.dart';
 import '../../features/seller/seller_orders_screen.dart';
@@ -82,6 +83,26 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: '/orders',
             builder: (_, _) => const BuyerAuthGate(child: OrdersScreen()),
+          ),
+          GoRoute(
+            path: '/payment/success',
+            builder: (_, state) => BuyerAuthGate(
+              child: PaymentSuccessScreen(
+                paymentKey: state.uri.queryParameters['paymentKey'],
+                orderId: state.uri.queryParameters['orderId'],
+                amount: state.uri.queryParameters['amount'],
+              ),
+            ),
+          ),
+          GoRoute(
+            path: '/payment/fail',
+            builder: (_, state) => BuyerAuthGate(
+              child: PaymentFailScreen(
+                code: state.uri.queryParameters['code'],
+                message: state.uri.queryParameters['message'],
+                orderId: state.uri.queryParameters['orderId'],
+              ),
+            ),
           ),
           GoRoute(
             path: '/membership',

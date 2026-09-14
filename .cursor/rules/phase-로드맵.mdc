@@ -16,7 +16,7 @@ alwaysApply: true
 스펙은 `docs/phaseN-spec.md` SSOT.
 
 - 1 완료 · `phase1-spec`
-- 2 활성 · `phase2-spec` (+ `ux-issues` · `follow-ups` A–C 병행, 3/3.5/4와 섞지 않음)
+- 2 유지 · `phase2-spec` (+ `ux-issues` · `follow-ups` A–C 병행, 3/3.5와 섞지 않음)
 - 3 추후 · `phase3-spec`
 - 3.5 후보 · `phase4-spec` 「선행/병행」
-- 4 추후 · `phase4-spec`
+- 4 활성 · `phase4-spec` (+ Flutter 웹 토스 카드 테스트 결제)

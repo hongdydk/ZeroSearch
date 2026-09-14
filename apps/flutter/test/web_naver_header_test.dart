@@ -14,11 +14,8 @@ class _HeaderTestApiClient extends ApiClient {
   _HeaderTestApiClient() : super(tokenReader: () async => null);
 
   @override
-  Future<UserModel> me() async => UserModel(
-        id: 'user-1',
-        email: 'test@example.com',
-        displayName: 'Tester',
-      );
+  Future<UserModel> me() async =>
+      UserModel(id: 'user-1', email: 'test@example.com', displayName: 'Tester');
 
   @override
   Future<CatalogProductPageModel> catalogProducts({
@@ -31,32 +28,31 @@ class _HeaderTestApiClient extends ApiClient {
     int? volumeMlMax,
     int offset = 0,
     int limit = 50,
-  }) async =>
-      CatalogProductPageModel(
-        items: [
-          CatalogProductModel(
-            id: 'cat-1',
-            title: '백산수',
-            manufacturer: '농심',
-            category: '일반생수',
-            offerCount: 3,
-            priceUnit: 'ml',
-            displayPriceLabel: 'L당 420',
-            medianUnitPrice: 0.42,
-          ),
-          CatalogProductModel(
-            id: 'cat-2',
-            title: '신라면',
-            manufacturer: '농심',
-            category: '국물봉지라면',
-            offerCount: 2,
-            priceUnit: 'credits',
-            displayPriceLabel: '890',
-            medianPriceCredits: 890,
-          ),
-        ],
-        total: 2,
-      );
+  }) async => CatalogProductPageModel(
+    items: [
+      CatalogProductModel(
+        id: 'cat-1',
+        title: '백산수',
+        manufacturer: '농심',
+        category: '일반생수',
+        offerCount: 3,
+        priceUnit: 'ml',
+        displayPriceLabel: 'L당 420',
+        medianUnitPrice: 0.42,
+      ),
+      CatalogProductModel(
+        id: 'cat-2',
+        title: '신라면',
+        manufacturer: '농심',
+        category: '국물봉지라면',
+        offerCount: 2,
+        priceUnit: 'credits',
+        displayPriceLabel: '890',
+        medianPriceCredits: 890,
+      ),
+    ],
+    total: 2,
+  );
 }
 
 class _LoggedInTokenStorage extends TokenStorage {
@@ -133,7 +129,9 @@ void main() {
     debugForceWebUi = false;
   });
 
-  testWidgets('WebNaverHeader shows brand and cart without MY dropdown', (tester) async {
+  testWidgets('WebNaverHeader shows brand and cart without MY dropdown', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 800));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
@@ -147,26 +145,34 @@ void main() {
     expect(find.byIcon(Icons.arrow_drop_down), findsNothing);
   });
 
-  testWidgets('Services menu has orders, membership, settings, logout when logged in',
-      (tester) async {
-    await tester.binding.setSurfaceSize(const Size(1280, 800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
+  testWidgets(
+    'Services menu has orders, membership, settings, logout when logged in',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(1280, 800));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    await tester.pumpWidget(_headerHarness(loggedIn: true));
-    await tester.pump();
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(_headerHarness(loggedIn: true));
+      await tester.pump();
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.text('≡'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.text('≡'));
+      await tester.pumpAndSettle();
 
-    expect(find.widgetWithText(PopupMenuItem<String>, '홈'), findsNothing);
-    expect(find.widgetWithText(PopupMenuItem<String>, '주문'), findsOneWidget);
-    expect(find.widgetWithText(PopupMenuItem<String>, '멤버십'), findsOneWidget);
-    expect(find.widgetWithText(PopupMenuItem<String>, '설정'), findsOneWidget);
-    expect(find.widgetWithText(PopupMenuItem<String>, '판매자 센터'), findsOneWidget);
-    expect(find.widgetWithText(PopupMenuItem<String>, '관리자'), findsOneWidget);
-    expect(find.widgetWithText(PopupMenuItem<String>, '로그아웃'), findsOneWidget);
-  });
+      expect(find.widgetWithText(PopupMenuItem<String>, '홈'), findsNothing);
+      expect(find.widgetWithText(PopupMenuItem<String>, '주문'), findsOneWidget);
+      expect(find.widgetWithText(PopupMenuItem<String>, '멤버십'), findsOneWidget);
+      expect(find.widgetWithText(PopupMenuItem<String>, '설정'), findsOneWidget);
+      expect(
+        find.widgetWithText(PopupMenuItem<String>, '판매자 센터'),
+        findsOneWidget,
+      );
+      expect(find.widgetWithText(PopupMenuItem<String>, '관리자'), findsOneWidget);
+      expect(
+        find.widgetWithText(PopupMenuItem<String>, '로그아웃'),
+        findsOneWidget,
+      );
+    },
+  );
 
   testWidgets('compact web shows search on home catalog', (tester) async {
     debugForceWebUi = true;

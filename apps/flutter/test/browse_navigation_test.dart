@@ -13,11 +13,8 @@ class _Api extends ApiClient {
   _Api() : super(tokenReader: () async => null);
 
   @override
-  Future<UserModel> me() async => UserModel(
-        id: 'u1',
-        email: 't@example.com',
-        displayName: 'T',
-      );
+  Future<UserModel> me() async =>
+      UserModel(id: 'u1', email: 't@example.com', displayName: 'T');
 
   @override
   Future<CatalogProductPageModel> catalogProducts({
@@ -30,8 +27,7 @@ class _Api extends ApiClient {
     int? volumeMlMax,
     int offset = 0,
     int limit = 50,
-  }) async =>
-      CatalogProductPageModel(items: const [], total: 0);
+  }) async => CatalogProductPageModel(items: const [], total: 0);
 }
 
 class _Tokens extends TokenStorage {

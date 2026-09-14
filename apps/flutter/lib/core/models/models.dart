@@ -12,11 +12,11 @@ class UserModel {
   final bool isAdmin;
 
   factory UserModel.fromJson(Map<String, dynamic> json) => UserModel(
-        id: json['id'] as String,
-        email: json['email'] as String,
-        displayName: json['displayName'] as String?,
-        isAdmin: json['isAdmin'] as bool? ?? false,
-      );
+    id: json['id'] as String,
+    email: json['email'] as String,
+    displayName: json['displayName'] as String?,
+    isAdmin: json['isAdmin'] as bool? ?? false,
+  );
 }
 
 class ProductModel {
@@ -186,10 +186,7 @@ class CartModel {
 }
 
 class CatalogProductPageModel {
-  CatalogProductPageModel({
-    required this.items,
-    required this.total,
-  });
+  CatalogProductPageModel({required this.items, required this.total});
 
   final List<CatalogProductModel> items;
   final int total;
@@ -260,6 +257,36 @@ class OrderModel {
   final int totalCredits;
   final List<OrderItemModel> items;
   final DateTime? createdAt;
+}
+
+class TossPrepareModel {
+  TossPrepareModel({
+    required this.orderId,
+    required this.amount,
+    required this.orderName,
+    required this.clientKey,
+    required this.customerKey,
+  });
+
+  final String orderId;
+  final int amount;
+  final String orderName;
+  final String clientKey;
+  final String customerKey;
+}
+
+class TossPaymentStatusModel {
+  TossPaymentStatusModel({
+    required this.orderId,
+    required this.status,
+    this.localOrderId,
+    this.failureMessage,
+  });
+
+  final String orderId;
+  final String status;
+  final String? localOrderId;
+  final String? failureMessage;
 }
 
 class MembershipPlanModel {
@@ -345,9 +372,7 @@ class CatalogProductModel {
   String get cardTitle {
     final maker = manufacturer.trim();
     final product = title.trim();
-    if (maker.isEmpty ||
-        product == maker ||
-        product.startsWith('$maker ')) {
+    if (maker.isEmpty || product == maker || product.startsWith('$maker ')) {
       return product;
     }
     return '$maker $product';

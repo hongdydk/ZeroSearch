@@ -8,6 +8,7 @@ import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
+import '../../core/payment/toss_payment_bridge.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
@@ -56,7 +57,10 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     });
@@ -71,7 +75,10 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
+          SnackBar(
+            content: Text(e.message),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
         );
       }
     });
@@ -84,15 +91,19 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
     });
     final key = _checkoutKey!;
     try {
-      await ref.read(apiClientProvider).checkout(idempotencyKey: key);
-      _checkoutKey = null;
-      ref.invalidate(cartProvider);
-      ref.invalidate(ordersProvider);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('주문이 완료되었습니다.')),
+      final prepared = await ref
+          .read(apiClientProvider)
+          .prepareTossPayment(idempotencyKey: key);
+      final origin = Uri.base.origin;
+      await requestTossCardPayment(
+        clientKey: prepared.clientKey,
+        customerKey: prepared.customerKey,
+        orderId: prepared.orderId,
+        orderName: prepared.orderName,
+        amount: prepared.amount,
+        successUrl: '$origin/payment/success',
+        failUrl: '$origin/payment/fail',
       );
-      context.go('/orders');
     } on ApiException catch (e) {
       // timeout/네트워크는 같은 키 재사용. 확정 4xx(타임아웃 메시지 제외)는 새 키.
       final retryable = e.message.contains('시간') || e.message.contains('연결');
@@ -101,7 +112,15 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
       }
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
+        SnackBar(
+          content: Text(e.message),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('결제창을 열지 못했습니다. 다시 시도해 주세요.')),
       );
     } finally {
       if (mounted) setState(() => _checkingOut = false);
@@ -145,7 +164,11 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
             );
           }
 
-          final canCheckout = !cart.checkoutBlocked && !_checkingOut && !isBusy();
+          final canCheckout =
+              tossPaymentSupported &&
+              !cart.checkoutBlocked &&
+              !_checkingOut &&
+              !isBusy();
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -160,12 +183,13 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
                     child: Text(
                       '${header.shopName} · ${shippingOwnerLabel(header.sellerType)}',
                       style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w700,
-                          ),
+                        fontWeight: FontWeight.w700,
+                      ),
                     ),
                   ),
                   ...group.map((item) {
-                    final rowBusy = isBusy('cart:${item.productId}') || _checkingOut;
+                    final rowBusy =
+                        isBusy('cart:${item.productId}') || _checkingOut;
                     final muted = !item.isAvailable;
                     final canIncrease = !muted && item.qty < item.maxQty;
                     return Opacity(
@@ -195,18 +219,28 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
                                 icon: const Icon(Icons.remove),
                                 onPressed: rowBusy || item.qty <= 1
                                     ? null
-                                    : () => _updateQty(item.productId, item.qty - 1),
+                                    : () => _updateQty(
+                                        item.productId,
+                                        item.qty - 1,
+                                      ),
                               ),
                               Text('${item.qty}'),
                               IconButton(
                                 icon: const Icon(Icons.add),
                                 onPressed: rowBusy || !canIncrease
                                     ? null
-                                    : () => _updateQty(item.productId, item.qty + 1),
+                                    : () => _updateQty(
+                                        item.productId,
+                                        item.qty + 1,
+                                      ),
                               ),
                               IconButton(
-                                icon: rowBusy ? busyProgress() : const Icon(Icons.delete_outline),
-                                onPressed: rowBusy ? null : () => _remove(item.productId),
+                                icon: rowBusy
+                                    ? busyProgress()
+                                    : const Icon(Icons.delete_outline),
+                                onPressed: rowBusy
+                                    ? null
+                                    : () => _remove(item.productId),
                               ),
                             ],
                           ),
@@ -219,19 +253,29 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
               const SizedBox(height: 16),
               Text(
                 '합계: ${formatWon(cart.totalCredits)}',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(
+                  context,
+                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
               ),
               if (cart.checkoutBlocked) ...[
                 const SizedBox(height: 8),
                 Text(
                   '구매할 수 없는 상품이 있어 주문할 수 없습니다. 수량 조정 또는 삭제가 필요합니다.',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error, fontSize: 13),
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.error,
+                    fontSize: 13,
+                  ),
                 ),
               ],
               const SizedBox(height: 16),
+              if (!tossPaymentSupported)
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 8),
+                  child: Text('토스 결제는 현재 웹에서만 지원합니다.'),
+                ),
               FilledButton(
                 onPressed: canCheckout ? _checkout : null,
-                child: Text(_checkingOut ? '결제 중…' : '주문하기'),
+                child: Text(_checkingOut ? '결제 준비 중…' : '토스로 결제하기'),
               ),
             ],
           );

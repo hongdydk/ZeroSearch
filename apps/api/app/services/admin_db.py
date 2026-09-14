@@ -11,6 +11,7 @@ from app.models import (
     MembershipPlan,
     Order,
     OrderItem,
+    PaymentIntent,
     Product,
     Seller,
     Subscription,
@@ -25,6 +26,7 @@ RESET_CONFIRM = "RESET"
 
 
 def truncate_data(db: Session, *, keep_users: bool) -> None:
+    db.execute(delete(PaymentIntent))
     db.execute(delete(OrderItem))
     db.execute(delete(Order))
     db.execute(delete(CartItem))

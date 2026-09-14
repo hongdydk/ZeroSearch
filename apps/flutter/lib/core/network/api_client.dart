@@ -23,7 +23,7 @@ void _normalizeDioRequest(RequestOptions options) {
 
 class ApiClient {
   ApiClient({TokenReader? tokenReader})
-      : _tokenReader = tokenReader ?? TokenStorage().read {
+    : _tokenReader = tokenReader ?? TokenStorage().read {
     _dio = Dio(
       BaseOptions(
         baseUrl: '${ApiConfig.baseUrl}/',
@@ -50,10 +50,7 @@ class ApiClient {
         },
       ),
     );
-    _generated = gen.ShoppingMallApi(
-      dio: _dio,
-      interceptors: [],
-    );
+    _generated = gen.ShoppingMallApi(dio: _dio, interceptors: []);
   }
 
   late final Dio _dio;
@@ -82,9 +79,7 @@ class ApiClient {
     }
     if (e.type == DioExceptionType.connectionError ||
         e.type == DioExceptionType.unknown) {
-      return ApiException(
-        '연결이 끊겼습니다. 서버가 꺼진 것은 아닐 수 있습니다. 요청이 길면 다시 시도하세요.',
-      );
+      return ApiException('연결이 끊겼습니다. 서버가 꺼진 것은 아닐 수 있습니다. 요청이 길면 다시 시도하세요.');
     }
     final status = e.response?.statusCode;
     final data = e.response?.data;
@@ -110,29 +105,39 @@ class ApiClient {
   }) async {
     final data = await _generatedCall(
       () => _generated.getAuthApi().loginAuthLoginPost(
-            loginRequest: gen.LoginRequest((b) => b
-              ..email = email
-              ..password = password
-              ..portal = _loginRequestPortal(portal)),
-          ),
+        loginRequest: gen.LoginRequest(
+          (b) => b
+            ..email = email
+            ..password = password
+            ..portal = _loginRequestPortal(portal),
+        ),
+      ),
     );
     return data.accessToken;
   }
 
-  Future<String> register(String email, String password, {String? displayName}) async {
+  Future<String> register(
+    String email,
+    String password, {
+    String? displayName,
+  }) async {
     final data = await _generatedCall(
       () => _generated.getAuthApi().registerAuthRegisterPost(
-            registerRequest: gen.RegisterRequest((b) => b
-              ..email = email
-              ..password = password
-              ..displayName = displayName),
-          ),
+        registerRequest: gen.RegisterRequest(
+          (b) => b
+            ..email = email
+            ..password = password
+            ..displayName = displayName,
+        ),
+      ),
     );
     return data.accessToken;
   }
 
   Future<UserModel> me() async {
-    final data = await _generatedCall(() => _generated.getAuthApi().meAuthMeGet());
+    final data = await _generatedCall(
+      () => _generated.getAuthApi().meAuthMeGet(),
+    );
     return userModelFromGenerated(data);
   }
 
@@ -146,9 +151,9 @@ class ApiClient {
   Future<List<ProductModel>> products({int offset = 0, int limit = 50}) async {
     final data = await _generatedCall(
       () => _generated.getProductsApi().getProductsProductsGet(
-            offset: offset,
-            limit: limit,
-          ),
+        offset: offset,
+        limit: limit,
+      ),
     );
     return productListFromGenerated(data.items);
   }
@@ -170,8 +175,10 @@ class ApiClient {
         queryParameters: {
           if (q != null && q.isNotEmpty) 'q': q,
           if (category != null && category.isNotEmpty) 'category': category,
-          if (categoryMajor != null && categoryMajor.isNotEmpty) 'categoryMajor': categoryMajor,
-          if (categoryMid != null && categoryMid.isNotEmpty) 'categoryMid': categoryMid,
+          if (categoryMajor != null && categoryMajor.isNotEmpty)
+            'categoryMajor': categoryMajor,
+          if (categoryMid != null && categoryMid.isNotEmpty)
+            'categoryMid': categoryMid,
           if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
           if (volumeMlMin != null) 'volumeMlMin': volumeMlMin,
           if (volumeMlMax != null) 'volumeMlMax': volumeMlMax,
@@ -184,7 +191,9 @@ class ApiClient {
       return CatalogProductPageModel(
         items: items
             .whereType<Map>()
-            .map((e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)))
+            .map(
+              (e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)),
+            )
             .toList(),
         total: total,
       );
@@ -200,7 +209,9 @@ class ApiClient {
     int? volumeMlMax,
   }) async {
     final data = await _generatedCall(
-      () => _generated.getCatalogProductsApi().getCatalogProductByIdCatalogProductsCatalogIdGet(
+      () => _generated
+          .getCatalogProductsApi()
+          .getCatalogProductByIdCatalogProductsCatalogIdGet(
             catalogId: id,
             flavor: flavor,
             volumeMlMin: volumeMlMin,
@@ -212,7 +223,9 @@ class ApiClient {
 
   Future<ProductModel> product(String id) async {
     final data = await _generatedCall(
-      () => _generated.getProductsApi().getProductByIdProductsProductIdGet(productId: id),
+      () => _generated.getProductsApi().getProductByIdProductsProductIdGet(
+        productId: id,
+      ),
     );
     return productModelFromGenerated(data);
   }
@@ -291,6 +304,65 @@ class ApiClient {
     }
   }
 
+  Future<TossPrepareModel> prepareTossPayment({
+    required String idempotencyKey,
+  }) async {
+    final data = await _generatedCall(
+      () =>
+          _generated.getPaymentsApi().prepareTossPaymentPaymentsTossPreparePost(
+            idempotencyKey: idempotencyKey,
+          ),
+    );
+    return TossPrepareModel(
+      orderId: data.orderId,
+      amount: data.amount,
+      orderName: data.orderName,
+      clientKey: data.clientKey,
+      customerKey: data.customerKey,
+    );
+  }
+
+  Future<OrderModel> confirmTossPayment({
+    required String paymentKey,
+    required String orderId,
+    required int amount,
+  }) async {
+    final data = await _generatedCall(
+      () =>
+          _generated.getPaymentsApi().confirmTossPaymentPaymentsTossConfirmPost(
+            tossConfirmRequest: gen.TossConfirmRequest(
+              (builder) => builder
+                ..paymentKey = paymentKey
+                ..orderId = orderId
+                ..amount = amount,
+            ),
+          ),
+    );
+    return orderModelFromGenerated(data.order);
+  }
+
+  Future<TossPaymentStatusModel> tossPaymentStatus(String orderId) async {
+    final data = await _generatedCall(
+      () => _generated.getPaymentsApi().readTossPaymentPaymentsTossOrderIdGet(
+        orderId: orderId,
+      ),
+    );
+    final status =
+        gen.serializers.serialize(
+              data.status,
+              specifiedType: const FullType(
+                gen.TossPaymentStatusResponseStatusEnum,
+              ),
+            )
+            as String;
+    return TossPaymentStatusModel(
+      orderId: data.orderId,
+      status: status,
+      localOrderId: data.localOrderId,
+      failureMessage: data.failureMessage,
+    );
+  }
+
   Future<List<OrderModel>> orders() async {
     final data = await _generatedCall(
       () => _generated.getOrdersApi().readOrdersMeOrdersGet(),
@@ -307,7 +379,8 @@ class ApiClient {
 
   Future<List<MembershipPlanModel>> membershipPlans() async {
     final data = await _generatedCall(
-      () => _generated.getMembershipApi().getMembershipPlansMembershipPlansGet(),
+      () =>
+          _generated.getMembershipApi().getMembershipPlansMembershipPlansGet(),
     );
     return membershipPlansFromGenerated(data.items);
   }
@@ -321,18 +394,26 @@ class ApiClient {
 
   Future<SubscriptionModel> subscribe(String planSlug) async {
     final data = await _generatedCall(
-      () => _generated.getMembershipApi().subscribeMembershipMeMembershipSubscribePost(
-            subscribeRequest: gen.SubscribeRequest((b) => b..planSlug = planSlug),
+      () => _generated
+          .getMembershipApi()
+          .subscribeMembershipMeMembershipSubscribePost(
+            subscribeRequest: gen.SubscribeRequest(
+              (b) => b..planSlug = planSlug,
+            ),
           ),
     );
     return SubscriptionModel(
       id: data.id,
       planSlug: data.planSlug,
       planName: data.planName,
-      status: gen.serializers.serialize(
-        data.status,
-        specifiedType: const FullType(gen.SubscriptionResponseStatusEnum),
-      ) as String,
+      status:
+          gen.serializers.serialize(
+                data.status,
+                specifiedType: const FullType(
+                  gen.SubscriptionResponseStatusEnum,
+                ),
+              )
+              as String,
       currentPeriodEnd: data.currentPeriodEnd,
     );
   }
@@ -353,9 +434,13 @@ class ApiClient {
 
   Future<void> adminGrantCredits(String userId, int amount) async {
     try {
-      await _generated.getAdminApi().grantUserCreditsAdminUsersUserIdCreditsPost(
+      await _generated
+          .getAdminApi()
+          .grantUserCreditsAdminUsersUserIdCreditsPost(
             userId: userId,
-            adminCreditGrantRequest: gen.AdminCreditGrantRequest((b) => b..amount = amount),
+            adminCreditGrantRequest: gen.AdminCreditGrantRequest(
+              (b) => b..amount = amount,
+            ),
           );
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
@@ -365,8 +450,8 @@ class ApiClient {
   Future<void> adminPromote(String userId) async {
     try {
       await _generated.getAdminApi().promoteUserAdminUsersUserIdPromotePost(
-            userId: userId,
-          );
+        userId: userId,
+      );
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }
@@ -377,9 +462,7 @@ class ApiClient {
       final response = await _dio.post<Map<String, dynamic>>(
         'admin/db/reset',
         data: {'confirm': 'RESET', 'mode': mode},
-        options: Options(
-          receiveTimeout: const Duration(minutes: 15),
-        ),
+        options: Options(receiveTimeout: const Duration(minutes: 15)),
       );
       return response.data ?? {};
     } on DioException catch (e) {
@@ -388,15 +471,19 @@ class ApiClient {
   }
 
   Future<SellerModel?> sellerMe() async {
-    final data = await _generatedCall(() => _generated.getSellerApi().sellerMeSellerMeGet());
+    final data = await _generatedCall(
+      () => _generated.getSellerApi().sellerMeSellerMeGet(),
+    );
     return sellerModelFromGenerated(data);
   }
 
   Future<SellerModel> sellerApply(String shopName) async {
     final data = await _generatedCall(
       () => _generated.getSellerApi().sellerApplySellerApplyPost(
-            sellerApplyRequest: gen.SellerApplyRequest((b) => b..shopName = shopName),
-          ),
+        sellerApplyRequest: gen.SellerApplyRequest(
+          (b) => b..shopName = shopName,
+        ),
+      ),
     );
     return sellerModelFromGenerated(data)!;
   }
@@ -420,7 +507,9 @@ class ApiClient {
       final items = response.data?['items'] as List<dynamic>? ?? [];
       return items
           .whereType<Map>()
-          .map((e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)))
+          .map(
+            (e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)),
+          )
           .toList();
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
@@ -495,9 +584,7 @@ class ApiClient {
           return (sourceRows: sourceRows, upserted: upserted);
         }
         if (status == 'error') {
-          throw ApiException(
-            data['error'] as String? ?? '카탈로그 반영에 실패했습니다.',
-          );
+          throw ApiException(data['error'] as String? ?? '카탈로그 반영에 실패했습니다.');
         }
       }
       throw ApiException('반영이 너무 오래 걸립니다. 초기화가 끝나면 다시 올리세요.');
@@ -536,20 +623,22 @@ class ApiClient {
   }) async {
     final data = await _generatedCall(
       () => _generated.getSellerApi().sellerCreateProductSellerProductsPost(
-            sellerProductCreateRequest: gen.SellerProductCreateRequest((b) => b
-              ..title = title
-              ..priceCredits = priceCredits
-              ..stock = stock
-              ..category = category
-              ..description = description
-              ..status = gen.SellerProductCreateRequestStatusEnum.valueOf(
-                status == 'published' ? 'published' : 'draft',
-              )
-              ..catalogProductId = catalogProductId
-              ..optionLabel = optionLabel
-              ..volumeMl = volumeMl
-              ..flavor = flavor),
-          ),
+        sellerProductCreateRequest: gen.SellerProductCreateRequest(
+          (b) => b
+            ..title = title
+            ..priceCredits = priceCredits
+            ..stock = stock
+            ..category = category
+            ..description = description
+            ..status = gen.SellerProductCreateRequestStatusEnum.valueOf(
+              status == 'published' ? 'published' : 'draft',
+            )
+            ..catalogProductId = catalogProductId
+            ..optionLabel = optionLabel
+            ..volumeMl = volumeMl
+            ..flavor = flavor,
+        ),
+      ),
     );
     return productModelFromGenerated(data);
   }
@@ -563,12 +652,17 @@ class ApiClient {
 
   Future<void> sellerUpdateOrderStatus(String itemId, String status) async {
     await _generatedCall(
-      () => _generated.getSellerApi().sellerUpdateOrderItemStatusSellerOrdersItemsItemIdStatusPatch(
+      () => _generated
+          .getSellerApi()
+          .sellerUpdateOrderItemStatusSellerOrdersItemsItemIdStatusPatch(
             itemId: itemId,
-            sellerOrderItemStatusUpdate: gen.SellerOrderItemStatusUpdate((b) => b
-              ..fulfillmentStatus = gen.SellerOrderItemStatusUpdateFulfillmentStatusEnum.valueOf(
-                status,
-              )),
+            sellerOrderItemStatusUpdate: gen.SellerOrderItemStatusUpdate(
+              (b) => b
+                ..fulfillmentStatus =
+                    gen.SellerOrderItemStatusUpdateFulfillmentStatusEnum.valueOf(
+                      status,
+                    ),
+            ),
           ),
     );
   }
@@ -592,7 +686,9 @@ class ApiClient {
 
   Future<void> adminApproveSeller(String sellerId) async {
     await _generatedCall(
-      () => _generated.getAdminApi().approveSellerEndpointAdminSellersSellerIdApprovePost(
+      () => _generated
+          .getAdminApi()
+          .approveSellerEndpointAdminSellersSellerIdApprovePost(
             sellerId: sellerId,
           ),
     );
@@ -607,12 +703,17 @@ class ApiClient {
 
   Future<void> adminUpdateOrderStatus(String itemId, String status) async {
     await _generatedCall(
-      () => _generated.getAdminApi().adminUpdateOrderItemStatusAdminOrdersItemsItemIdStatusPatch(
+      () => _generated
+          .getAdminApi()
+          .adminUpdateOrderItemStatusAdminOrdersItemsItemIdStatusPatch(
             itemId: itemId,
-            sellerOrderItemStatusUpdate: gen.SellerOrderItemStatusUpdate((b) => b
-              ..fulfillmentStatus = gen.SellerOrderItemStatusUpdateFulfillmentStatusEnum.valueOf(
-                status,
-              )),
+            sellerOrderItemStatusUpdate: gen.SellerOrderItemStatusUpdate(
+              (b) => b
+                ..fulfillmentStatus =
+                    gen.SellerOrderItemStatusUpdateFulfillmentStatusEnum.valueOf(
+                      status,
+                    ),
+            ),
           ),
     );
   }

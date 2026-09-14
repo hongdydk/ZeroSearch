@@ -1981,6 +1981,140 @@
         "title": "TokenResponse",
         "type": "object"
       },
+      "TossConfirmRequest": {
+        "properties": {
+          "amount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Amount",
+            "type": "integer"
+          },
+          "orderId": {
+            "maxLength": 64,
+            "minLength": 6,
+            "title": "Orderid",
+            "type": "string"
+          },
+          "paymentKey": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Paymentkey",
+            "type": "string"
+          }
+        },
+        "required": [
+          "paymentKey",
+          "orderId",
+          "amount"
+        ],
+        "title": "TossConfirmRequest",
+        "type": "object"
+      },
+      "TossPaymentStatusResponse": {
+        "properties": {
+          "failureMessage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Failuremessage"
+          },
+          "localOrderId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Localorderid"
+          },
+          "orderId": {
+            "title": "Orderid",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "ready",
+              "confirming",
+              "paid",
+              "failed",
+              "cancelled",
+              "expired"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "updatedAt": {
+            "format": "date-time",
+            "title": "Updatedat",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderId",
+          "status",
+          "updatedAt"
+        ],
+        "title": "TossPaymentStatusResponse",
+        "type": "object"
+      },
+      "TossPrepareResponse": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "clientKey": {
+            "title": "Clientkey",
+            "type": "string"
+          },
+          "customerKey": {
+            "title": "Customerkey",
+            "type": "string"
+          },
+          "orderId": {
+            "title": "Orderid",
+            "type": "string"
+          },
+          "orderName": {
+            "title": "Ordername",
+            "type": "string"
+          }
+        },
+        "required": [
+          "orderId",
+          "amount",
+          "orderName",
+          "clientKey",
+          "customerKey"
+        ],
+        "title": "TossPrepareResponse",
+        "type": "object"
+      },
+      "TossWebhookRequest": {
+        "properties": {
+          "data": {
+            "additionalProperties": true,
+            "title": "Data",
+            "type": "object"
+          },
+          "eventType": {
+            "title": "Eventtype",
+            "type": "string"
+          }
+        },
+        "required": [
+          "eventType",
+          "data"
+        ],
+        "title": "TossWebhookRequest",
+        "type": "object"
+      },
       "UserResponse": {
         "properties": {
           "createdAt": {
@@ -3632,6 +3766,198 @@
         "summary": "Get Membership Plans",
         "tags": [
           "membership"
+        ]
+      }
+    },
+    "/payments/toss/confirm": {
+      "post": {
+        "operationId": "confirm_toss_payment_payments_toss_confirm_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TossConfirmRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CheckoutResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Confirm Toss Payment",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/payments/toss/prepare": {
+      "post": {
+        "operationId": "prepare_toss_payment_payments_toss_prepare_post",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Idempotency-Key",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Idempotency-Key"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TossPrepareResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Prepare Toss Payment",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/payments/toss/webhook": {
+      "post": {
+        "operationId": "toss_payment_webhook_payments_toss_webhook_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/TossWebhookRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": {
+                    "type": "boolean"
+                  },
+                  "title": "Response Toss Payment Webhook Payments Toss Webhook Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Toss Payment Webhook",
+        "tags": [
+          "payments"
+        ]
+      }
+    },
+    "/payments/toss/{order_id}": {
+      "get": {
+        "operationId": "read_toss_payment_payments_toss__order_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "order_id",
+            "required": true,
+            "schema": {
+              "title": "Order Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TossPaymentStatusResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Read Toss Payment",
+        "tags": [
+          "payments"
         ]
       }
     },

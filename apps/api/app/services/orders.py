@@ -1,7 +1,7 @@
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select, update
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
@@ -82,6 +82,75 @@ def _reserve_stock(db: Session, *, product_id: UUID, qty: int, title: str) -> No
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=f"'{title}' 재고가 부족합니다.",
         )
+
+
+def reserve_snapshot_stock(db: Session, snapshot: list[dict]) -> None:
+    for item in sorted(snapshot, key=lambda value: value["productId"]):
+        _reserve_stock(
+            db,
+            product_id=UUID(item["productId"]),
+            qty=int(item["qty"]),
+            title=str(item["title"]),
+        )
+
+
+def release_snapshot_stock(db: Session, snapshot: list[dict]) -> None:
+    for item in sorted(snapshot, key=lambda value: value["productId"]):
+        db.execute(
+            update(Product)
+            .where(Product.id == UUID(item["productId"]))
+            .values(stock=Product.stock + int(item["qty"]))
+        )
+
+
+def create_paid_order_from_snapshot(
+    db: Session,
+    user: User,
+    snapshot: list[dict],
+    *,
+    idempotency_key: str,
+) -> Order:
+    existing = _find_order_by_idempotency_key(db, user.id, idempotency_key)
+    if existing is not None:
+        return existing
+    total = sum(int(item["unitPrice"]) * int(item["qty"]) for item in snapshot)
+    order = Order(
+        user_id=user.id,
+        status="paid",
+        total_credits=total,
+        idempotency_key=idempotency_key,
+    )
+    db.add(order)
+    db.flush()
+    for item in snapshot:
+        db.add(
+            OrderItem(
+                order_id=order.id,
+                product_id=UUID(item["productId"]),
+                seller_id=UUID(item["sellerId"]),
+                qty=int(item["qty"]),
+                unit_price_credits=int(item["unitPrice"]),
+                product_title=str(item["title"]),
+                fulfillment_status="paid",
+            )
+        )
+    product_ids = [UUID(item["productId"]) for item in snapshot]
+    db.execute(
+        delete(CartItem).where(
+            CartItem.user_id == user.id,
+            CartItem.product_id.in_(product_ids),
+        )
+    )
+    db.flush()
+    db.expire_all()
+    loaded = db.scalar(
+        select(Order)
+        .where(Order.id == order.id)
+        .options(joinedload(Order.items).joinedload(OrderItem.seller))
+    )
+    if loaded is None:
+        raise HTTPException(status_code=500, detail="주문 생성 실패")
+    return loaded
 
 
 def checkout(

@@ -34,6 +34,29 @@
   <link rel="manifest" href="manifest.json">
 </head>
 <body>
+  <script src="https://js.tosspayments.com/v2/standard"></script>
+  <script>
+    window.requestTossCardPayment = async function (
+      clientKey,
+      customerKey,
+      orderId,
+      orderName,
+      amount,
+      successUrl,
+      failUrl
+    ) {
+      const tossPayments = TossPayments(clientKey);
+      const payment = tossPayments.payment({ customerKey });
+      await payment.requestPayment({
+        method: "CARD",
+        amount: { currency: "KRW", value: amount },
+        orderId,
+        orderName,
+        successUrl,
+        failUrl
+      });
+    };
+  </script>
   <!--
     You can customize the "flutter_bootstrap.js" script.
     This is useful to provide a custom configuration to the Flutter loader
