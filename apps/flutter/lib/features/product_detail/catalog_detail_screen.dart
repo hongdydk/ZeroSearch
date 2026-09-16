@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../core/cart/cart_feedback.dart';
-import '../../core/cart/consume_pending_cart_add.dart';
 import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/layout/ui_platform.dart';
@@ -38,24 +37,28 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
     final key = 'add:${offer.id}';
     if (isBusy(key) || isBusy()) return;
     if (ref.read(authStateProvider).isLoading) return;
-    final auth = ref.read(authStateProvider).valueOrNull;
     final qty = _qtyFor(offer);
-    if (auth?.isMallBuyer != true) {
-      if (!mounted) return;
-      beginGuestAddLogin(
-        context,
-        ref,
-        productId: offer.id,
-        qty: qty,
-        fallbackLocation: Uri(path: '/catalog/${widget.catalogId}'),
-      );
-      return;
-    }
+    final detail =
+        ref.read(catalogProductDetailProvider(widget.catalogId)).valueOrNull;
+    final option = offer.optionLabel?.trim();
+    final title = detail == null
+        ? _offerLabel(offer)
+        : (option == null || option.isEmpty
+              ? detail.title
+              : '${detail.title} · $option');
 
     await runBusy(key, () async {
       try {
-        await ref.read(apiClientProvider).addToCart(offer.id, qty: qty);
-        ref.invalidate(cartProvider);
+        await ref.read(cartProvider.notifier).addItem(
+              productId: offer.id,
+              productTitle: title,
+              qty: qty,
+              priceCredits: offer.priceCredits,
+              sellerId: offer.seller.id,
+              shopName: offer.seller.shopName,
+              sellerType: offer.seller.sellerType,
+              maxQty: offer.stock < 1 ? 99 : offer.stock,
+            );
         if (!mounted) return;
         showAddedToCartSnackBar(context);
       } on ApiException catch (e) {

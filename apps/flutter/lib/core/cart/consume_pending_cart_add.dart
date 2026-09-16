@@ -56,11 +56,11 @@ Future<void> consumePendingCartAddIfBuyer({
   ref.read(pendingCartAddClaimedProvider.notifier).state = true;
   ref.read(pendingCartAddProvider.notifier).state = null;
   try {
-    await ref.read(apiClientProvider).addToCart(
+    final cart = await ref.read(apiClientProvider).addToCart(
           pending.productId,
           qty: pending.qty,
         );
-    ref.invalidate(cartProvider);
+    ref.read(cartProvider.notifier).replaceWith(cart);
     if (context.mounted) showAddedToCartSnackBar(context);
   } on ApiException catch (e) {
     if (context.mounted) {

@@ -345,6 +345,7 @@ bool _requiresAuth(String path) {
   if (path == '/') return false;
   if (path.startsWith('/products/')) return false;
   if (path.startsWith('/catalog/')) return false;
+  if (path == '/cart' || path.startsWith('/cart/')) return false;
   if (path.startsWith('/login') || path.startsWith('/register')) return false;
   if (path.startsWith('/seller') || path.startsWith('/admin')) return false;
   if (path == '/toss-pay') return false;

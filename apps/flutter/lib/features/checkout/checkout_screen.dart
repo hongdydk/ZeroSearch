@@ -42,6 +42,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
       _checkingOut = true;
     });
     try {
+      await ref.read(cartProvider.notifier).flushPending();
       final key = _checkoutKey ??= _newIdempotencyKey();
       final prepared = await ref
           .read(apiClientProvider)
@@ -99,6 +100,7 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
 
     return PageFormScaffold(
       child: cartAsync.when(
+        skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => const Center(child: Text('장바구니를 불러오지 못했습니다.')),
         data: (cart) {

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shopping_mall/core/auth/login_portal.dart';
+import 'package:shopping_mall/core/cart/guest_cart.dart';
 import 'package:shopping_mall/core/catalog/browse_location.dart';
 import 'package:shopping_mall/core/layout/ui_platform.dart';
 import 'package:shopping_mall/core/models/models.dart';
@@ -122,6 +123,7 @@ Widget _headerHarness({
       tokenStorageProvider.overrideWithValue(
         loggedIn ? _LoggedInTokenStorage() : _LoggedOutTokenStorage(),
       ),
+      guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
     ],
     child: MaterialApp(
       theme: AppTheme.web(),
@@ -209,6 +211,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
           tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
+          guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
         ],
         child: MaterialApp(
           theme: AppTheme.web(),
@@ -284,6 +287,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
           tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
+          guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
         ],
         child: MaterialApp.router(
           theme: AppTheme.web(),
@@ -337,6 +341,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
           tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
+          guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
         ],
         child: MaterialApp.router(
           theme: AppTheme.web(),
@@ -381,6 +386,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
           tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
+          guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
         ],
         child: MaterialApp.router(
           theme: AppTheme.web(),
@@ -426,6 +432,7 @@ void main() {
       ),
     );
     await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
     await tester.pumpAndSettle();
 
     expect(find.text('장바구니'), findsOneWidget);

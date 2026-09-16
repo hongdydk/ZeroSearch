@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shopping_mall/core/auth/login_portal.dart';
+import 'package:shopping_mall/core/cart/guest_cart.dart';
 import 'package:shopping_mall/core/cart/pending_cart_add.dart';
 import 'package:shopping_mall/core/models/models.dart';
 import 'package:shopping_mall/core/network/api_client.dart';
@@ -118,7 +119,7 @@ class _PurchaseApi extends ApiClient {
 }
 
 void main() {
-  testWidgets('guest add goes to login with next and re-adds after login', (
+  testWidgets('guest add stays on detail and stores local cart', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 1200));
@@ -126,6 +127,7 @@ void main() {
 
     final api = _PurchaseApi();
     final tokens = _MemoryTokens();
+    final store = MemoryGuestCartStore();
     late GoRouter router;
     router = GoRouter(
       initialLocation: '/catalog/cat-1',
@@ -160,6 +162,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(api),
           tokenStorageProvider.overrideWithValue(tokens),
+          guestCartStoreProvider.overrideWithValue(store),
         ],
         child: MaterialApp.router(routerConfig: router),
       ),
@@ -174,22 +177,11 @@ void main() {
     await tester.tap(find.text('담기'));
     await tester.pumpAndSettle();
 
-    expect(router.state.uri.path, '/login');
-    final next = router.state.uri.queryParameters['next'] ?? '';
-    expect(next, contains('/catalog/cat-1'));
-    expect(next, contains('addOffer=offer-1'));
-    expect(next, contains('addQty=3'));
-
-    final fields = find.byType(TextField);
-    await tester.enterText(fields.at(0), 'buyer@mall.local');
-    await tester.enterText(fields.at(1), 'secret');
-    await tester.tap(find.widgetWithText(FilledButton, '로그인'));
-    await tester.pumpAndSettle();
-
-    expect(api.lastAddId, 'offer-1');
-    expect(api.lastAddQty, 3);
     expect(router.state.uri.path, '/catalog/cat-1');
-    expect(router.state.uri.queryParameters.containsKey('addOffer'), isFalse);
+    expect(api.lastAddId, isNull);
+    expect(store.lines, isNotEmpty);
+    expect(store.lines.single.productId, 'offer-1');
+    expect(store.lines.single.qty, 3);
     expect(find.text('장바구니에 담았습니다.'), findsOneWidget);
     expect(find.text('장바구니 보기'), findsOneWidget);
   });

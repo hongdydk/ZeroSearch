@@ -159,6 +159,38 @@ class CartItemModel {
   final String? issueCode;
   final String? issueMessage;
   final int maxQty;
+
+  CartItemModel copyWith({
+    String? id,
+    String? productId,
+    String? productTitle,
+    int? qty,
+    int? priceCredits,
+    int? lineTotalCredits,
+    String? sellerId,
+    String? shopName,
+    String? sellerType,
+    bool? isAvailable,
+    String? issueCode,
+    String? issueMessage,
+    int? maxQty,
+  }) {
+    return CartItemModel(
+      id: id ?? this.id,
+      productId: productId ?? this.productId,
+      productTitle: productTitle ?? this.productTitle,
+      qty: qty ?? this.qty,
+      priceCredits: priceCredits ?? this.priceCredits,
+      lineTotalCredits: lineTotalCredits ?? this.lineTotalCredits,
+      sellerId: sellerId ?? this.sellerId,
+      shopName: shopName ?? this.shopName,
+      sellerType: sellerType ?? this.sellerType,
+      isAvailable: isAvailable ?? this.isAvailable,
+      issueCode: issueCode ?? this.issueCode,
+      issueMessage: issueMessage ?? this.issueMessage,
+      maxQty: maxQty ?? this.maxQty,
+    );
+  }
 }
 
 class CartModel {
@@ -167,6 +199,12 @@ class CartModel {
     required this.totalCredits,
     this.checkoutBlocked = false,
   });
+
+  static final empty = CartModel(
+    items: const [],
+    totalCredits: 0,
+    checkoutBlocked: false,
+  );
 
   factory CartModel.fromJson(Map<String, dynamic> json) {
     final rawItems = json['items'] as List<dynamic>? ?? [];
@@ -185,6 +223,57 @@ class CartModel {
   final bool checkoutBlocked;
 
   int get totalQty => items.fold(0, (sum, item) => sum + item.qty);
+
+  CartModel copyWith({
+    List<CartItemModel>? items,
+    int? totalCredits,
+    bool? checkoutBlocked,
+  }) {
+    final nextItems = items ?? this.items;
+    return CartModel(
+      items: nextItems,
+      totalCredits: totalCredits ??
+          nextItems.fold(0, (sum, item) => sum + item.lineTotalCredits),
+      checkoutBlocked: checkoutBlocked ?? this.checkoutBlocked,
+    );
+  }
+
+  CartModel withItemQty(String productId, int qty) {
+    final next = <CartItemModel>[];
+    for (final item in items) {
+      if (item.productId != productId) {
+        next.add(item);
+        continue;
+      }
+      final q = qty.clamp(1, item.maxQty < 1 ? 1 : item.maxQty);
+      next.add(
+        item.copyWith(qty: q, lineTotalCredits: item.priceCredits * q),
+      );
+    }
+    return copyWith(items: next);
+  }
+
+  CartModel withoutItem(String productId) {
+    return copyWith(
+      items: [for (final item in items) if (item.productId != productId) item],
+    );
+  }
+
+  CartModel addingOrMerging(CartItemModel incoming) {
+    final next = <CartItemModel>[];
+    var merged = false;
+    for (final item in items) {
+      if (item.productId != incoming.productId) {
+        next.add(item);
+        continue;
+      }
+      merged = true;
+      final q = (item.qty + incoming.qty).clamp(1, item.maxQty < 1 ? 1 : item.maxQty);
+      next.add(item.copyWith(qty: q, lineTotalCredits: item.priceCredits * q));
+    }
+    if (!merged) next.add(incoming);
+    return copyWith(items: next);
+  }
 }
 
 class CatalogProductPageModel {
