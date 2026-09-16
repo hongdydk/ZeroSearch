@@ -176,7 +176,7 @@ void main() {
       overrides: [
         apiClientProvider.overrideWithValue(api),
         tokenStorageProvider.overrideWithValue(_LoggedOutTokens()),
-        guestCartStoreProvider.overrideWithValue(store),
+        guestCartStorageProvider.overrideWithValue(store),
         cartSyncDelayProvider.overrideWithValue(Duration.zero),
       ],
     );
@@ -203,7 +203,7 @@ void main() {
       overrides: [
         apiClientProvider.overrideWithValue(api),
         tokenStorageProvider.overrideWithValue(_LoggedOutTokens()),
-        guestCartStoreProvider.overrideWithValue(store),
+        guestCartStorageProvider.overrideWithValue(store),
       ],
     );
     addTearDown(container.dispose);
@@ -226,7 +226,7 @@ void main() {
       overrides: [
         apiClientProvider.overrideWithValue(api),
         tokenStorageProvider.overrideWithValue(_LoggedInTokens()),
-        guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+        guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
         cartSyncDelayProvider.overrideWithValue(Duration.zero),
       ],
     );
@@ -257,7 +257,7 @@ void main() {
       overrides: [
         apiClientProvider.overrideWithValue(api),
         tokenStorageProvider.overrideWithValue(_LoggedInTokens()),
-        guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+        guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
         cartSyncDelayProvider.overrideWithValue(Duration.zero),
       ],
     );
@@ -283,7 +283,7 @@ void main() {
       overrides: [
         apiClientProvider.overrideWithValue(api),
         tokenStorageProvider.overrideWithValue(_LoggedInTokens()),
-        guestCartStoreProvider.overrideWithValue(store),
+        guestCartStorageProvider.overrideWithValue(store),
       ],
     );
     addTearDown(container.dispose);
@@ -301,7 +301,7 @@ void main() {
       overrides: [
         apiClientProvider.overrideWithValue(api),
         tokenStorageProvider.overrideWithValue(_LoggedInTokens()),
-        guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+        guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
         cartSyncDelayProvider.overrideWithValue(const Duration(milliseconds: 40)),
       ],
     );
@@ -326,7 +326,7 @@ void main() {
       overrides: [
         apiClientProvider.overrideWithValue(api),
         tokenStorageProvider.overrideWithValue(_LoggedInTokens()),
-        guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+        guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
       ],
     );
     addTearDown(container.dispose);
@@ -349,7 +349,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(api),
           tokenStorageProvider.overrideWithValue(_LoggedOutTokens()),
-          guestCartStoreProvider.overrideWithValue(store),
+          guestCartStorageProvider.overrideWithValue(store),
           cartSyncDelayProvider.overrideWithValue(Duration.zero),
         ],
         child: const MaterialApp(home: CartScreen()),
@@ -378,7 +378,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(api),
           tokenStorageProvider.overrideWithValue(_LoggedInTokens()),
-          guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+          guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
           cartSyncDelayProvider.overrideWithValue(Duration.zero),
         ],
         child: const MaterialApp(home: CartScreen()),

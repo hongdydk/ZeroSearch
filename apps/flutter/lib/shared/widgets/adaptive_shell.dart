@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/cart/consume_pending_cart_add.dart';
 import '../../core/layout/ui_platform.dart';
 import '../../core/routing/app_back_navigation.dart';
 import '../../core/routing/app_router.dart';
@@ -10,26 +8,25 @@ import 'cart_count_badge.dart';
 import 'web_content_frame.dart';
 import 'web/web_naver_header.dart';
 
-class AdaptiveShell extends ConsumerWidget {
+class AdaptiveShell extends StatelessWidget {
   const AdaptiveShell({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     if (isWebUi) return WebShell(child: child);
     return MallShell(child: child);
   }
 }
 
-class WebShell extends ConsumerWidget {
+class WebShell extends StatelessWidget {
   const WebShell({super.key, required this.child});
 
   final Widget child;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    listenForPendingCartAdd(ref, context);
+  Widget build(BuildContext context) {
     final location = _webShellLocation(context);
     final compact = isCompactWeb(context);
 
@@ -50,7 +47,7 @@ class WebShell extends ConsumerWidget {
   }
 }
 
-class MallShell extends ConsumerWidget {
+class MallShell extends StatelessWidget {
   const MallShell({super.key, required this.child});
 
   final Widget child;
@@ -75,8 +72,7 @@ class MallShell extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    listenForPendingCartAdd(ref, context);
+  Widget build(BuildContext context) {
     final location = GoRouterState.of(context).matchedLocation;
     final showBottomNav = !isSlimRoute(location) &&
         location != '/login' &&

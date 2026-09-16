@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/login_portal.dart';
 import '../providers/app_providers.dart';
-import '../cart/pending_cart_add.dart';
 import 'safe_next_path.dart';
 import '../../features/admin/admin_screen.dart';
 import '../../features/auth/buyer_auth_gate.dart';
@@ -61,7 +60,7 @@ final routerProvider = Provider<GoRouter>((ref) {
       final mallLoggedIn = auth.valueOrNull?.isMallBuyer ?? false;
 
       final isAuthRoute = path == '/login' || path == '/register';
-      if (!mallLoggedIn && _requiresAuth(path)) {
+      if (!mallLoggedIn && requiresBuyerAuth(path)) {
         final raw = state.uri.hasQuery
             ? '${state.matchedLocation}?${state.uri.query}'
             : state.matchedLocation;
@@ -341,7 +340,7 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-bool _requiresAuth(String path) {
+bool requiresBuyerAuth(String path) {
   if (path == '/') return false;
   if (path.startsWith('/products/')) return false;
   if (path.startsWith('/catalog/')) return false;

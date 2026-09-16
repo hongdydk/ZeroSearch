@@ -62,6 +62,7 @@ class _CartScreenState extends ConsumerState<CartScreen> {
     });
 
     final cartAsync = ref.watch(cartProvider);
+    final isBuyer = ref.watch(authStateProvider).valueOrNull?.isMallBuyer == true;
 
     return PageFormScaffold(
       child: cartAsync.when(
@@ -201,6 +202,15 @@ class _CartScreenState extends ConsumerState<CartScreen> {
                 ),
               ],
               const SizedBox(height: 16),
+              if (!isBuyer) ...[
+                Text(
+                  '주문·결제는 로그인 후 진행됩니다.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               FilledButton(
                 onPressed: canCheckout ? _goCheckout : null,
                 child: const Text('주문하기'),

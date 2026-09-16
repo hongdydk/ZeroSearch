@@ -188,7 +188,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         urlMid == null &&
         category == null;
 
-    if (isLanding) {
+    if (isLanding || awaitingFirstSearch) {
       return _LandingView(
         padding: padding,
         searchValue: typedSearch,

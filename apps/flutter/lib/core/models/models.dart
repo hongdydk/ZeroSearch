@@ -93,6 +93,28 @@ class SellerOrderItemModel {
   final String fulfillmentStatus;
   final String? shopName;
   final String? sellerType;
+
+  SellerOrderItemModel copyWith({
+    String? id,
+    String? orderId,
+    String? productTitle,
+    int? qty,
+    int? lineTotalCredits,
+    String? fulfillmentStatus,
+    String? shopName,
+    String? sellerType,
+  }) {
+    return SellerOrderItemModel(
+      id: id ?? this.id,
+      orderId: orderId ?? this.orderId,
+      productTitle: productTitle ?? this.productTitle,
+      qty: qty ?? this.qty,
+      lineTotalCredits: lineTotalCredits ?? this.lineTotalCredits,
+      fulfillmentStatus: fulfillmentStatus ?? this.fulfillmentStatus,
+      shopName: shopName ?? this.shopName,
+      sellerType: sellerType ?? this.sellerType,
+    );
+  }
 }
 
 class AdminSellerModel {

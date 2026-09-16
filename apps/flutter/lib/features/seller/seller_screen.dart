@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -22,6 +24,7 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
   List<ProductModel> _products = [];
   List<SellerOrderItemModel> _orders = [];
   bool _loading = true;
+  bool _metricsLoading = false;
   bool _submitting = false;
 
   @override
@@ -36,28 +39,42 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  Future<void> _load({bool silent = false}) async {
+    final firstPaint = _seller == null && !silent;
+    if (firstPaint && mounted) setState(() => _loading = true);
     try {
       final api = ref.read(apiClientProvider);
       final seller = await api.sellerMe();
-      var products = <ProductModel>[];
-      var orders = <SellerOrderItemModel>[];
-      if (seller?.status == 'active') {
-        products = await api.sellerProducts();
-        orders = await api.sellerOrders();
-      }
-      if (mounted) {
+      if (!mounted) return;
+      setState(() {
+        _seller = seller;
+        _loading = false;
+      });
+      if (seller?.status != 'active') {
         setState(() {
-          _seller = seller;
-          _products = products;
-          _orders = orders;
+          _products = [];
+          _orders = [];
+          _metricsLoading = false;
         });
+        return;
       }
+      setState(() => _metricsLoading = true);
+      final results = await Future.wait([
+        api.sellerProducts(),
+        api.sellerOrders(),
+      ]);
+      if (!mounted) return;
+      setState(() {
+        _products = results[0] as List<ProductModel>;
+        _orders = results[1] as List<SellerOrderItemModel>;
+        _metricsLoading = false;
+      });
     } catch (_) {
-      if (mounted) setState(() => _seller = null);
-    } finally {
-      if (mounted) setState(() => _loading = false);
+      if (!mounted) return;
+      setState(() {
+        _loading = false;
+        _metricsLoading = false;
+      });
     }
   }
 
@@ -71,7 +88,7 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
       ScaffoldMessenger.of(
         context,
       ).showSnackBar(const SnackBar(content: Text('입점 신청이 접수되었습니다.')));
-      await _load();
+      await _load(silent: true);
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(
@@ -113,6 +130,8 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            if (_metricsLoading) const LinearProgressIndicator(minHeight: 2),
+            if (_metricsLoading) const SizedBox(height: 12),
             PortalMetricGrid(
               children: [
                 PortalMetricCard(

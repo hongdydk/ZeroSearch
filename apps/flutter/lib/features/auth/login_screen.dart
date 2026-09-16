@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/auth/login_portal.dart';
-import '../../core/cart/pending_cart_add.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/routing/safe_next_path.dart';
@@ -33,26 +32,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final next = safeNextPath(widget.next);
     if (next == null) return '/register';
     return '/register?next=${Uri.encodeQueryComponent(next)}';
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      restorePendingCartAddFromNext(ref, widget.next);
-    });
-  }
-
-  @override
-  void didUpdateWidget(covariant LoginScreen oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.next != widget.next) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        restorePendingCartAddFromNext(ref, widget.next);
-      });
-    }
   }
 
   @override

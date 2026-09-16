@@ -24,6 +24,7 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen>
   bool _loading = true;
   String _filter = 'action';
   Timer? _pollTimer;
+  final _inFlight = <String>{};
 
   @override
   void initState() {
@@ -42,6 +43,7 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen>
   }
 
   Future<void> _load({bool silent = false}) async {
+    if (silent && _inFlight.isNotEmpty) return;
     if (!silent && mounted) setState(() => _loading = true);
     try {
       final items = await ref.read(apiClientProvider).sellerOrders();
@@ -59,21 +61,45 @@ class _SellerOrdersScreenState extends ConsumerState<SellerOrdersScreen>
 
   Future<void> _advance(SellerOrderItemModel item) async {
     final next = nextFulfillmentStatus(item.fulfillmentStatus);
-    if (next == null) return;
-    await runBusy('order:${item.id}', () async {
-      try {
-        await ref
-            .read(apiClientProvider)
-            .sellerUpdateOrderStatus(item.id, next);
-        await _load(silent: true);
-      } on ApiException catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(e.message)));
-        }
-      }
+    if (next == null || _inFlight.contains(item.id)) return;
+    final previous = item;
+    _inFlight.add(item.id);
+    setState(() {
+      _items = [
+        for (final row in _items)
+          if (row.id == item.id)
+            row.copyWith(fulfillmentStatus: next)
+          else
+            row,
+      ];
     });
+    try {
+      await ref.read(apiClientProvider).sellerUpdateOrderStatus(item.id, next);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _items = [
+          for (final row in _items)
+            if (row.id == item.id) previous else row,
+        ];
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(e.message)));
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _items = [
+          for (final row in _items)
+            if (row.id == item.id) previous else row,
+        ];
+      });
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('주문 상태를 바꾸지 못했습니다.')));
+    } finally {
+      _inFlight.remove(item.id);
+    }
   }
 
   @override

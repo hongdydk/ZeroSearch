@@ -1,180 +1,144 @@
-import 'dart:convert';
-
-import 'package:shared_preferences/shared_preferences.dart';
-
 import '../models/models.dart';
+import '../network/api_client.dart';
+import '../network/api_exception.dart';
+import 'guest_cart_storage.dart';
 
-/// 게스트 장바구니 한 줄. 제목·가격·수량을 로컬에 두고 수량 변경 때 product GET을 하지 않는다.
-class GuestCartLine {
-  const GuestCartLine({
-    required this.productId,
-    required this.productTitle,
-    required this.qty,
-    required this.priceCredits,
-    required this.sellerId,
-    required this.shopName,
-    required this.sellerType,
-    this.maxQty = 99,
-  });
+export 'guest_cart_storage.dart';
 
-  final String productId;
-  final String productTitle;
-  final int qty;
-  final int priceCredits;
-  final String sellerId;
-  final String shopName;
-  final String sellerType;
-  final int maxQty;
+CartModel emptyCart() => CartModel.empty;
 
-  GuestCartLine copyWith({int? qty}) {
-    return GuestCartLine(
-      productId: productId,
-      productTitle: productTitle,
-      qty: qty ?? this.qty,
-      priceCredits: priceCredits,
-      sellerId: sellerId,
-      shopName: shopName,
-      sellerType: sellerType,
-      maxQty: maxQty,
-    );
+GuestCartLine guestSnapshot({
+  required String productId,
+  required int qty,
+  required String productTitle,
+  required int priceCredits,
+  required String sellerId,
+  required String shopName,
+  required String sellerType,
+  int maxQty = 99,
+}) {
+  return GuestCartLine(
+    productId: productId,
+    qty: qty.clamp(1, 99),
+    productTitle: productTitle,
+    priceCredits: priceCredits,
+    sellerId: sellerId,
+    shopName: shopName,
+    sellerType: sellerType,
+    maxQty: maxQty < 1 ? 99 : maxQty,
+  );
+}
+
+String catalogOfferCartTitle(String catalogTitle, {String? optionLabel, String? flavor}) {
+  final extra = [
+    if (optionLabel != null && optionLabel.isNotEmpty) optionLabel,
+    if (flavor != null && flavor.isNotEmpty) flavor,
+  ].join(' · ');
+  return extra.isEmpty ? catalogTitle : '$catalogTitle · $extra';
+}
+
+CartItemModel cartItemFromProduct(ProductModel product, int qty) {
+  final safeQty = qty.clamp(1, 99);
+  final maxQty = product.stock < 1 ? 0 : (product.stock > 99 ? 99 : product.stock);
+  final available = product.status == 'published' && product.stock >= safeQty;
+  String? issueCode;
+  String? issueMessage;
+  if (product.status != 'published') {
+    issueCode = 'offer_unavailable';
+    issueMessage = '판매가 종료된 상품입니다.';
+  } else if (product.stock <= 0) {
+    issueCode = 'out_of_stock';
+    issueMessage = '품절된 상품입니다.';
+  } else if (safeQty > product.stock) {
+    issueCode = 'insufficient_stock';
+    issueMessage = '재고가 ${product.stock}개만 남았습니다.';
   }
+  return CartItemModel(
+    id: product.id,
+    productId: product.id,
+    productTitle: product.title,
+    qty: safeQty,
+    priceCredits: product.priceCredits,
+    lineTotalCredits: product.priceCredits * safeQty,
+    sellerId: product.seller.id,
+    shopName: product.seller.shopName,
+    sellerType: product.seller.sellerType,
+    isAvailable: available,
+    issueCode: issueCode,
+    issueMessage: issueMessage,
+    maxQty: maxQty,
+  );
+}
 
-  Map<String, dynamic> toJson() => {
-        'productId': productId,
-        'productTitle': productTitle,
-        'qty': qty,
-        'priceCredits': priceCredits,
-        'sellerId': sellerId,
-        'shopName': shopName,
-        'sellerType': sellerType,
-        'maxQty': maxQty,
-      };
+/// 게스트 스냅샷을 카트 줄로. 수량 변경 때 product GET을 하지 않는다.
+CartItemModel cartItemFromGuestLine(GuestCartLine line) {
+  final qty = line.qty.clamp(1, 99);
+  final price = line.priceCredits ?? 0;
+  final maxQty = line.maxQty ?? 99;
+  return CartItemModel(
+    id: line.productId,
+    productId: line.productId,
+    productTitle: line.productTitle?.trim().isNotEmpty == true
+        ? line.productTitle!
+        : '상품',
+    qty: qty,
+    priceCredits: price,
+    lineTotalCredits: price * qty,
+    sellerId: line.sellerId ?? '',
+    shopName: line.shopName ?? '',
+    sellerType: line.sellerType ?? 'merchant',
+    maxQty: maxQty < 1 ? 99 : maxQty,
+  );
+}
 
-  factory GuestCartLine.fromJson(Map<String, dynamic> json) {
-    return GuestCartLine(
-      productId: json['productId'] as String? ?? '',
-      productTitle: json['productTitle'] as String? ?? '',
-      qty: json['qty'] as int? ?? 1,
-      priceCredits: json['priceCredits'] as int? ?? 0,
-      sellerId: json['sellerId'] as String? ?? '',
-      shopName: json['shopName'] as String? ?? '',
-      sellerType: json['sellerType'] as String? ?? 'merchant',
-      maxQty: json['maxQty'] as int? ?? 99,
-    );
-  }
-
-  CartItemModel toCartItem() {
-    final q = qty < 1 ? 1 : qty;
-    return CartItemModel(
-      id: productId,
-      productId: productId,
-      productTitle: productTitle,
-      qty: q,
-      priceCredits: priceCredits,
-      lineTotalCredits: priceCredits * q,
-      sellerId: sellerId,
-      shopName: shopName,
-      sellerType: sellerType,
-      maxQty: maxQty < 1 ? 99 : maxQty,
-    );
-  }
-
-  static GuestCartLine fromCartItem(CartItemModel item) {
-    return GuestCartLine(
-      productId: item.productId,
-      productTitle: item.productTitle,
-      qty: item.qty,
-      priceCredits: item.priceCredits,
-      sellerId: item.sellerId,
-      shopName: item.shopName,
-      sellerType: item.sellerType,
-      maxQty: item.maxQty,
-    );
-  }
+CartModel cartModelFromItems(List<CartItemModel> items) {
+  final total = items.fold(0, (sum, item) => sum + item.lineTotalCredits);
+  return CartModel(
+    items: items,
+    totalCredits: total,
+    checkoutBlocked: items.any((item) => !item.isAvailable),
+  );
 }
 
 CartModel cartModelFromGuestLines(List<GuestCartLine> lines) {
-  final items = [for (final line in lines) if (line.productId.isNotEmpty) line.toCartItem()];
-  return CartModel.empty.copyWith(items: items);
+  return cartModelFromItems([
+    for (final line in lines)
+      if (line.productId.isNotEmpty) cartItemFromGuestLine(line),
+  ]);
 }
 
 List<GuestCartLine> guestLinesFromCart(CartModel cart) {
-  return [for (final item in cart.items) GuestCartLine.fromCartItem(item)];
+  return [
+    for (final item in cart.items)
+      GuestCartLine(
+        productId: item.productId,
+        qty: item.qty,
+        productTitle: item.productTitle,
+        priceCredits: item.priceCredits,
+        sellerId: item.sellerId,
+        shopName: item.shopName,
+        sellerType: item.sellerType,
+        maxQty: item.maxQty,
+      ),
+  ];
 }
 
-abstract class GuestCartStore {
-  Future<List<GuestCartLine>> load();
-
-  Future<void> save(List<GuestCartLine> lines);
-
-  Future<void> clear() => save(const []);
-}
-
-class PrefsGuestCartStore implements GuestCartStore {
-  static const prefsKey = 'mall:guestCart.v1';
-
-  Future<SharedPreferences?> _prefs() async {
+/// 로그인 후 게스트 줄을 사용자 카트에 합친다. 같은 오퍼는 서버가 한 줄로 더한다.
+Future<void> mergeGuestCartIntoUser({
+  required ApiClient api,
+  required GuestCartStorage guest,
+}) async {
+  final lines = await guest.load();
+  if (lines.isEmpty) return;
+  for (final line in lines) {
     try {
-      return await SharedPreferences.getInstance();
-    } catch (_) {
-      return null;
-    }
-  }
-
-  @override
-  Future<List<GuestCartLine>> load() async {
-    final prefs = await _prefs();
-    if (prefs == null) return const [];
-    final raw = prefs.getString(prefsKey);
-    if (raw == null || raw.isEmpty) return const [];
-    try {
-      final decoded = jsonDecode(raw);
-      if (decoded is! List) return const [];
-      return [
-        for (final row in decoded)
-          if (row is Map)
-            GuestCartLine.fromJson(Map<String, dynamic>.from(row)),
-      ];
-    } catch (_) {
-      return const [];
-    }
-  }
-
-  @override
-  Future<void> save(List<GuestCartLine> lines) async {
-    final prefs = await _prefs();
-    if (prefs == null) return;
-    try {
-      if (lines.isEmpty) {
-        await prefs.remove(prefsKey);
-        return;
+      await api.addToCart(line.productId, qty: line.qty);
+      await guest.remove(line.productId);
+    } on ApiException catch (e) {
+      final code = e.statusCode;
+      if (code == 400 || code == 404) {
+        await guest.remove(line.productId);
       }
-      await prefs.setString(
-        prefsKey,
-        jsonEncode([for (final line in lines) line.toJson()]),
-      );
-    } catch (_) {}
-  }
-
-  @override
-  Future<void> clear() => save(const []);
-}
-
-class MemoryGuestCartStore implements GuestCartStore {
-  MemoryGuestCartStore([List<GuestCartLine>? seed]) : lines = [...?seed];
-
-  List<GuestCartLine> lines;
-
-  @override
-  Future<List<GuestCartLine>> load() async => [...lines];
-
-  @override
-  Future<void> save(List<GuestCartLine> next) async {
-    lines = [...next];
-  }
-
-  @override
-  Future<void> clear() async {
-    lines = [];
+    }
   }
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/cart/cart_actions.dart';
 import '../../core/cart/cart_feedback.dart';
+import '../../core/cart/guest_cart.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
@@ -39,16 +41,21 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
 
     await runBusy('add', () async {
       try {
-        await ref.read(cartProvider.notifier).addItem(
-              productId: widget.productId,
-              productTitle: product.title,
-              qty: qty,
-              priceCredits: product.priceCredits,
-              sellerId: product.seller.id,
-              shopName: product.seller.shopName,
-              sellerType: product.seller.sellerType,
-              maxQty: product.stock < 1 ? 99 : product.stock,
-            );
+        await addOfferToCart(
+          ref,
+          productId: widget.productId,
+          qty: qty,
+          snapshot: guestSnapshot(
+            productId: widget.productId,
+            qty: qty,
+            productTitle: product.title,
+            priceCredits: product.priceCredits,
+            sellerId: product.seller.id,
+            shopName: product.seller.shopName,
+            sellerType: product.seller.sellerType,
+            maxQty: product.stock < 1 ? 99 : product.stock,
+          ),
+        );
         if (!mounted) return;
         showAddedToCartSnackBar(context);
       } on ApiException catch (e) {

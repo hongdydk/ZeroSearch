@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/cart/cart_actions.dart';
 import '../../core/cart/cart_feedback.dart';
+import '../../core/cart/guest_cart.dart';
 import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/layout/ui_platform.dart';
@@ -33,32 +35,33 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
     return (_qtyByOffer[offer.id] ?? 1).clamp(1, max);
   }
 
-  Future<void> _addToCart(CatalogOfferModel offer) async {
+  Future<void> _addToCart(CatalogProductDetailModel detail, CatalogOfferModel offer) async {
     final key = 'add:${offer.id}';
     if (isBusy(key) || isBusy()) return;
     if (ref.read(authStateProvider).isLoading) return;
     final qty = _qtyFor(offer);
-    final detail =
-        ref.read(catalogProductDetailProvider(widget.catalogId)).valueOrNull;
-    final option = offer.optionLabel?.trim();
-    final title = detail == null
-        ? _offerLabel(offer)
-        : (option == null || option.isEmpty
-              ? detail.title
-              : '${detail.title} · $option');
 
     await runBusy(key, () async {
       try {
-        await ref.read(cartProvider.notifier).addItem(
-              productId: offer.id,
-              productTitle: title,
-              qty: qty,
-              priceCredits: offer.priceCredits,
-              sellerId: offer.seller.id,
-              shopName: offer.seller.shopName,
-              sellerType: offer.seller.sellerType,
-              maxQty: offer.stock < 1 ? 99 : offer.stock,
-            );
+        await addOfferToCart(
+          ref,
+          productId: offer.id,
+          qty: qty,
+          snapshot: guestSnapshot(
+            productId: offer.id,
+            qty: qty,
+            productTitle: catalogOfferCartTitle(
+              detail.title,
+              optionLabel: offer.optionLabel,
+              flavor: offer.flavor,
+            ),
+            priceCredits: offer.priceCredits,
+            sellerId: offer.seller.id,
+            shopName: offer.seller.shopName,
+            sellerType: offer.seller.sellerType,
+            maxQty: offer.stock < 1 ? 99 : offer.stock,
+          ),
+        );
         if (!mounted) return;
         showAddedToCartSnackBar(context);
       } on ApiException catch (e) {
@@ -227,7 +230,7 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
                             FilledButton(
                               onPressed: isBusy() || offer.stock < 1
                                   ? null
-                                  : () => _addToCart(offer),
+                                  : () => _addToCart(detail, offer),
                               child: loading
                                   ? busyProgress()
                                   : Text(offer.stock < 1 ? '품절' : '담기'),

@@ -43,6 +43,9 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
 
+final guestCartStorageProvider =
+    Provider<GuestCartStorage>((ref) => GuestCartStorage());
+
 final authStateProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<AuthState>>((ref) {
   return AuthNotifier(
@@ -255,8 +258,6 @@ final productsProvider = FutureProvider.autoDispose<List<ProductModel>>((ref) as
   return ref.watch(apiClientProvider).products();
 });
 
-final guestCartStoreProvider = Provider<GuestCartStore>((ref) => PrefsGuestCartStore());
-
 /// 구매자 수량 동기 debounce. 테스트에서 `Duration.zero`로 덮어쓴다.
 final cartSyncDelayProvider = Provider<Duration>(
   (ref) => const Duration(milliseconds: 300),
@@ -274,7 +275,7 @@ class CartNotifier extends AsyncNotifier<CartModel> {
   bool get _isBuyer =>
       ref.read(authStateProvider).valueOrNull?.isMallBuyer == true;
 
-  GuestCartStore get _store => ref.read(guestCartStoreProvider);
+  GuestCartStorage get _store => ref.read(guestCartStorageProvider);
 
   ApiClient get _api => ref.read(apiClientProvider);
 
@@ -290,27 +291,8 @@ class CartNotifier extends AsyncNotifier<CartModel> {
       _authoritative = null;
       return cartModelFromGuestLines(await _store.load());
     }
-    var cart = await _api.cart();
-    List<GuestCartLine> guest = const [];
-    try {
-      guest = await _store.load();
-    } catch (_) {}
-    if (guest.isNotEmpty) {
-      final remaining = [...guest];
-      for (final line in guest) {
-        try {
-          cart = await _api.addToCart(line.productId, qty: line.qty);
-          remaining.removeWhere((e) => e.productId == line.productId);
-          await _store.save(remaining);
-        } on ApiException catch (e) {
-          _setSyncError(e.message);
-          break;
-        } catch (_) {
-          _setSyncError('장바구니를 계정에 옮기지 못했습니다.');
-          break;
-        }
-      }
-    }
+    await mergeGuestCartIntoUser(api: _api, guest: _store);
+    final cart = await _api.cart();
     _authoritative = cart;
     return cart;
   }
@@ -364,9 +346,19 @@ class CartNotifier extends AsyncNotifier<CartModel> {
       unawaited(_persistGuest(next));
       return;
     }
-    final cart = await _api.addToCart(productId, qty: incoming.qty);
-    _authoritative = cart;
-    state = AsyncData(_applyPendingOnTop(cart));
+    final current = state.valueOrNull ?? CartModel.empty;
+    state = AsyncData(current.addingOrMerging(incoming));
+    try {
+      final cart = await _api.addToCart(productId, qty: incoming.qty);
+      _authoritative = cart;
+      state = AsyncData(_applyPendingOnTop(cart));
+    } on ApiException catch (e) {
+      await _rollbackBuyer(e.message);
+      rethrow;
+    } catch (_) {
+      await _rollbackBuyer('장바구니에 담지 못했습니다.');
+      rethrow;
+    }
   }
 
   void updateQty(String productId, int qty) {

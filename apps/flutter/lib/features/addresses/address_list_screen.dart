@@ -7,15 +7,23 @@ import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
-class AddressListScreen extends ConsumerWidget {
+class AddressListScreen extends ConsumerStatefulWidget {
   const AddressListScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<AddressListScreen> createState() => _AddressListScreenState();
+}
+
+class _AddressListScreenState extends ConsumerState<AddressListScreen> {
+  final _hiddenIds = <String>{};
+
+  @override
+  Widget build(BuildContext context) {
     final addressesAsync = ref.watch(addressesProvider);
 
     return PageFormScaffold(
       child: addressesAsync.when(
+        skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => Center(
           child: Column(
@@ -30,17 +38,21 @@ class AddressListScreen extends ConsumerWidget {
           ),
         ),
         data: (addresses) {
+          final visible = [
+            for (final address in addresses)
+              if (!_hiddenIds.contains(address.id)) address,
+          ];
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Text('배송지', style: Theme.of(context).textTheme.headlineSmall),
               const SizedBox(height: 16),
-              if (addresses.isEmpty)
+              if (visible.isEmpty)
                 const Padding(
                   padding: EdgeInsets.only(bottom: 16),
                   child: Text('저장된 배송지가 없습니다.'),
                 ),
-              ...addresses.map(
+              ...visible.map(
                 (address) => Card(
                   child: ListTile(
                     title: Text(
@@ -52,7 +64,7 @@ class AddressListScreen extends ConsumerWidget {
                         context.push('/settings/addresses/${address.id}'),
                     trailing: IconButton(
                       icon: const Icon(Icons.delete_outline),
-                      onPressed: () => _delete(context, ref, address),
+                      onPressed: () => _delete(address),
                     ),
                   ),
                 ),
@@ -69,21 +81,25 @@ class AddressListScreen extends ConsumerWidget {
     );
   }
 
-  Future<void> _delete(
-    BuildContext context,
-    WidgetRef ref,
-    ShippingAddressModel address,
-  ) async {
+  Future<void> _delete(ShippingAddressModel address) async {
+    setState(() => _hiddenIds.add(address.id));
     try {
       await ref.read(apiClientProvider).deleteAddress(address.id);
       ref.invalidate(addressesProvider);
     } on ApiException catch (e) {
-      if (!context.mounted) return;
+      if (!mounted) return;
+      setState(() => _hiddenIds.remove(address.id));
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(e.message),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
+      );
+    } catch (_) {
+      if (!mounted) return;
+      setState(() => _hiddenIds.remove(address.id));
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('배송지를 삭제하지 못했습니다.')),
       );
     }
   }

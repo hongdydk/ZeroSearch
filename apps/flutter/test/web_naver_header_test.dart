@@ -13,6 +13,7 @@ import 'package:shopping_mall/core/storage/token_storage.dart';
 import 'package:shopping_mall/core/theme/app_theme.dart';
 import 'package:shopping_mall/shared/widgets/adaptive_shell.dart';
 import 'package:shopping_mall/shared/widgets/web/web_naver_header.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _HeaderTestApiClient extends ApiClient {
   _HeaderTestApiClient({this.cartState}) : super(tokenReader: () async => null);
@@ -123,7 +124,7 @@ Widget _headerHarness({
       tokenStorageProvider.overrideWithValue(
         loggedIn ? _LoggedInTokenStorage() : _LoggedOutTokenStorage(),
       ),
-      guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+      guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
     ],
     child: MaterialApp(
       theme: AppTheme.web(),
@@ -151,6 +152,7 @@ void _setLogicalViewport(WidgetTester tester, Size size) {
 void main() {
   setUp(() {
     debugForceWebUi = false;
+    SharedPreferences.setMockInitialValues({});
   });
 
   tearDown(() {
@@ -211,7 +213,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
           tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
-          guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+          guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
         ],
         child: MaterialApp(
           theme: AppTheme.web(),
@@ -287,7 +289,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
           tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
-          guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+          guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
         ],
         child: MaterialApp.router(
           theme: AppTheme.web(),
@@ -341,7 +343,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
           tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
-          guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+          guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
         ],
         child: MaterialApp.router(
           theme: AppTheme.web(),
@@ -386,7 +388,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
           tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
-          guestCartStoreProvider.overrideWithValue(MemoryGuestCartStore()),
+          guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
         ],
         child: MaterialApp.router(
           theme: AppTheme.web(),
