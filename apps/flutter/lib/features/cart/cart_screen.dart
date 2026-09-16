@@ -1,14 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/cart/cart_actions.dart';
 import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/models/models.dart';
-import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
-import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 List<List<CartItemModel>> _groupCartBySeller(List<CartItemModel> items) {
@@ -33,46 +32,41 @@ class CartScreen extends ConsumerStatefulWidget {
   ConsumerState<CartScreen> createState() => _CartScreenState();
 }
 
-class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
-  Future<void> _updateQty(String productId, int qty) async {
-    await runBusy('cart:$productId', () async {
-      try {
-        await updateVisibleCartQty(ref, productId: productId, qty: qty);
-      } on ApiException catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
+class _CartScreenState extends ConsumerState<CartScreen> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(ref.read(cartProvider.notifier).refreshAuthoritative());
     });
   }
 
-  Future<void> _remove(String productId) async {
-    await runBusy('cart:$productId', () async {
-      try {
-        await removeVisibleCartItem(ref, productId: productId);
-      } on ApiException catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(e.message),
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
-        );
-      }
-    });
+  Future<void> _goCheckout() async {
+    await ref.read(cartProvider.notifier).flushPending();
+    if (!mounted) return;
+    context.push('/checkout');
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.listen<String?>(cartSyncErrorProvider, (prev, next) {
+      if (next == null || next.isEmpty) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(next),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
+      ref.read(cartSyncErrorProvider.notifier).state = null;
+    });
+
     final cartAsync = ref.watch(cartProvider);
     final isBuyer = ref.watch(authStateProvider).valueOrNull?.isMallBuyer == true;
 
     return PageFormScaffold(
       child: cartAsync.when(
+        skipLoadingOnReload: true,
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (_, _) => Center(
           child: Column(
@@ -81,7 +75,8 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
               const Text('장바구니를 불러오지 못했어요. 잠시 후 다시 시도해 주세요.'),
               const SizedBox(height: 16),
               OutlinedButton(
-                onPressed: () => ref.invalidate(cartProvider),
+                onPressed: () =>
+                    unawaited(ref.read(cartProvider.notifier).refreshAuthoritative()),
                 child: const Text('다시 시도'),
               ),
             ],
@@ -104,7 +99,7 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
             );
           }
 
-          final canCheckout = !cart.checkoutBlocked && !isBusy();
+          final canCheckout = !cart.checkoutBlocked;
 
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -124,7 +119,6 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
                     ),
                   ),
                   ...group.map((item) {
-                    final rowBusy = isBusy('cart:${item.productId}');
                     final muted = !item.isAvailable;
                     final canIncrease = !muted && item.qty < item.maxQty;
                     return Opacity(
@@ -151,31 +145,36 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
+                                tooltip: '수량 줄이기',
                                 icon: const Icon(Icons.remove),
-                                onPressed: rowBusy || item.qty <= 1
+                                onPressed: item.qty <= 1
                                     ? null
-                                    : () => _updateQty(
-                                        item.productId,
-                                        item.qty - 1,
-                                      ),
+                                    : () => ref
+                                          .read(cartProvider.notifier)
+                                          .updateQty(
+                                            item.productId,
+                                            item.qty - 1,
+                                          ),
                               ),
                               Text('${item.qty}'),
                               IconButton(
+                                tooltip: '수량 늘리기',
                                 icon: const Icon(Icons.add),
-                                onPressed: rowBusy || !canIncrease
+                                onPressed: !canIncrease
                                     ? null
-                                    : () => _updateQty(
-                                        item.productId,
-                                        item.qty + 1,
-                                      ),
+                                    : () => ref
+                                          .read(cartProvider.notifier)
+                                          .updateQty(
+                                            item.productId,
+                                            item.qty + 1,
+                                          ),
                               ),
                               IconButton(
-                                icon: rowBusy
-                                    ? busyProgress()
-                                    : const Icon(Icons.delete_outline),
-                                onPressed: rowBusy
-                                    ? null
-                                    : () => _remove(item.productId),
+                                tooltip: '삭제',
+                                icon: const Icon(Icons.delete_outline),
+                                onPressed: () => ref
+                                    .read(cartProvider.notifier)
+                                    .remove(item.productId),
                               ),
                             ],
                           ),
@@ -213,9 +212,7 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
                 const SizedBox(height: 12),
               ],
               FilledButton(
-                onPressed: canCheckout
-                    ? () => context.push('/checkout')
-                    : null,
+                onPressed: canCheckout ? _goCheckout : null,
                 child: const Text('주문하기'),
               ),
             ],

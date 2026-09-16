@@ -59,6 +59,7 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
             sellerId: offer.seller.id,
             shopName: offer.seller.shopName,
             sellerType: offer.seller.sellerType,
+            maxQty: offer.stock < 1 ? 99 : offer.stock,
           ),
         );
         if (!mounted) return;

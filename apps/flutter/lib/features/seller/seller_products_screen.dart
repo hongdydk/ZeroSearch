@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -21,6 +23,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
   List<ProductModel> _products = [];
   List<IntakeDraftModel> _cardDrafts = [];
   bool _loading = true;
+  bool _reloading = false;
   String _filter = 'all';
 
   @override
@@ -29,17 +32,35 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     _load();
   }
 
-  Future<void> _load() async {
-    setState(() => _loading = true);
+  Future<void> _load({bool silent = false}) async {
+    final keepList = silent || _products.isNotEmpty || _cardDrafts.isNotEmpty;
+    if (mounted) {
+      setState(() {
+        if (keepList) {
+          _reloading = true;
+        } else {
+          _loading = true;
+        }
+      });
+    }
     try {
       final api = ref.read(apiClientProvider);
-      final items = await api.sellerProducts();
+      late final List<ProductModel> items;
       var drafts = <IntakeDraftModel>[];
-      try {
-        drafts = await api.sellerCardDrafts();
-      } on ApiException {
-        drafts = [];
-      }
+      final draftsFuture = () async {
+        try {
+          return await api.sellerCardDrafts();
+        } on ApiException {
+          return <IntakeDraftModel>[];
+        }
+      }();
+      final results = await Future.wait([
+        api.sellerProducts(),
+        draftsFuture,
+      ]);
+      items = results[0] as List<ProductModel>;
+      drafts = results[1] as List<IntakeDraftModel>;
+      if (!mounted) return;
       setState(() {
         _products = items;
         _cardDrafts = drafts;
@@ -51,7 +72,12 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
         ).showSnackBar(SnackBar(content: Text(e.message)));
       }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() {
+          _loading = false;
+          _reloading = false;
+        });
+      }
     }
   }
 
@@ -66,11 +92,13 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
   }
 
   Future<void> _openCardDraft() async {
-    final ok = await showDialog<bool>(
+    final draft = await showDialog<IntakeDraftModel>(
       context: context,
       builder: (ctx) => const _CardDraftDialog(),
     );
-    if (ok == true && mounted) await _load();
+    if (draft == null || !mounted) return;
+    setState(() => _cardDrafts = [draft, ..._cardDrafts]);
+    unawaited(_load(silent: true));
   }
 
   Future<void> _registerOffer(CatalogProductModel catalog) async {
@@ -167,7 +195,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     }
 
     try {
-      await ref
+      final created = await ref
           .read(apiClientProvider)
           .sellerCreateProduct(
             title: catalog.title,
@@ -186,11 +214,12 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                 : imageController.text.trim(),
           );
       if (mounted) {
+        setState(() => _products = [created, ..._products]);
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('오퍼 초안을 제출했습니다. MD 검수를 기다립니다.')));
+        unawaited(_load(silent: true));
       }
-      await _load();
     } on ApiException catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(
@@ -271,6 +300,10 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
               ],
             ),
             const SizedBox(height: 14),
+            if (_reloading) ...[
+              const LinearProgressIndicator(minHeight: 2),
+              const SizedBox(height: 14),
+            ],
             PortalSection(
               title: '카드 초안 ${pendingCards.length}건',
               child: pendingCards.isEmpty
@@ -300,7 +333,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
             const SizedBox(height: 14),
             PortalSection(
               title: '연결된 오퍼',
-              child: _loading
+              child: _loading && _products.isEmpty
                   ? const Padding(
                       padding: EdgeInsets.all(32),
                       child: Center(child: CircularProgressIndicator()),
@@ -438,7 +471,7 @@ class _CardDraftDialogState extends ConsumerState<_CardDraftDialog>
     }
     await runBusy('submit', () async {
       try {
-        await ref.read(apiClientProvider).sellerCreateCardDraft(
+        final created = await ref.read(apiClientProvider).sellerCreateCardDraft(
           manufacturer: manufacturer,
           title: title,
           category: category,
@@ -450,7 +483,7 @@ class _CardDraftDialogState extends ConsumerState<_CardDraftDialog>
           volumeMl: _volumeMlFromOption(option),
         );
         if (!mounted) return;
-        Navigator.pop(context, true);
+        Navigator.pop(context, created);
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -597,9 +630,11 @@ class _CatalogSearchDialogState extends ConsumerState<_CatalogSearchDialog> {
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
+              child: Column(
+                children: [
+                  if (_loading) const LinearProgressIndicator(minHeight: 2),
+                  Expanded(
+                    child: ListView.builder(
                       itemCount: _items.length,
                       itemBuilder: (context, index) {
                         final item = _items[index];
@@ -616,6 +651,9 @@ class _CatalogSearchDialogState extends ConsumerState<_CatalogSearchDialog> {
                         );
                       },
                     ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),

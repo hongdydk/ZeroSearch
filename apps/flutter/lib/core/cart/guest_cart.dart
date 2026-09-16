@@ -3,8 +3,9 @@ import '../network/api_client.dart';
 import '../network/api_exception.dart';
 import 'guest_cart_storage.dart';
 
-CartModel emptyCart() =>
-    CartModel(items: const [], totalCredits: 0, checkoutBlocked: false);
+export 'guest_cart_storage.dart';
+
+CartModel emptyCart() => CartModel.empty;
 
 GuestCartLine guestSnapshot({
   required String productId,
@@ -14,6 +15,7 @@ GuestCartLine guestSnapshot({
   required String sellerId,
   required String shopName,
   required String sellerType,
+  int maxQty = 99,
 }) {
   return GuestCartLine(
     productId: productId,
@@ -23,6 +25,7 @@ GuestCartLine guestSnapshot({
     sellerId: sellerId,
     shopName: shopName,
     sellerType: sellerType,
+    maxQty: maxQty < 1 ? 99 : maxQty,
   );
 }
 
@@ -67,9 +70,11 @@ CartItemModel cartItemFromProduct(ProductModel product, int qty) {
   );
 }
 
+/// 게스트 스냅샷을 카트 줄로. 수량 변경 때 product GET을 하지 않는다.
 CartItemModel cartItemFromGuestLine(GuestCartLine line) {
   final qty = line.qty.clamp(1, 99);
   final price = line.priceCredits ?? 0;
+  final maxQty = line.maxQty ?? 99;
   return CartItemModel(
     id: line.productId,
     productId: line.productId,
@@ -82,10 +87,7 @@ CartItemModel cartItemFromGuestLine(GuestCartLine line) {
     sellerId: line.sellerId ?? '',
     shopName: line.shopName ?? '',
     sellerType: line.sellerType ?? 'merchant',
-    isAvailable: false,
-    issueCode: 'offer_unavailable',
-    issueMessage: '판매가 종료된 상품입니다.',
-    maxQty: 0,
+    maxQty: maxQty < 1 ? 99 : maxQty,
   );
 }
 
@@ -98,22 +100,27 @@ CartModel cartModelFromItems(List<CartItemModel> items) {
   );
 }
 
-Future<CartModel> loadGuestCart({
-  required ApiClient api,
-  required GuestCartStorage guest,
-}) async {
-  final lines = await guest.load();
-  if (lines.isEmpty) return emptyCart();
-  final items = <CartItemModel>[];
-  for (final line in lines) {
-    try {
-      final product = await api.product(line.productId);
-      items.add(cartItemFromProduct(product, line.qty));
-    } catch (_) {
-      items.add(cartItemFromGuestLine(line));
-    }
-  }
-  return cartModelFromItems(items);
+CartModel cartModelFromGuestLines(List<GuestCartLine> lines) {
+  return cartModelFromItems([
+    for (final line in lines)
+      if (line.productId.isNotEmpty) cartItemFromGuestLine(line),
+  ]);
+}
+
+List<GuestCartLine> guestLinesFromCart(CartModel cart) {
+  return [
+    for (final item in cart.items)
+      GuestCartLine(
+        productId: item.productId,
+        qty: item.qty,
+        productTitle: item.productTitle,
+        priceCredits: item.priceCredits,
+        sellerId: item.sellerId,
+        shopName: item.shopName,
+        sellerType: item.sellerType,
+        maxQty: item.maxQty,
+      ),
+  ];
 }
 
 /// 로그인 후 게스트 줄을 사용자 카트에 합친다. 같은 오퍼는 서버가 한 줄로 더한다.
@@ -134,16 +141,4 @@ Future<void> mergeGuestCartIntoUser({
       }
     }
   }
-}
-
-Future<CartModel> loadVisibleCart({
-  required ApiClient api,
-  required GuestCartStorage guest,
-  required bool isBuyer,
-}) async {
-  if (isBuyer) {
-    await mergeGuestCartIntoUser(api: api, guest: guest);
-    return api.cart();
-  }
-  return loadGuestCart(api: api, guest: guest);
 }

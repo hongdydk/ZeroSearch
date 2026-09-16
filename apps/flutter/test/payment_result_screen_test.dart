@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shopping_mall/core/auth/login_portal.dart';
+import 'package:shopping_mall/core/cart/guest_cart.dart';
 import 'package:shopping_mall/core/models/models.dart';
 import 'package:shopping_mall/core/network/api_client.dart';
 import 'package:shopping_mall/core/network/api_exception.dart';
@@ -64,10 +65,6 @@ class _LoggedInApi extends ApiClient {
       UserModel(id: 'u1', email: 'buyer@example.com', displayName: 'Buyer');
 
   @override
-  Future<CartModel> cart() async =>
-      CartModel(items: const [], totalCredits: 0);
-
-  @override
   Future<CatalogProductPageModel> catalogProducts({
     String? q,
     String? category,
@@ -79,6 +76,13 @@ class _LoggedInApi extends ApiClient {
     int offset = 0,
     int limit = 50,
   }) async => CatalogProductPageModel(items: const [], total: 0);
+
+  @override
+  Future<CartModel> cart() async =>
+      CartModel(items: const [], totalCredits: 0);
+
+  @override
+  Future<List<OrderModel>> orders() async => const [];
 
   @override
   Future<OrderModel> confirmTossPayment({
@@ -114,6 +118,9 @@ class _Tokens extends TokenStorage {
 
   @override
   Future<void> loadLeftAts() async {}
+
+  @override
+  Future<void> clearPortalLeft(LoginPortal portal) async {}
 
   @override
   Future<void> clear() async {}
@@ -213,6 +220,7 @@ void main() {
         overrides: [
           apiClientProvider.overrideWithValue(_LoggedInApi()),
           tokenStorageProvider.overrideWithValue(_Tokens()),
+          guestCartStorageProvider.overrideWithValue(MemoryGuestCartStore()),
         ],
         child: Consumer(
           builder: (context, ref, _) {

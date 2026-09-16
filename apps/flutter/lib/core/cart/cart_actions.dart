@@ -1,7 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/app_providers.dart';
-import 'guest_cart_storage.dart';
+import 'guest_cart.dart';
 
 Future<void> addOfferToCart(
   WidgetRef ref, {
@@ -9,42 +9,32 @@ Future<void> addOfferToCart(
   required int qty,
   GuestCartLine? snapshot,
 }) async {
-  final isBuyer = ref.read(authStateProvider).valueOrNull?.isMallBuyer == true;
-  if (isBuyer) {
-    await ref.read(apiClientProvider).addToCart(productId, qty: qty);
-  } else {
-    await ref.read(guestCartStorageProvider).add(
-          productId,
-          qty,
-          snapshot: snapshot,
-        );
-  }
-  ref.invalidate(cartProvider);
+  final line = snapshot ?? GuestCartLine(productId: productId, qty: qty);
+  await ref.read(cartProvider.notifier).addItem(
+        productId: productId,
+        productTitle: line.productTitle?.trim().isNotEmpty == true
+            ? line.productTitle!
+            : '상품',
+        qty: qty,
+        priceCredits: line.priceCredits ?? 0,
+        sellerId: line.sellerId ?? '',
+        shopName: line.shopName ?? '',
+        sellerType: line.sellerType ?? 'merchant',
+        maxQty: line.maxQty ?? 99,
+      );
 }
 
-Future<void> updateVisibleCartQty(
+void updateVisibleCartQty(
   WidgetRef ref, {
   required String productId,
   required int qty,
-}) async {
-  final isBuyer = ref.read(authStateProvider).valueOrNull?.isMallBuyer == true;
-  if (isBuyer) {
-    await ref.read(apiClientProvider).updateCartItem(productId, qty);
-  } else {
-    await ref.read(guestCartStorageProvider).updateQty(productId, qty);
-  }
-  ref.invalidate(cartProvider);
+}) {
+  ref.read(cartProvider.notifier).updateQty(productId, qty);
 }
 
-Future<void> removeVisibleCartItem(
+void removeVisibleCartItem(
   WidgetRef ref, {
   required String productId,
-}) async {
-  final isBuyer = ref.read(authStateProvider).valueOrNull?.isMallBuyer == true;
-  if (isBuyer) {
-    await ref.read(apiClientProvider).removeFromCart(productId);
-  } else {
-    await ref.read(guestCartStorageProvider).remove(productId);
-  }
-  ref.invalidate(cartProvider);
+}) {
+  ref.read(cartProvider.notifier).remove(productId);
 }

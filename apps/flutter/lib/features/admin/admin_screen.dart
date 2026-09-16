@@ -13,8 +13,9 @@ import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/portal_workspace.dart';
+import 'admin_dashboard.dart';
 
-enum AdminSection { home, stats, sellers, orders, catalog, users, tools }
+export 'admin_dashboard.dart' show AdminSection;
 
 class AdminScreen extends ConsumerStatefulWidget {
   const AdminScreen({super.key, this.section});
@@ -26,16 +27,6 @@ class AdminScreen extends ConsumerStatefulWidget {
 }
 
 class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
-  Map<String, dynamic>? _stats;
-
-  List<dynamic> _users = [];
-
-  List<AdminSellerModel> _pendingSellers = [];
-
-  List<SellerOrderItemModel> _orderItems = [];
-
-  List<IntakeDraftModel> _catalogDrafts = [];
-
   String _resetMode = 'seed';
 
   String? _message;
@@ -50,24 +41,34 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
   String? _importResult;
 
-  String _userQuery = '';
   final _userSearchCtrl = TextEditingController();
-  final Map<String, bool> _adminDraft = {};
 
   bool get _resetting => isBusy('reset');
 
   bool get _pageLocked => isBusy('reset') || isBusy('import');
 
+  AdminDashboardState get _dash => ref.watch(adminDashboardProvider);
+
+  AdminDashboardNotifier get _dashNotifier =>
+      ref.read(adminDashboardProvider.notifier);
+
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_dashNotifier.ensureSection(widget.section));
+      _syncPoll();
+    });
+  }
 
-    _load();
-
-    _pollTimer = Timer.periodic(
-      const Duration(seconds: 3),
-      (_) => _loadOrders(silent: true),
-    );
+  @override
+  void didUpdateWidget(covariant AdminScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.section != widget.section) {
+      unawaited(_dashNotifier.ensureSection(widget.section));
+      _syncPoll();
+    }
   }
 
   @override
@@ -77,72 +78,33 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
     super.dispose();
   }
 
-  Future<void> _load() async {
-    final api = ref.read(apiClientProvider);
-
-    final stats = await api.adminStats();
-
-    final users = await api.adminUsers(q: _userQuery);
-
-    List<AdminSellerModel> pending = [];
-
-    List<IntakeDraftModel> drafts = [];
-
-    try {
-      pending = await api.adminSellers(status: 'pending');
-    } catch (_) {}
-    try {
-      drafts = await api.adminCatalogDrafts();
-    } catch (_) {}
-
-    await _loadOrders(silent: true);
-
-    setState(() {
-      _stats = stats;
-
-      _users = users['items'] as List<dynamic>? ?? [];
-      _adminDraft
-        ..clear()
-        ..addEntries(
-          _users.map(
-            (user) => MapEntry(
-              user['id'] as String,
-              user['isAdmin'] == true,
-            ),
-          ),
-        );
-      _pendingSellers = pending;
-      _catalogDrafts = drafts;
-    });
-  }
-
-  Future<void> _loadOrders({bool silent = false}) async {
-    try {
-      final items = await ref.read(apiClientProvider).adminOrders();
-
-      if (mounted) setState(() => _orderItems = items);
-    } on ApiException catch (_) {
-      if (!silent && mounted) {
-        setState(() => _orderItems = []);
-      }
+  void _syncPoll() {
+    _pollTimer?.cancel();
+    _pollTimer = null;
+    if (widget.section == AdminSection.orders) {
+      _pollTimer = Timer.periodic(
+        const Duration(seconds: 3),
+        (_) => unawaited(_dashNotifier.loadOrders(silent: true)),
+      );
     }
   }
 
   Future<void> _advanceOrder(SellerOrderItemModel item) async {
-    final next = nextFulfillmentStatus(item.fulfillmentStatus);
-    if (next == null) return;
-    await runBusy('order:${item.id}', () async {
-      try {
-        await ref.read(apiClientProvider).adminUpdateOrderStatus(item.id, next);
-        await _loadOrders(silent: true);
-      } on ApiException catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(e.message)));
-        }
+    try {
+      await _dashNotifier.advanceOrder(item);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
       }
-    });
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('주문 상태를 바꾸지 못했습니다.')));
+      }
+    }
   }
 
   String _resetBusyLabel() {
@@ -187,7 +149,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(text)));
-        await _load();
+        await _dashNotifier.reloadAll();
       } on ApiException catch (e) {
         if (!mounted) return;
         setState(() => _message = e.message);
@@ -225,7 +187,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('기존 카드에 붙였습니다.')));
-        await _load();
+        await _dashNotifier.removeDraft(draft.id);
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -295,7 +257,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('초안을 카탈로그 카드로 올렸습니다.')));
-        await _load();
+        await _dashNotifier.removeDraft(draft.id);
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -309,12 +271,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   Future<void> _approveSeller(String sellerId) async {
     await runBusy('approve:$sellerId', () async {
       try {
-        await ref.read(apiClientProvider).adminApproveSeller(sellerId);
+        await _dashNotifier.approveSeller(sellerId);
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('입점을 승인했습니다.')));
-        await _load();
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -326,17 +287,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   }
 
   Future<void> _saveUserRole(String userId) async {
-    final isAdmin = _adminDraft[userId] ?? false;
     await runBusy('user:$userId', () async {
       try {
-        await ref
-            .read(apiClientProvider)
-            .adminUpdateUser(userId, isAdmin: isAdmin);
+        await _dashNotifier.saveUser(userId);
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('역할을 저장했습니다.')));
-        await _load();
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -368,12 +325,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
     if (ok != true) return;
     await runBusy('user:$userId', () async {
       try {
-        await ref.read(apiClientProvider).adminDeleteUser(userId);
+        await _dashNotifier.deleteUser(userId);
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('사용자를 삭제했습니다.')));
-        await _load();
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -484,49 +440,55 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   };
 
   Widget _buildAdminHome() {
-    final stats = _stats;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        if (stats == null)
+        if (_dash.stats == null && _dash.statsLoading)
           const Center(child: CircularProgressIndicator())
+        else if (_dash.stats == null)
+          const Center(child: Text('통계를 불러오지 못했습니다.'))
         else
           PortalMetricGrid(
             children: [
               PortalMetricCard(
                 label: '판매 품목 수',
-                value: '${stats['soldItemCount'] ?? 0}',
+                value: '${_dash.stats!['soldItemCount'] ?? 0}',
                 hint: '팔린 품목',
               ),
               PortalMetricCard(
                 label: '수량',
-                value: '${stats['soldQtySum'] ?? 0}',
+                value: '${_dash.stats!['soldQtySum'] ?? 0}',
                 hint: '판매 수량 합',
               ),
               PortalMetricCard(
                 label: '총액',
-                value: '${stats['soldAmountSum'] ?? 0}',
+                value: '${_dash.stats!['soldAmountSum'] ?? 0}',
                 hint: '원',
               ),
               PortalMetricCard(
                 label: '승인 대기',
-                value: '${stats['pendingSellerCount']}',
+                value: '${_dash.stats!['pendingSellerCount']}',
                 hint: '검토 필요',
-                attention: (stats['pendingSellerCount'] as int? ?? 0) > 0,
+                attention: (_dash.stats!['pendingSellerCount'] as int? ?? 0) > 0,
               ),
             ],
           ),
         const SizedBox(height: 18),
         PortalSection(
           title: '입점 승인 대기',
-          child: _pendingSellers.isEmpty
+          child: _dash.sellersLoading && _dash.pendingSellers.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Center(child: CircularProgressIndicator()),
+                )
+              : _dash.pendingSellers.isEmpty
               ? const Padding(
                   padding: EdgeInsets.all(18),
                   child: Text('대기 중인 입점 신청이 없습니다.'),
                 )
               : Column(
                   children: [
-                    for (final seller in _pendingSellers.take(4))
+                    for (final seller in _dash.pendingSellers.take(4))
                       ListTile(
                         title: Text(seller.shopName),
                         subtitle: Text(seller.userEmail),
@@ -548,9 +510,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   }
 
   Widget _buildStats() {
-    final stats = _stats;
+    final stats = _dash.stats;
     if (stats == null) {
-      return const Center(child: CircularProgressIndicator());
+      return Center(
+        child: _dash.statsLoading
+            ? const CircularProgressIndicator()
+            : const Text('통계를 불러오지 못했습니다.'),
+      );
     }
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -588,14 +554,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   Widget _buildSellers() {
     return PortalSection(
       title: '승인 대기 판매자',
-      child: _pendingSellers.isEmpty
+      child: _dash.sellersLoading && _dash.pendingSellers.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(22),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : _dash.pendingSellers.isEmpty
           ? const Padding(
               padding: EdgeInsets.all(22),
               child: Text('대기 중인 입점 신청이 없습니다.'),
             )
           : Column(
               children: [
-                for (final seller in _pendingSellers)
+                for (final seller in _dash.pendingSellers)
                   ListTile(
                     leading: const Icon(Icons.storefront_outlined),
                     title: Text(seller.shopName),
@@ -619,14 +590,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   Widget _buildOrders() {
     return PortalSection(
       title: '전체 주문 줄',
-      child: _orderItems.isEmpty
+      child: _dash.ordersLoading && _dash.orderItems.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(22),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : _dash.orderItems.isEmpty
           ? const Padding(
               padding: EdgeInsets.all(22),
               child: Text('주문 줄이 없습니다.'),
             )
           : Column(
               children: [
-                for (final item in _orderItems)
+                for (final item in _dash.orderItems)
                   ListTile(
                     title: Text(item.productTitle),
                     subtitle: Text(
@@ -664,7 +640,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         AdminCatalogDraftsPanel(
-          drafts: _catalogDrafts,
+          drafts: _dash.catalogDrafts,
+          loading: _dash.draftsLoading && _dash.catalogDrafts.isEmpty,
           pageLocked: _pageLocked,
           isRowBusy: (id) => isBusy('draft:$id'),
           onAttach: _attachDraft,
@@ -693,24 +670,31 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   Widget _buildUsers() {
     return AdminUsersPanel(
       users: [
-        for (final user in _users)
+        for (final user in _dash.users)
           if (user is Map) Map<String, dynamic>.from(user),
       ],
       queryController: _userSearchCtrl,
-      adminDraft: _adminDraft,
+      adminDraft: _dash.adminDraft,
       pageLocked: _pageLocked,
+      loading: _dash.usersLoading && _dash.users.isEmpty,
       isRowBusy: (id) => isBusy('user:$id'),
       onSearch: () {
-        setState(() => _userQuery = _userSearchCtrl.text.trim());
-        _load();
+        unawaited(
+          _dashNotifier.loadUsers(
+            force: true,
+            q: _userSearchCtrl.text.trim(),
+          ),
+        );
       },
-      onAdminChanged: (id, value) => setState(() => _adminDraft[id] = value),
+      onAdminChanged: (id, value) => _dashNotifier.setAdminDraft(id, value),
       onSave: _saveUserRole,
       onDelete: (id) {
-        final match = _users.cast<dynamic>().where((item) => item['id'] == id);
+        final match = _dash.users.where(
+          (item) => item is Map && item['id'] == id,
+        );
         final email = match.isEmpty
             ? ''
-            : match.first['email'] as String? ?? '';
+            : (match.first as Map)['email'] as String? ?? '';
         _deleteUser(id, email);
       },
     );
@@ -777,7 +761,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
     final children = <Widget>[
       Text('관리자', style: Theme.of(context).textTheme.headlineSmall),
 
-      if (_stats != null) ...[
+      if (_dash.stats != null) ...[
         if (isWebUi)
           Card(
             child: Padding(
@@ -789,32 +773,32 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
                 runSpacing: 12,
 
                 children: [
-                  _StatCell(label: '사용자', value: '${_stats!['userCount']}'),
+                  _StatCell(label: '사용자', value: '${_dash.stats!['userCount']}'),
 
-                  _StatCell(label: '상품', value: '${_stats!['productCount']}'),
+                  _StatCell(label: '상품', value: '${_dash.stats!['productCount']}'),
 
-                  _StatCell(label: '주문', value: '${_stats!['orderCount']}'),
+                  _StatCell(label: '주문', value: '${_dash.stats!['orderCount']}'),
 
-                  _StatCell(label: '판매자', value: '${_stats!['sellerCount']}'),
+                  _StatCell(label: '판매자', value: '${_dash.stats!['sellerCount']}'),
 
                   _StatCell(
                     label: '승인 대기',
-                    value: '${_stats!['pendingSellerCount']}',
+                    value: '${_dash.stats!['pendingSellerCount']}',
                   ),
                 ],
               ),
             ),
           )
         else ...[
-          Text('사용자: ${_stats!['userCount']}'),
+          Text('사용자: ${_dash.stats!['userCount']}'),
 
-          Text('상품: ${_stats!['productCount']}'),
+          Text('상품: ${_dash.stats!['productCount']}'),
 
-          Text('주문: ${_stats!['orderCount']}'),
+          Text('주문: ${_dash.stats!['orderCount']}'),
 
-          Text('판매자: ${_stats!['sellerCount']}'),
+          Text('판매자: ${_dash.stats!['sellerCount']}'),
 
-          Text('승인 대기: ${_stats!['pendingSellerCount']}'),
+          Text('승인 대기: ${_dash.stats!['pendingSellerCount']}'),
         ],
       ],
 
@@ -822,14 +806,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
       Text('입점 승인', style: Theme.of(context).textTheme.titleMedium),
 
-      if (_pendingSellers.isEmpty)
+      if (_dash.pendingSellers.isEmpty)
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 8),
 
           child: Text('대기 중인 입점 신청이 없습니다.'),
         )
       else
-        ..._pendingSellers.map(
+        ..._dash.pendingSellers.map(
           (s) => ListTile(
             title: Text(s.shopName),
 
@@ -851,14 +835,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
       Text('주문 배송', style: Theme.of(context).textTheme.titleMedium),
 
-      if (_orderItems.isEmpty)
+      if (_dash.orderItems.isEmpty)
         const Padding(
           padding: EdgeInsets.symmetric(vertical: 8),
 
           child: Text('주문 라인이 없습니다.'),
         )
       else
-        ..._orderItems.map(
+        ..._dash.orderItems.map(
           (item) => Card(
             child: ListTile(
               title: Text(item.productTitle),
@@ -1056,6 +1040,7 @@ class AdminCatalogDraftsPanel extends StatelessWidget {
     required this.isRowBusy,
     required this.onAttach,
     required this.onPromote,
+    this.loading = false,
   });
 
   final List<IntakeDraftModel> drafts;
@@ -1063,12 +1048,18 @@ class AdminCatalogDraftsPanel extends StatelessWidget {
   final bool Function(String id) isRowBusy;
   final void Function(IntakeDraftModel draft) onAttach;
   final void Function(IntakeDraftModel draft) onPromote;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
     return PortalSection(
       title: '카드 검수 큐 ${drafts.length}건',
-      child: drafts.isEmpty
+      child: loading
+          ? const Padding(
+              padding: EdgeInsets.all(18),
+              child: Center(child: CircularProgressIndicator()),
+            )
+          : drafts.isEmpty
           ? const Padding(
               padding: EdgeInsets.all(18),
               child: Text('대기 중인 오퍼·카드 초안이 없습니다.'),
@@ -1182,9 +1173,11 @@ class _AdminCatalogPickDialogState
             ),
             const SizedBox(height: 8),
             Expanded(
-              child: _loading
-                  ? const Center(child: CircularProgressIndicator())
-                  : ListView.builder(
+              child: Column(
+                children: [
+                  if (_loading) const LinearProgressIndicator(minHeight: 2),
+                  Expanded(
+                    child: ListView.builder(
                       itemCount: _items.length,
                       itemBuilder: (context, index) {
                         final item = _items[index];
@@ -1195,6 +1188,9 @@ class _AdminCatalogPickDialogState
                         );
                       },
                     ),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
@@ -1221,6 +1217,7 @@ class AdminUsersPanel extends StatelessWidget {
     required this.onAdminChanged,
     required this.onSave,
     required this.onDelete,
+    this.loading = false,
   });
 
   final List<Map<String, dynamic>> users;
@@ -1232,6 +1229,7 @@ class AdminUsersPanel extends StatelessWidget {
   final void Function(String id, bool isAdmin) onAdminChanged;
   final void Function(String id) onSave;
   final void Function(String id) onDelete;
+  final bool loading;
 
   @override
   Widget build(BuildContext context) {
@@ -1259,7 +1257,12 @@ class AdminUsersPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
-            if (users.isEmpty)
+            if (loading)
+              const Padding(
+                padding: EdgeInsets.all(22),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (users.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(22),
                 child: Text('사용자가 없습니다.'),

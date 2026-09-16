@@ -37,7 +37,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
   Future<void> _addToCart(ProductModel product) async {
     if (isBusy()) return;
     if (ref.read(authStateProvider).isLoading) return;
-    final qty = _qty.clamp(1, product.stock);
+    final qty = _qty.clamp(1, product.stock < 1 ? 1 : product.stock);
 
     await runBusy('add', () async {
       try {
@@ -53,6 +53,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
             sellerId: product.seller.id,
             shopName: product.seller.shopName,
             sellerType: product.seller.sellerType,
+            maxQty: product.stock < 1 ? 99 : product.stock,
           ),
         );
         if (!mounted) return;

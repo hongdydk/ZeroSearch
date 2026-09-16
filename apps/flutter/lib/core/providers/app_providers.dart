@@ -4,9 +4,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/login_portal.dart';
 import '../cart/guest_cart.dart';
-import '../cart/guest_cart_storage.dart';
 import '../models/models.dart';
 import '../network/api_client.dart';
+import '../network/api_exception.dart';
 import '../storage/token_storage.dart';
 
 /// 홈 카탈로그 검색어 — 웹 헤더·카탈로그 화면 공유 (즉시 반영).
@@ -258,14 +258,241 @@ final productsProvider = FutureProvider.autoDispose<List<ProductModel>>((ref) as
   return ref.watch(apiClientProvider).products();
 });
 
-final cartProvider = FutureProvider.autoDispose<CartModel>((ref) async {
-  final auth = ref.watch(authStateProvider).valueOrNull;
-  return loadVisibleCart(
-    api: ref.watch(apiClientProvider),
-    guest: ref.watch(guestCartStorageProvider),
-    isBuyer: auth?.buyer != null,
-  );
-});
+/// 구매자 수량 동기 debounce. 테스트에서 `Duration.zero`로 덮어쓴다.
+final cartSyncDelayProvider = Provider<Duration>(
+  (ref) => const Duration(milliseconds: 300),
+);
+
+/// 백그라운드 카트 동기 실패 메시지. 화면에서 스낵바 후 null로 비운다.
+final cartSyncErrorProvider = StateProvider<String?>((ref) => null);
+
+class CartNotifier extends AsyncNotifier<CartModel> {
+  final Map<String, Timer> _qtyTimers = {};
+  final Map<String, int> _pendingQty = {};
+  final Set<String> _pendingRemove = {};
+  CartModel? _authoritative;
+
+  bool get _isBuyer =>
+      ref.read(authStateProvider).valueOrNull?.isMallBuyer == true;
+
+  GuestCartStorage get _store => ref.read(guestCartStorageProvider);
+
+  ApiClient get _api => ref.read(apiClientProvider);
+
+  @override
+  Future<CartModel> build() async {
+    ref.onDispose(_cancelTimers);
+    final auth = ref.watch(authStateProvider);
+    if (auth.isLoading) {
+      return CartModel.empty;
+    }
+    final isBuyer = auth.valueOrNull?.isMallBuyer == true;
+    if (!isBuyer) {
+      _authoritative = null;
+      return cartModelFromGuestLines(await _store.load());
+    }
+    await mergeGuestCartIntoUser(api: _api, guest: _store);
+    final cart = await _api.cart();
+    _authoritative = cart;
+    return cart;
+  }
+
+  /// `/cart` 진입 시 구매자 서버 카트를 한 번 맞춘다. 게스트는 이미 로컬 스냅샷이 있으므로 다시 읽지 않는다.
+  Future<void> refreshAuthoritative() async {
+    if (!_isBuyer) return;
+    try {
+      final cart = await _api.cart();
+      _authoritative = cart;
+      state = AsyncData(_applyPendingOnTop(cart));
+    } on ApiException catch (e) {
+      _setSyncError(e.message);
+    }
+  }
+
+  void replaceWith(CartModel cart) {
+    _authoritative = cart;
+    _pendingQty.clear();
+    _pendingRemove.clear();
+    _cancelTimers();
+    state = AsyncData(cart);
+  }
+
+  Future<void> addItem({
+    required String productId,
+    required String productTitle,
+    required int qty,
+    required int priceCredits,
+    required String sellerId,
+    required String shopName,
+    required String sellerType,
+    int maxQty = 99,
+  }) async {
+    final incoming = CartItemModel(
+      id: productId,
+      productId: productId,
+      productTitle: productTitle,
+      qty: qty.clamp(1, 99),
+      priceCredits: priceCredits,
+      lineTotalCredits: priceCredits * qty.clamp(1, 99),
+      sellerId: sellerId,
+      shopName: shopName,
+      sellerType: sellerType,
+      maxQty: maxQty < 1 ? 99 : maxQty,
+    );
+    if (!_isBuyer) {
+      final current = state.valueOrNull ?? CartModel.empty;
+      final next = current.addingOrMerging(incoming);
+      state = AsyncData(next);
+      unawaited(_persistGuest(next));
+      return;
+    }
+    final current = state.valueOrNull ?? CartModel.empty;
+    state = AsyncData(current.addingOrMerging(incoming));
+    try {
+      final cart = await _api.addToCart(productId, qty: incoming.qty);
+      _authoritative = cart;
+      state = AsyncData(_applyPendingOnTop(cart));
+    } on ApiException catch (e) {
+      await _rollbackBuyer(e.message);
+      rethrow;
+    } catch (_) {
+      await _rollbackBuyer('장바구니에 담지 못했습니다.');
+      rethrow;
+    }
+  }
+
+  void updateQty(String productId, int qty) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    final item = _item(current, productId);
+    if (item == null) return;
+    final nextQty = qty.clamp(1, item.maxQty < 1 ? 1 : item.maxQty);
+    if (nextQty == item.qty) return;
+    _pendingRemove.remove(productId);
+    state = AsyncData(current.withItemQty(productId, nextQty));
+    if (!_isBuyer) {
+      unawaited(_persistGuest(state.valueOrNull ?? current));
+      return;
+    }
+    _pendingQty[productId] = nextQty;
+    _qtyTimers[productId]?.cancel();
+    _qtyTimers[productId] = Timer(ref.read(cartSyncDelayProvider), () {
+      unawaited(_flushQty(productId));
+    });
+  }
+
+  void remove(String productId) {
+    final current = state.valueOrNull;
+    if (current == null) return;
+    if (_item(current, productId) == null) return;
+    _qtyTimers.remove(productId)?.cancel();
+    _pendingQty.remove(productId);
+    state = AsyncData(current.withoutItem(productId));
+    if (!_isBuyer) {
+      unawaited(_persistGuest(state.valueOrNull ?? CartModel.empty));
+      return;
+    }
+    _pendingRemove.add(productId);
+    unawaited(_flushRemove(productId));
+  }
+
+  /// 주문서 진입 전 미전송 수량·삭제를 보낸다.
+  Future<void> flushPending() async {
+    _cancelTimers();
+    final qtyIds = _pendingQty.keys.toList();
+    for (final id in qtyIds) {
+      await _flushQty(id);
+    }
+    final removes = _pendingRemove.toList();
+    for (final id in removes) {
+      await _flushRemove(id);
+    }
+  }
+
+  Future<void> _flushQty(String productId) async {
+    final qty = _pendingQty.remove(productId);
+    _qtyTimers.remove(productId)?.cancel();
+    if (qty == null || _pendingRemove.contains(productId)) return;
+    try {
+      final cart = await _api.updateCartItem(productId, qty);
+      _authoritative = cart;
+      state = AsyncData(_applyPendingOnTop(cart));
+    } on ApiException catch (e) {
+      await _rollbackBuyer(e.message);
+    } catch (_) {
+      await _rollbackBuyer('장바구니 수량을 저장하지 못했습니다.');
+    }
+  }
+
+  Future<void> _flushRemove(String productId) async {
+    if (!_pendingRemove.contains(productId)) return;
+    try {
+      final cart = await _api.removeFromCart(productId);
+      _pendingRemove.remove(productId);
+      _authoritative = cart;
+      state = AsyncData(_applyPendingOnTop(cart));
+    } on ApiException catch (e) {
+      _pendingRemove.remove(productId);
+      await _rollbackBuyer(e.message);
+    } catch (_) {
+      _pendingRemove.remove(productId);
+      await _rollbackBuyer('장바구니에서 삭제하지 못했습니다.');
+    }
+  }
+
+  Future<void> _rollbackBuyer(String message) async {
+    _setSyncError(message);
+    _pendingQty.clear();
+    _pendingRemove.clear();
+    _cancelTimers();
+    try {
+      final cart = await _api.cart();
+      _authoritative = cart;
+      state = AsyncData(cart);
+    } catch (_) {
+      final fallback = _authoritative;
+      if (fallback != null) {
+        state = AsyncData(fallback);
+      }
+    }
+  }
+
+  CartModel _applyPendingOnTop(CartModel base) {
+    var next = base;
+    for (final id in _pendingRemove) {
+      next = next.withoutItem(id);
+    }
+    for (final entry in _pendingQty.entries) {
+      if (_pendingRemove.contains(entry.key)) continue;
+      next = next.withItemQty(entry.key, entry.value);
+    }
+    return next;
+  }
+
+  CartItemModel? _item(CartModel cart, String productId) {
+    for (final item in cart.items) {
+      if (item.productId == productId) return item;
+    }
+    return null;
+  }
+
+  Future<void> _persistGuest(CartModel cart) async {
+    await _store.save(guestLinesFromCart(cart));
+  }
+
+  void _setSyncError(String message) {
+    ref.read(cartSyncErrorProvider.notifier).state = message;
+  }
+
+  void _cancelTimers() {
+    for (final timer in _qtyTimers.values) {
+      timer.cancel();
+    }
+    _qtyTimers.clear();
+  }
+}
+
+final cartProvider = AsyncNotifierProvider<CartNotifier, CartModel>(CartNotifier.new);
 
 class CatalogListState {
   const CatalogListState({

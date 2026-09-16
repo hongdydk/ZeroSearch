@@ -26,6 +26,21 @@ CartModel _cart() {
   );
 }
 
+class _FixedCartNotifier extends CartNotifier {
+  _FixedCartNotifier(this._cart);
+
+  final CartModel _cart;
+
+  @override
+  Future<CartModel> build() async => _cart;
+
+  @override
+  Future<void> refreshAuthoritative() async {}
+
+  @override
+  Future<void> flushPending() async {}
+}
+
 void main() {
   test('Toss payment is disabled outside web', () {
     expect(tossPaymentSupported, isFalse);
@@ -35,7 +50,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          cartProvider.overrideWith((ref) async => _cart()),
+          cartProvider.overrideWith(() => _FixedCartNotifier(_cart())),
         ],
         child: const MaterialApp(home: CartScreen()),
       ),
@@ -53,7 +68,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          cartProvider.overrideWith((ref) async => _cart()),
+          cartProvider.overrideWith(() => _FixedCartNotifier(_cart())),
           addressesProvider.overrideWith((ref) async => []),
         ],
         child: const MaterialApp(home: Scaffold(body: CheckoutScreen())),
@@ -73,7 +88,7 @@ void main() {
     await tester.pumpWidget(
       ProviderScope(
         overrides: [
-          cartProvider.overrideWith((ref) async => _cart()),
+          cartProvider.overrideWith(() => _FixedCartNotifier(_cart())),
           addressesProvider.overrideWith(
             (ref) async => [
               ShippingAddressModel(

@@ -12,6 +12,7 @@ class GuestCartLine {
     this.sellerId,
     this.shopName,
     this.sellerType,
+    this.maxQty,
   });
 
   final String productId;
@@ -21,6 +22,7 @@ class GuestCartLine {
   final String? sellerId;
   final String? shopName;
   final String? sellerType;
+  final int? maxQty;
 
   GuestCartLine copyWith({
     String? productId,
@@ -30,6 +32,7 @@ class GuestCartLine {
     String? sellerId,
     String? shopName,
     String? sellerType,
+    int? maxQty,
   }) {
     return GuestCartLine(
       productId: productId ?? this.productId,
@@ -39,6 +42,7 @@ class GuestCartLine {
       sellerId: sellerId ?? this.sellerId,
       shopName: shopName ?? this.shopName,
       sellerType: sellerType ?? this.sellerType,
+      maxQty: maxQty ?? this.maxQty,
     );
   }
 
@@ -50,6 +54,7 @@ class GuestCartLine {
         if (sellerId != null) 'sellerId': sellerId,
         if (shopName != null) 'shopName': shopName,
         if (sellerType != null) 'sellerType': sellerType,
+        if (maxQty != null) 'maxQty': maxQty,
       };
 
   static GuestCartLine? tryParse(Object? raw) {
@@ -69,6 +74,7 @@ class GuestCartLine {
       sellerId: json['sellerId'] as String?,
       shopName: json['shopName'] as String?,
       sellerType: json['sellerType'] as String?,
+      maxQty: json['maxQty'] is int ? json['maxQty'] as int : int.tryParse('${json['maxQty'] ?? ''}'),
     );
   }
 }
@@ -150,6 +156,7 @@ class GuestCartStorage {
         sellerId: snapshot?.sellerId ?? current.sellerId,
         shopName: snapshot?.shopName ?? current.shopName,
         sellerType: snapshot?.sellerType ?? current.sellerType,
+        maxQty: snapshot?.maxQty ?? current.maxQty,
       );
     }
     await save(lines);
@@ -191,5 +198,22 @@ class GuestCartStorage {
         jsonEncode(lines.map((line) => line.toJson()).toList()),
       );
     } catch (_) {}
+  }
+}
+
+/// 테스트용 메모리 저장. SharedPreferences 없이 수량 변경을 바로 확인한다.
+class MemoryGuestCartStore extends GuestCartStorage {
+  MemoryGuestCartStore([List<GuestCartLine>? seed]) {
+    _cache = [...?seed];
+  }
+
+  List<GuestCartLine> get lines => List.of(_cache ?? const []);
+
+  @override
+  Future<List<GuestCartLine>> load() async => List.of(_cache ?? const []);
+
+  @override
+  Future<void> save(List<GuestCartLine> lines) async {
+    _cache = List.of(lines);
   }
 }
