@@ -26,6 +26,7 @@ class _Tokens extends TokenStorage {
   _Tokens(this.store);
 
   final Map<LoginPortal, String?> store;
+  final Map<String, String> kv = {};
 
   @override
   Future<String?> readPortalToken(LoginPortal portal) async => store[portal];
@@ -38,6 +39,20 @@ class _Tokens extends TokenStorage {
   @override
   Future<void> clearPortal(LoginPortal portal) async {
     store[portal] = null;
+    await clearPortalLeft(portal);
+  }
+
+  @override
+  Future<String?> storageGet(String key) async => kv[key];
+
+  @override
+  Future<void> storageSet(String key, String value) async {
+    kv[key] = value;
+  }
+
+  @override
+  Future<void> storageRemove(String key) async {
+    kv.remove(key);
   }
 }
 

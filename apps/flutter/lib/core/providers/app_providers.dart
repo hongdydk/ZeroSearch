@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/login_portal.dart';
@@ -103,14 +105,21 @@ class AuthState {
 }
 
 class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
-  AuthNotifier(this._api, this._tokens) : super(const AsyncValue.loading()) {
+  AuthNotifier(
+    this._api,
+    this._tokens, {
+    DateTime Function()? clock,
+  })  : _clock = clock ?? DateTime.now,
+        super(const AsyncValue.loading()) {
     _bootstrap();
   }
 
   final ApiClient _api;
   final TokenStorage _tokens;
+  final DateTime Function() _clock;
 
   Future<void> _bootstrap() async {
+    await _tokens.loadLeftAts();
     var next = const AuthState();
     for (final portal in LoginPortal.values) {
       final slot = await _restore(portal);
@@ -123,6 +132,10 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
   }
 
   Future<PortalSession?> _restore(LoginPortal portal) async {
+    if (_tokens.isPortalAwayExpired(portal, _clock())) {
+      await _tokens.clearPortal(portal);
+      return null;
+    }
     final token = await _tokens.readPortalToken(portal);
     if (token == null || token.isEmpty) return null;
     _tokens.activePortal = portal;
@@ -136,9 +149,32 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
   }
 
   void setActive(LoginPortal portal) {
-    _tokens.activePortal = portal;
     final current = state.valueOrNull;
-    if (current == null || current.active == portal) return;
+    final previous = current?.active;
+    if (previous != null && previous != portal) {
+      if (TokenStorage.usesAwaySessionTtl(previous)) {
+        unawaited(_tokens.markPortalLeft(previous, _clock()));
+      }
+    }
+
+    if (current == null || current.active == portal) {
+      _tokens.activePortal = portal;
+      return;
+    }
+
+    if (_tokens.isPortalAwayExpired(portal, _clock())) {
+      unawaited(_tokens.clearPortal(portal));
+      _tokens.activePortal = portal;
+      state = AsyncValue.data(
+        current.withSession(portal, null).withActive(portal),
+      );
+      return;
+    }
+
+    if (TokenStorage.usesAwaySessionTtl(portal)) {
+      unawaited(_tokens.clearPortalLeft(portal));
+    }
+    _tokens.activePortal = portal;
     state = AsyncValue.data(current.withActive(portal));
   }
 
@@ -150,6 +186,7 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
     // 전역 loading/error로 바꾸면 PortalAuthGate가 로그인 폼을 내려 403 문구가 사라진다.
     final token = await _api.login(email, password, portal: portal);
     await _tokens.writePortalToken(portal, token);
+    await _tokens.clearPortalLeft(portal);
     _tokens.activePortal = portal;
     final user = await _api.me();
     final current = state.valueOrNull ?? const AuthState();
