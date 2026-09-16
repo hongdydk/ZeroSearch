@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/cart/cart_actions.dart';
 import '../../core/cart/cart_feedback.dart';
-import '../../core/cart/consume_pending_cart_add.dart';
+import '../../core/cart/guest_cart.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
@@ -33,27 +34,27 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
   Future<ProductModel> _loadProduct() =>
       _productFuture ??= ref.read(apiClientProvider).product(widget.productId);
 
-  Future<void> _addToCart(int stock) async {
+  Future<void> _addToCart(ProductModel product) async {
     if (isBusy()) return;
     if (ref.read(authStateProvider).isLoading) return;
-    final auth = ref.read(authStateProvider).valueOrNull;
-    final qty = _qty.clamp(1, stock);
-    if (auth?.isMallBuyer != true) {
-      if (!mounted) return;
-      beginGuestAddLogin(
-        context,
-        ref,
-        productId: widget.productId,
-        qty: qty,
-        fallbackLocation: Uri(path: '/products/${widget.productId}'),
-      );
-      return;
-    }
+    final qty = _qty.clamp(1, product.stock);
 
     await runBusy('add', () async {
       try {
-        await ref.read(apiClientProvider).addToCart(widget.productId, qty: qty);
-        ref.invalidate(cartProvider);
+        await addOfferToCart(
+          ref,
+          productId: widget.productId,
+          qty: qty,
+          snapshot: guestSnapshot(
+            productId: widget.productId,
+            qty: qty,
+            productTitle: product.title,
+            priceCredits: product.priceCredits,
+            sellerId: product.seller.id,
+            shopName: product.seller.shopName,
+            sellerType: product.seller.sellerType,
+          ),
+        );
         if (!mounted) return;
         showAddedToCartSnackBar(context);
       } on ApiException catch (e) {
@@ -184,7 +185,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                     child: FilledButton.icon(
                       onPressed: isBusy() || product.stock < 1
                           ? null
-                          : () => _addToCart(product.stock),
+                          : () => _addToCart(product),
                       icon: isBusy()
                           ? busyProgress(size: 18)
                           : const Icon(Icons.add_shopping_cart),

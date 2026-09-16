@@ -20,6 +20,14 @@ _SHIPPING = {
 }
 
 
+def test_prepare_requires_auth(client):
+    response = client.post(
+        "/payments/toss/prepare",
+        json={"addressId": str(_ADDRESS_ID)},
+    )
+    assert response.status_code == 401
+
+
 def test_prepare_returns_server_payment_quote(client):
     user = make_user()
     override_current_user(user)

@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/cart/cart_actions.dart';
 import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/models/models.dart';
@@ -36,8 +37,7 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
   Future<void> _updateQty(String productId, int qty) async {
     await runBusy('cart:$productId', () async {
       try {
-        await ref.read(apiClientProvider).updateCartItem(productId, qty);
-        ref.invalidate(cartProvider);
+        await updateVisibleCartQty(ref, productId: productId, qty: qty);
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -53,8 +53,7 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
   Future<void> _remove(String productId) async {
     await runBusy('cart:$productId', () async {
       try {
-        await ref.read(apiClientProvider).removeFromCart(productId);
-        ref.invalidate(cartProvider);
+        await removeVisibleCartItem(ref, productId: productId);
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
@@ -70,6 +69,7 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
   @override
   Widget build(BuildContext context) {
     final cartAsync = ref.watch(cartProvider);
+    final isBuyer = ref.watch(authStateProvider).valueOrNull?.isMallBuyer == true;
 
     return PageFormScaffold(
       child: cartAsync.when(
@@ -203,6 +203,15 @@ class _CartScreenState extends ConsumerState<CartScreen> with AsyncBusyState {
                 ),
               ],
               const SizedBox(height: 16),
+              if (!isBuyer) ...[
+                Text(
+                  '주문·결제는 로그인 후 진행됩니다.',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: Theme.of(context).colorScheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: 12),
+              ],
               FilledButton(
                 onPressed: canCheckout
                     ? () => context.push('/checkout')
