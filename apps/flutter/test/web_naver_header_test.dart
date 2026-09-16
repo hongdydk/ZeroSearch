@@ -12,6 +12,7 @@ import 'package:shopping_mall/core/storage/token_storage.dart';
 import 'package:shopping_mall/core/theme/app_theme.dart';
 import 'package:shopping_mall/shared/widgets/adaptive_shell.dart';
 import 'package:shopping_mall/shared/widgets/web/web_naver_header.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _HeaderTestApiClient extends ApiClient {
   _HeaderTestApiClient({this.cartState}) : super(tokenReader: () async => null);
@@ -149,6 +150,7 @@ void _setLogicalViewport(WidgetTester tester, Size size) {
 void main() {
   setUp(() {
     debugForceWebUi = false;
+    SharedPreferences.setMockInitialValues({});
   });
 
   tearDown(() {

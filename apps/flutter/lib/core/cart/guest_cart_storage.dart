@@ -83,10 +83,23 @@ class GuestCartStorage {
 
   List<GuestCartLine>? _cache;
 
+  Future<SharedPreferences?> _prefs() async {
+    try {
+      return await SharedPreferences.getInstance()
+          .timeout(const Duration(milliseconds: 200));
+    } catch (_) {
+      return null;
+    }
+  }
+
   Future<List<GuestCartLine>> load() async {
     if (_cache != null) return List.of(_cache!);
+    final prefs = await _prefs();
+    if (prefs == null) {
+      _cache = [];
+      return [];
+    }
     try {
-      final prefs = await SharedPreferences.getInstance();
       final raw = prefs.getString(prefsKey);
       if (raw == null || raw.isEmpty) {
         _cache = [];
@@ -166,8 +179,9 @@ class GuestCartStorage {
 
   Future<void> save(List<GuestCartLine> lines) async {
     _cache = List.of(lines);
+    final prefs = await _prefs();
+    if (prefs == null) return;
     try {
-      final prefs = await SharedPreferences.getInstance();
       if (lines.isEmpty) {
         await prefs.remove(prefsKey);
         return;

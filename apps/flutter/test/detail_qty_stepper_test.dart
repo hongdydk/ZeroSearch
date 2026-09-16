@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shopping_mall/core/auth/login_portal.dart';
 import 'package:shopping_mall/core/models/models.dart';
 import 'package:shopping_mall/core/network/api_client.dart';
@@ -95,6 +96,10 @@ class _LoggedInTokens extends TokenStorage {
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   testWidgets('QtyStepper stays within min and max', (tester) async {
     var qty = 1;
     await tester.pumpWidget(
