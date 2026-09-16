@@ -513,17 +513,45 @@ class ApiClient {
   }
 
   Future<Map<String, dynamic>> adminStats() async {
-    final data = await _generatedCall(
-      () => _generated.getAdminApi().adminStatsAdminStatsGet(),
-    );
-    return adminStatsToMap(data);
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('admin/stats');
+      return response.data ?? {};
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
-  Future<Map<String, dynamic>> adminUsers() async {
-    final data = await _generatedCall(
-      () => _generated.getAdminApi().listUsersAdminUsersGet(),
-    );
-    return adminUsersToMap(data);
+  Future<Map<String, dynamic>> adminUsers({String? q}) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'admin/users',
+        queryParameters: {
+          if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+        },
+      );
+      return response.data ?? {};
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<void> adminUpdateUser(String userId, {required bool isAdmin}) async {
+    try {
+      await _dio.patch<Map<String, dynamic>>(
+        'admin/users/$userId',
+        data: {'isAdmin': isAdmin},
+      );
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<void> adminDeleteUser(String userId) async {
+    try {
+      await _dio.delete<void>('admin/users/$userId');
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<void> adminGrantCredits(String userId, int amount) async {

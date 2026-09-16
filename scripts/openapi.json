@@ -238,6 +238,18 @@
             "title": "Sellercount",
             "type": "integer"
           },
+          "soldAmountSum": {
+            "title": "Soldamountsum",
+            "type": "integer"
+          },
+          "soldItemCount": {
+            "title": "Solditemcount",
+            "type": "integer"
+          },
+          "soldQtySum": {
+            "title": "Soldqtysum",
+            "type": "integer"
+          },
           "userCount": {
             "title": "Usercount",
             "type": "integer"
@@ -248,7 +260,10 @@
           "productCount",
           "orderCount",
           "sellerCount",
-          "pendingSellerCount"
+          "pendingSellerCount",
+          "soldItemCount",
+          "soldQtySum",
+          "soldAmountSum"
         ],
         "title": "AdminStatsResponse",
         "type": "object"
@@ -282,6 +297,17 @@
           "isAdmin": {
             "title": "Isadmin",
             "type": "boolean"
+          },
+          "sellerStatus": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sellerstatus"
           }
         },
         "required": [
@@ -322,6 +348,19 @@
           "limit"
         ],
         "title": "AdminUserListResponse",
+        "type": "object"
+      },
+      "AdminUserUpdate": {
+        "properties": {
+          "isAdmin": {
+            "title": "Isadmin",
+            "type": "boolean"
+          }
+        },
+        "required": [
+          "isAdmin"
+        ],
+        "title": "AdminUserUpdate",
         "type": "object"
       },
       "Body_import_catalog_admin_catalog_import_post": {
@@ -3043,6 +3082,23 @@
               "title": "Limit",
               "type": "integer"
             }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
           }
         ],
         "responses": {
@@ -3073,6 +3129,103 @@
           }
         ],
         "summary": "List Users",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/users/{user_id}": {
+      "delete": {
+        "operationId": "delete_user_admin_users__user_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete User",
+        "tags": [
+          "admin"
+        ]
+      },
+      "patch": {
+        "operationId": "update_user_admin_users__user_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "User Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminUserUpdate"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminUserItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update User",
         "tags": [
           "admin"
         ]

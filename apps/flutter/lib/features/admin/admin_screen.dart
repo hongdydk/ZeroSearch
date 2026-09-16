@@ -48,6 +48,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
   String? _importResult;
 
+  String _userQuery = '';
+  final _userSearchCtrl = TextEditingController();
+  final Map<String, bool> _adminDraft = {};
+
   bool get _resetting => isBusy('reset');
 
   bool get _pageLocked => isBusy('reset') || isBusy('import');
@@ -67,7 +71,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   @override
   void dispose() {
     _pollTimer?.cancel();
-
+    _userSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -76,7 +80,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
     final stats = await api.adminStats();
 
-    final users = await api.adminUsers();
+    final users = await api.adminUsers(q: _userQuery);
 
     List<AdminSellerModel> pending = [];
 
@@ -90,7 +94,16 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
       _stats = stats;
 
       _users = users['items'] as List<dynamic>? ?? [];
-
+      _adminDraft
+        ..clear()
+        ..addEntries(
+          _users.map(
+            (user) => MapEntry(
+              user['id'] as String,
+              user['isAdmin'] == true,
+            ),
+          ),
+        );
       _pendingSellers = pending;
     });
   }
@@ -203,14 +216,17 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
     });
   }
 
-  Future<void> _promoteUser(String userId) async {
+  Future<void> _saveUserRole(String userId) async {
+    final isAdmin = _adminDraft[userId] ?? false;
     await runBusy('user:$userId', () async {
       try {
-        await ref.read(apiClientProvider).adminPromote(userId);
+        await ref
+            .read(apiClientProvider)
+            .adminUpdateUser(userId, isAdmin: isAdmin);
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('관리자로 올렸습니다.')));
+        ).showSnackBar(const SnackBar(content: Text('역할을 저장했습니다.')));
         await _load();
       } on ApiException catch (e) {
         if (mounted) {
@@ -222,14 +238,32 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
     });
   }
 
-  Future<void> _grantCredits(String userId) async {
+  Future<void> _deleteUser(String userId, String email) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('사용자를 삭제할까요?'),
+        content: Text('$email 계정을 삭제합니다. 주문·가게 데이터도 함께 지워질 수 있습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
     await runBusy('user:$userId', () async {
       try {
-        await ref.read(apiClientProvider).adminGrantCredits(userId, 100);
+        await ref.read(apiClientProvider).adminDeleteUser(userId);
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('크레딧 100을 지급했습니다.')));
+        ).showSnackBar(const SnackBar(content: Text('사용자를 삭제했습니다.')));
         await _load();
       } on ApiException catch (e) {
         if (mounted) {
@@ -350,9 +384,21 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         else
           PortalMetricGrid(
             children: [
-              PortalMetricCard(label: '사용자', value: '${stats['userCount']}'),
-              PortalMetricCard(label: '오퍼', value: '${stats['productCount']}'),
-              PortalMetricCard(label: '주문', value: '${stats['orderCount']}'),
+              PortalMetricCard(
+                label: '판매 품목 수',
+                value: '${stats['soldItemCount'] ?? 0}',
+                hint: '팔린 품목',
+              ),
+              PortalMetricCard(
+                label: '수량',
+                value: '${stats['soldQtySum'] ?? 0}',
+                hint: '판매 수량 합',
+              ),
+              PortalMetricCard(
+                label: '총액',
+                value: '${stats['soldAmountSum'] ?? 0}',
+                hint: '크레딧',
+              ),
               PortalMetricCard(
                 label: '승인 대기',
                 value: '${stats['pendingSellerCount']}',
@@ -362,82 +408,31 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
             ],
           ),
         const SizedBox(height: 18),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final cards = [
-              Expanded(
-                child: PortalSection(
-                  title: '입점 승인 대기',
-                  child: _pendingSellers.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(18),
-                          child: Text('대기 중인 입점 신청이 없습니다.'),
-                        )
-                      : Column(
-                          children: [
-                            for (final seller in _pendingSellers.take(4))
-                              ListTile(
-                                title: Text(seller.shopName),
-                                subtitle: Text(seller.userEmail),
-                                trailing: FilledButton(
-                                  onPressed:
-                                      _pageLocked ||
-                                          isBusy('approve:${seller.id}')
-                                      ? null
-                                      : () => _approveSeller(seller.id),
-                                  child: isBusy('approve:${seller.id}')
-                                      ? busyProgress()
-                                      : const Text('승인'),
-                                ),
-                              ),
-                          ],
+        PortalSection(
+          title: '입점 승인 대기',
+          child: _pendingSellers.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Text('대기 중인 입점 신청이 없습니다.'),
+                )
+              : Column(
+                  children: [
+                    for (final seller in _pendingSellers.take(4))
+                      ListTile(
+                        title: Text(seller.shopName),
+                        subtitle: Text(seller.userEmail),
+                        trailing: FilledButton(
+                          onPressed:
+                              _pageLocked || isBusy('approve:${seller.id}')
+                              ? null
+                              : () => _approveSeller(seller.id),
+                          child: isBusy('approve:${seller.id}')
+                              ? busyProgress()
+                              : const Text('승인'),
                         ),
-                ),
-              ),
-              Expanded(
-                child: PortalSection(
-                  title: '최근 주문 줄',
-                  child: _orderItems.isEmpty
-                      ? const Padding(
-                          padding: EdgeInsets.all(18),
-                          child: Text('주문 줄이 없습니다.'),
-                        )
-                      : Column(
-                          children: [
-                            for (final item in _orderItems.take(4))
-                              ListTile(
-                                title: Text(item.productTitle),
-                                subtitle: Text(
-                                  '${item.shopName ?? ''} · '
-                                  '${fulfillmentStatusLabel(item.fulfillmentStatus)}',
-                                ),
-                                trailing: PortalStatusBadge(
-                                  label: fulfillmentStatusLabel(
-                                    item.fulfillmentStatus,
-                                  ),
-                                  attention: item.fulfillmentStatus == 'paid',
-                                ),
-                              ),
-                          ],
-                        ),
-                ),
-              ),
-            ];
-            if (constraints.maxWidth < 760) {
-              return Column(
-                children: [
-                  for (final card in cards) ...[
-                    SizedBox(width: double.infinity, child: card.child),
-                    const SizedBox(height: 12),
+                      ),
                   ],
-                ],
-              );
-            }
-            return Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [cards[0], const SizedBox(width: 14), cards[1]],
-            );
-          },
+                ),
         ),
       ],
     );
@@ -592,46 +587,28 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   }
 
   Widget _buildUsers() {
-    return PortalSection(
-      title: '사용자 ${_users.length}명',
-      child: _users.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.all(22),
-              child: Text('사용자가 없습니다.'),
-            )
-          : Column(
-              children: [
-                for (final user in _users)
-                  ListTile(
-                    leading: const Icon(Icons.person_outline),
-                    title: Text(user['email'] as String? ?? ''),
-                    subtitle: Text(user['isAdmin'] == true ? '관리자' : '일반 사용자'),
-                    trailing: Wrap(
-                      spacing: 4,
-                      children: [
-                        IconButton(
-                          tooltip: '관리자 승격',
-                          icon: isBusy('user:${user['id']}')
-                              ? busyProgress()
-                              : const Icon(Icons.star_outline),
-                          onPressed: _pageLocked || isBusy('user:${user['id']}')
-                              ? null
-                              : () => _promoteUser(user['id'] as String),
-                        ),
-                        IconButton(
-                          tooltip: '크레딧 100 지급',
-                          icon: isBusy('user:${user['id']}')
-                              ? busyProgress()
-                              : const Icon(Icons.monetization_on_outlined),
-                          onPressed: _pageLocked || isBusy('user:${user['id']}')
-                              ? null
-                              : () => _grantCredits(user['id'] as String),
-                        ),
-                      ],
-                    ),
-                  ),
-              ],
-            ),
+    return AdminUsersPanel(
+      users: [
+        for (final user in _users)
+          if (user is Map) Map<String, dynamic>.from(user),
+      ],
+      queryController: _userSearchCtrl,
+      adminDraft: _adminDraft,
+      pageLocked: _pageLocked,
+      isRowBusy: (id) => isBusy('user:$id'),
+      onSearch: () {
+        setState(() => _userQuery = _userSearchCtrl.text.trim());
+        _load();
+      },
+      onAdminChanged: (id, value) => setState(() => _adminDraft[id] = value),
+      onSave: _saveUserRole,
+      onDelete: (id) {
+        final match = _users.cast<dynamic>().where((item) => item['id'] == id);
+        final email = match.isEmpty
+            ? ''
+            : match.first['email'] as String? ?? '';
+        _deleteUser(id, email);
+      },
     );
   }
 
@@ -861,41 +838,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
       const Divider(),
 
-      const Text('사용자'),
-
-      ..._users.map(
-        (u) => ListTile(
-          title: Text(u['email'] as String? ?? ''),
-
-          subtitle: Text(u['isAdmin'] == true ? '관리자' : '일반'),
-
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-
-            children: [
-              IconButton(
-                icon: isBusy('user:${u['id']}')
-                    ? busyProgress()
-                    : const Icon(Icons.star),
-
-                onPressed: _pageLocked || isBusy('user:${u['id']}')
-                    ? null
-                    : () => _promoteUser(u['id'] as String),
-              ),
-
-              IconButton(
-                icon: isBusy('user:${u['id']}')
-                    ? busyProgress()
-                    : const Icon(Icons.monetization_on),
-
-                onPressed: _pageLocked || isBusy('user:${u['id']}')
-                    ? null
-                    : () => _grantCredits(u['id'] as String),
-              ),
-            ],
-          ),
-        ),
-      ),
+      _buildUsers(),
     ];
 
     if (isWebUi) {
@@ -999,4 +942,159 @@ class _CatalogImportPanel extends StatelessWidget {
       ),
     );
   }
+}
+
+class AdminUsersPanel extends StatelessWidget {
+  const AdminUsersPanel({
+    super.key,
+    required this.users,
+    required this.queryController,
+    required this.adminDraft,
+    required this.pageLocked,
+    required this.isRowBusy,
+    required this.onSearch,
+    required this.onAdminChanged,
+    required this.onSave,
+    required this.onDelete,
+  });
+
+  final List<Map<String, dynamic>> users;
+  final TextEditingController queryController;
+  final Map<String, bool> adminDraft;
+  final bool pageLocked;
+  final bool Function(String id) isRowBusy;
+  final VoidCallback onSearch;
+  final void Function(String id, bool isAdmin) onAdminChanged;
+  final void Function(String id) onSave;
+  final void Function(String id) onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return PortalSection(
+      title: '사용자 ${users.length}명',
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: queryController,
+                    decoration: const InputDecoration(
+                      labelText: '이메일·이름 검색',
+                      prefixIcon: Icon(Icons.search),
+                    ),
+                    onSubmitted: (_) => onSearch(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(onPressed: onSearch, child: const Text('검색')),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (users.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(22),
+                child: Text('사용자가 없습니다.'),
+              )
+            else
+              SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                child: DataTable(
+                  columns: const [
+                    DataColumn(label: Text('이메일')),
+                    DataColumn(label: Text('이름')),
+                    DataColumn(label: Text('역할')),
+                    DataColumn(label: Text('관리자')),
+                    DataColumn(label: Text('저장')),
+                    DataColumn(label: Text('삭제')),
+                  ],
+                  rows: [
+                    for (final user in users)
+                      DataRow(
+                        cells: [
+                          DataCell(Text(user['email'] as String? ?? '')),
+                          DataCell(Text(user['displayName'] as String? ?? '—')),
+                          DataCell(_RoleChips(user: user)),
+                          DataCell(
+                            Checkbox(
+                              value:
+                                  adminDraft[user['id'] as String] ??
+                                  user['isAdmin'] == true,
+                              onChanged:
+                                  pageLocked || isRowBusy(user['id'] as String)
+                                  ? null
+                                  : (value) => onAdminChanged(
+                                      user['id'] as String,
+                                      value ?? false,
+                                    ),
+                            ),
+                          ),
+                          DataCell(
+                            FilledButton(
+                              onPressed:
+                                  pageLocked || isRowBusy(user['id'] as String)
+                                  ? null
+                                  : () => onSave(user['id'] as String),
+                              child: isRowBusy(user['id'] as String)
+                                  ? busyProgress()
+                                  : const Text('저장'),
+                            ),
+                          ),
+                          DataCell(
+                            TextButton(
+                              onPressed:
+                                  pageLocked || isRowBusy(user['id'] as String)
+                                  ? null
+                                  : () => onDelete(user['id'] as String),
+                              child: const Text('삭제'),
+                            ),
+                          ),
+                        ],
+                      ),
+                  ],
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _RoleChips extends StatelessWidget {
+  const _RoleChips({required this.user});
+
+  final Map<String, dynamic> user;
+
+  @override
+  Widget build(BuildContext context) {
+    final sellerStatus = user['sellerStatus'] as String?;
+    final isAdmin = user['isAdmin'] == true;
+    return Wrap(
+      spacing: 6,
+      runSpacing: 4,
+      children: [
+        const Chip(label: Text('구매자'), visualDensity: VisualDensity.compact),
+        if (sellerStatus != null)
+          Chip(
+            label: Text('판매자${_sellerStatusLabel(sellerStatus)}'),
+            visualDensity: VisualDensity.compact,
+          ),
+        if (isAdmin)
+          const Chip(label: Text('관리자'), visualDensity: VisualDensity.compact),
+      ],
+    );
+  }
+}
+
+String _sellerStatusLabel(String status) {
+  return switch (status) {
+    'pending' => ' · 대기',
+    'active' => '',
+    'suspended' => ' · 정지',
+    _ => ' · $status',
+  };
 }

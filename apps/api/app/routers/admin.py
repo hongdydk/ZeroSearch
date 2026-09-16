@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import func, select
+from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import get_settings
@@ -18,6 +18,7 @@ from app.schemas.admin import (
     AdminStatsResponse,
     AdminUserItem,
     AdminUserListResponse,
+    AdminUserUpdate,
     DbResetRequest,
     DbResetResponse,
 )
@@ -32,6 +33,12 @@ from app.schemas.catalog_product import (
     CatalogImportTextRequest,
 )
 from app.services.admin_db import RESET_CONFIRM, get_admin_stats, run_db_reset
+from app.services.admin_users import (
+    admin_user_item,
+    count_admins,
+    delete_user_account,
+    list_admin_users,
+)
 from app.services.catalog_import import import_catalog_csv
 from app.services.catalog_import_jobs import get_job, start_import_job
 from app.services.credits import grant_credits
@@ -114,23 +121,11 @@ def list_users(
     db: Annotated[Session, Depends(get_db)],
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    q: Annotated[str | None, Query(max_length=100)] = None,
 ) -> AdminUserListResponse:
-    total = db.scalar(select(func.count()).select_from(User)) or 0
-    users = db.scalars(
-        select(User).order_by(User.created_at.desc()).offset(offset).limit(limit)
-    ).all()
-
+    users, total = list_admin_users(db, offset=offset, limit=limit, q=q)
     return AdminUserListResponse(
-        items=[
-            AdminUserItem(
-                id=str(user.id),
-                email=user.email,
-                display_name=user.display_name,
-                is_admin=user.is_admin,
-                created_at=user.created_at,
-            )
-            for user in users
-        ],
+        items=[admin_user_item(user) for user in users],
         total=total,
         offset=offset,
         limit=limit,
@@ -155,13 +150,50 @@ def promote_user(
     db.refresh(user)
     logger.warning("Admin %s promoted user %s to admin", admin.email, user.email)
 
-    return AdminUserItem(
-        id=str(user.id),
-        email=user.email,
-        display_name=user.display_name,
-        is_admin=user.is_admin,
-        created_at=user.created_at,
-    )
+    return admin_user_item(user)
+
+
+@router.patch("/users/{user_id}", response_model=AdminUserItem)
+def update_user(
+    user_id: UUID,
+    payload: AdminUserUpdate,
+    admin: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminUserItem:
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용자를 찾을 수 없습니다.")
+    if user.is_admin and not payload.is_admin and count_admins(db) <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="마지막 관리자 권한은 해제할 수 없습니다.",
+        )
+    user.is_admin = payload.is_admin
+    db.commit()
+    db.refresh(user)
+    logger.warning("Admin %s set user %s is_admin=%s", admin.email, user.email, user.is_admin)
+    return admin_user_item(user)
+
+
+@router.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_user(
+    user_id: UUID,
+    admin: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> None:
+    user = db.get(User, user_id)
+    if user is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용자를 찾을 수 없습니다.")
+    if user.id == admin.id:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="자기 자신은 삭제할 수 없습니다.")
+    if user.is_admin and count_admins(db) <= 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="마지막 관리자는 삭제할 수 없습니다.",
+        )
+    delete_user_account(db, user)
+    db.commit()
+    logger.warning("Admin %s deleted user %s", admin.email, user.email)
 
 
 @router.post("/users/{user_id}/credits", response_model=AdminCreditGrantResponse)

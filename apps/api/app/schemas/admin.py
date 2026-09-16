@@ -10,6 +10,9 @@ class AdminStatsResponse(BaseModel):
     order_count: int = Field(alias="orderCount")
     seller_count: int = Field(alias="sellerCount")
     pending_seller_count: int = Field(alias="pendingSellerCount")
+    sold_item_count: int = Field(alias="soldItemCount")
+    sold_qty_sum: int = Field(alias="soldQtySum")
+    sold_amount_sum: int = Field(alias="soldAmountSum")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
@@ -19,9 +22,16 @@ class AdminUserItem(BaseModel):
     email: str
     display_name: str | None = Field(default=None, alias="displayName")
     is_admin: bool = Field(alias="isAdmin")
+    seller_status: str | None = Field(default=None, alias="sellerStatus")
     created_at: datetime = Field(alias="createdAt")
 
     model_config = {"populate_by_name": True, "from_attributes": True, "ser_json_by_alias": True}
+
+
+class AdminUserUpdate(BaseModel):
+    is_admin: bool = Field(alias="isAdmin")
+
+    model_config = {"populate_by_name": True}
 
 
 class AdminUserListResponse(BaseModel):
