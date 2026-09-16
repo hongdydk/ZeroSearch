@@ -76,7 +76,6 @@ jobs:
             bash deploy/ec2-deploy.sh
 
   build-flutter:
-    needs: test-api
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
@@ -132,7 +131,7 @@ jobs:
           retention-days: 2
 
   deploy-web:
-    needs: build-flutter
+    needs: [test-api, build-flutter]
     runs-on: ubuntu-latest
     if: github.ref == 'refs/heads/main'
     steps:
