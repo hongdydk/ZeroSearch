@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shopping_mall/core/auth/login_portal.dart';
 import 'package:shopping_mall/core/models/models.dart';
@@ -42,8 +43,10 @@ class _Api extends ApiClient {
 Future<AuthState> _ready(AuthNotifier notifier) async {
   for (var i = 0; i < 50; i++) {
     final value = notifier.state;
-    if (value.hasValue) return value.requireValue;
-    if (value.hasError) throw value.error!;
+    final data = value.valueOrNull;
+    if (data != null) return data;
+    final err = value.error;
+    if (err != null) throw err;
     await Future<void>.delayed(Duration.zero);
   }
   fail('auth bootstrap timed out');
@@ -84,7 +87,7 @@ void main() {
     notifier.setActive(LoginPortal.admin);
     await Future<void>.delayed(Duration.zero);
 
-    expect(notifier.state.requireValue.admin?.token, 'tok');
+    expect(notifier.state.valueOrNull?.admin?.token, 'tok');
     expect(tokens.kv[TokenStorage.tokenKey(LoginPortal.admin)], 'tok');
   });
 
@@ -100,9 +103,9 @@ void main() {
     notifier.setActive(LoginPortal.admin);
     await Future<void>.delayed(Duration.zero);
 
-    expect(notifier.state.requireValue.admin, isNull);
+    expect(notifier.state.valueOrNull?.admin, isNull);
     expect(tokens.kv[TokenStorage.tokenKey(LoginPortal.admin)], isNull);
-    expect(notifier.state.requireValue.canAccess(LoginPortal.admin), isFalse);
+    expect(notifier.state.valueOrNull?.canAccess(LoginPortal.admin), isFalse);
   });
 
   test('staying on /admin does not expire at 5 minutes', () async {
@@ -116,7 +119,7 @@ void main() {
     notifier.setActive(LoginPortal.admin);
     await Future<void>.delayed(Duration.zero);
 
-    expect(notifier.state.requireValue.admin?.token, 'tok');
+    expect(notifier.state.valueOrNull?.admin?.token, 'tok');
     expect(tokens.kv[TokenStorage.tokenKey(LoginPortal.admin)], 'tok');
   });
 
