@@ -75,7 +75,7 @@
 | 문서 | 상태 |
 |------|------|
 | [phase1-spec.md](./phase1-spec.md) | 완료 — 골격 |
-| [phase2-spec.md](./phase2-spec.md) | 유지 — 대표 상품·오퍼·입점 · 구매자·장바구니 UX([ux-issues.md](./ux-issues.md) #1–9) |
+| [phase2-spec.md](./phase2-spec.md) | 유지 — 대표 상품·오퍼·입점 · 구매자·장바구니 UX([ux-issues.md](./ux-issues.md) #1–9) · 추후 패싯·식탁 IA·구매 UX |
 | [follow-ups.md](./follow-ups.md) 운영 A–C | Phase 2 병행·이후 — 배포 부담 · 관측 · OpenAPI 계약 |
 | [phase3-spec.md](./phase3-spec.md) | 추후 — 판매자·관리자 기능 추가. 카탈로그 초안·승격은 [catalog-intake.md](./catalog-intake.md) |
 | 3.5 (후보) | 추후 — 배송지·주문 취소·환불 (“산다” 마감). Phase 4 직전·병행 → [phase4-spec.md](./phase4-spec.md) |

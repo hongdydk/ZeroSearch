@@ -172,3 +172,29 @@ Flutter → **Cloudflare Pages** (`mall.anoveli.com`). FastAPI → EC2 Docker (`
 - 상세 API는 alias UUID를 생존 대표로 해석. AI-Hub 변형은 구매 불가 `referenceVariants`로만 노출.
 - **CSV dry-run (v2, `data/aihub-catalog.csv`):** source 9886 → high-confidence groups 9064 (−822 cards), medium candidates 944 (자동 병합 안 함), 용량-only 제목 0건.
 - v1의 괄호 옵션 오인으로 용량만 남았던 카드는 v2 import 후 `repair_volume_titles`로 원본 변형별 canonical 카드와 alias를 복구한다.
+
+## 해야 할 부분 / 추후 작업
+
+**미착수.** taxonomy·LLM 라벨·크롤은 구현하지 않는다. 아래는 논의 SSOT.
+
+### 추가 패싯 (냉장/냉동 등)
+
+- AI-Hub CSV에 없음. 현재 엔진(`flavor`·`volume_ml`)으로는 패싯 불가.
+- 후보: import 시 LLM 라벨(배치·검수 대기, 대/중/소 **덮어쓰지 않음**) **또는** 품목명 검색+외부 크롤(SKU 매칭 취약).
+- 크롤·가격비교는 README **범위 밖**. 이 목적의 크롤은 **별도 범위 결정**이 필요.
+
+### 카테고리 IA
+
+- UI 식탁: 대 10 · 중 56. 소분류는 몰 트리에 455를 넣지 않음(미연결). CSV: 대 15 · 중 189 · 소 455.
+- 면류 중분류는 봉지면·용기면 2개뿐 → 세분화는 **소분류 drill**.
+- 과자: UI 중 10칸 vs CSV 27(잡음). **손님 말(종류)** 우선, 빈 칸 숨김, 455를 몰 트리에 동기화하지 않음.
+
+### 구매 UX 점검 (미수정)
+
+- 상세(`/catalog/:id`·`/products/:id`)에서 웹 헤더 검색 숨김 — `WebNaverHeader._isHome`.
+- 상세 담기 항상 `qty=1`, 수량 스테퍼 없음. 2–3개는 `/cart`에서만.
+- 바로구매 없음. 담기 후 스낵바만(장바구니 CTA·뱃지 없음).
+- 게스트 담기 → 로그인(`next` 있음) 후 **자동 담기 없음**. 헤더 로그인은 `next` 없음.
+- 앱(`MallShell`) 검색은 홈·목록만. 상세·중분류 브라우즈에는 검색창 없음.
+- 맛·용량 칩은 목록 **생수**만(`_FilterChips`). 상세는 오퍼 줄별 담기, 선택 피커 없음.
+- 품절은 버튼 비활성만. 체크아웃은 수량 변경 불가·토스 **웹 전용**.
