@@ -4,7 +4,9 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/catalog/browse_location.dart';
 import '../../../core/providers/app_providers.dart';
+import '../../../core/routing/login_location.dart';
 import '../../../core/theme/app_theme.dart';
+import '../cart_count_badge.dart';
 
 /// 목업(report/mockup) 헤더 — brand · 검색 · 장바구니 · 로그인 · ≡
 class WebNaverHeader extends ConsumerWidget {
@@ -90,7 +92,7 @@ class _TopRow extends ConsumerWidget {
             foregroundColor: WebNaverHeader._onTealMuted,
             padding: const EdgeInsets.symmetric(horizontal: 10),
           ),
-          child: const Text('장바구니'),
+          child: const CartCountBadge(child: Text('장바구니')),
         ),
         _AuthBlock(auth: auth),
         const SizedBox(width: 4),
@@ -213,7 +215,10 @@ class _AuthBlock extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (auth?.isMallBuyer != true) {
       return TextButton(
-        onPressed: () => context.go('/login'),
+        onPressed: () {
+          final uri = GoRouter.maybeOf(context)?.state.uri ?? Uri(path: '/');
+          context.go(buyerLoginLocation(uri));
+        },
         style: TextButton.styleFrom(
           foregroundColor: WebNaverHeader._onTealMuted,
           padding: const EdgeInsets.symmetric(horizontal: 10),

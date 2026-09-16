@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
+import '../../core/cart/cart_feedback.dart';
+import '../../core/cart/consume_pending_cart_add.dart';
 import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/layout/ui_platform.dart';
@@ -38,29 +39,25 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
     if (isBusy(key) || isBusy()) return;
     if (ref.read(authStateProvider).isLoading) return;
     final auth = ref.read(authStateProvider).valueOrNull;
+    final qty = _qtyFor(offer);
     if (auth?.isMallBuyer != true) {
       if (!mounted) return;
-      context.go(
-        Uri(
-          path: '/login',
-          queryParameters: {
-            'next': GoRouter.maybeOf(context)?.state.uri.toString() ??
-                '/catalog/${widget.catalogId}',
-          },
-        ).toString(),
+      beginGuestAddLogin(
+        context,
+        ref,
+        productId: offer.id,
+        qty: qty,
+        fallbackLocation: Uri(path: '/catalog/${widget.catalogId}'),
       );
       return;
     }
 
-    final qty = _qtyFor(offer);
     await runBusy(key, () async {
       try {
         await ref.read(apiClientProvider).addToCart(offer.id, qty: qty);
         ref.invalidate(cartProvider);
         if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('장바구니에 담았습니다.')),
-        );
+        showAddedToCartSnackBar(context);
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(

@@ -14,11 +14,17 @@ import 'package:shopping_mall/shared/widgets/adaptive_shell.dart';
 import 'package:shopping_mall/shared/widgets/web/web_naver_header.dart';
 
 class _HeaderTestApiClient extends ApiClient {
-  _HeaderTestApiClient() : super(tokenReader: () async => null);
+  _HeaderTestApiClient({this.cartState}) : super(tokenReader: () async => null);
+
+  final CartModel? cartState;
 
   @override
   Future<UserModel> me() async =>
       UserModel(id: 'user-1', email: 'test@example.com', displayName: 'Tester');
+
+  @override
+  Future<CartModel> cart() async =>
+      cartState ?? CartModel(items: const [], totalCredits: 0);
 
   @override
   Future<CatalogProductPageModel> catalogProducts({
@@ -105,10 +111,14 @@ class _LoggedOutTokenStorage extends TokenStorage {
   Future<void> clear() async {}
 }
 
-Widget _headerHarness({required bool loggedIn, String location = '/'}) {
+Widget _headerHarness({
+  required bool loggedIn,
+  String location = '/',
+  ApiClient? api,
+}) {
   return ProviderScope(
     overrides: [
-      apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
+      apiClientProvider.overrideWithValue(api ?? _HeaderTestApiClient()),
       tokenStorageProvider.overrideWithValue(
         loggedIn ? _LoggedInTokenStorage() : _LoggedOutTokenStorage(),
       ),
@@ -294,5 +304,131 @@ void main() {
     expect(router.state.uri.path, '/');
     expect(router.state.uri.queryParameters['q'], '떡갈비');
     expect(find.text('home-catalog'), findsOneWidget);
+  });
+
+  testWidgets('header login from catalog passes next', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    late GoRouter router;
+    router = GoRouter(
+      initialLocation: '/catalog/cat-1',
+      routes: [
+        ShellRoute(
+          builder: (context, state, child) => WebShell(child: child),
+          routes: [
+            GoRoute(
+              path: '/catalog/:id',
+              builder: (_, _) => const Text('catalog-detail'),
+            ),
+            GoRoute(
+              path: '/login',
+              builder: (_, state) =>
+                  Text('login next=${state.uri.queryParameters['next']}'),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    debugForceWebUi = true;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
+          tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.web(),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    await tester.tap(find.text('로그인'));
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.path, '/login');
+    expect(router.state.uri.queryParameters['next'], '/catalog/cat-1');
+  });
+
+  testWidgets('header login on login page keeps next', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    late GoRouter router;
+    router = GoRouter(
+      initialLocation: '/login?next=${Uri.encodeQueryComponent('/catalog/cat-1')}',
+      routes: [
+        ShellRoute(
+          builder: (context, state, child) => WebShell(child: child),
+          routes: [
+            GoRoute(
+              path: '/login',
+              builder: (_, state) =>
+                  Text('login next=${state.uri.queryParameters['next']}'),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    debugForceWebUi = true;
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
+          tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.web(),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    await tester.tap(find.text('로그인').first);
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.path, '/login');
+    expect(router.state.uri.queryParameters['next'], '/catalog/cat-1');
+  });
+
+  testWidgets('header cart badge shows item qty', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      _headerHarness(
+        loggedIn: true,
+        api: _HeaderTestApiClient(
+          cartState: CartModel(
+            items: [
+              CartItemModel(
+                id: '1',
+                productId: 'p1',
+                productTitle: '백산수',
+                qty: 3,
+                priceCredits: 1200,
+                lineTotalCredits: 3600,
+                sellerId: 's1',
+                shopName: '공식 스토어',
+                sellerType: 'platform',
+              ),
+            ],
+            totalCredits: 3600,
+          ),
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pumpAndSettle();
+
+    expect(find.text('장바구니'), findsOneWidget);
+    expect(find.text('3'), findsOneWidget);
   });
 }
