@@ -6,13 +6,31 @@
   <title>결제</title>
   <script src="https://js.tosspayments.com/v2/standard"></script>
   <style>
-    body { font-family: sans-serif; margin: 48px auto; max-width: 420px; color: #222; }
+    body { font-family: sans-serif; margin: 24px auto; max-width: 480px; color: #222; padding: 0 16px; }
     p { line-height: 1.5; }
     a { color: #0b6e4f; }
+    #payment-method, #agreement { margin: 16px 0; }
+    #pay {
+      display: block;
+      width: 100%;
+      margin: 16px 0 32px;
+      padding: 14px 16px;
+      font-size: 16px;
+      font-weight: 600;
+      color: #fff;
+      background: #3182f6;
+      border: 0;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    #pay:disabled { opacity: 0.55; cursor: default; }
   </style>
 </head>
 <body>
-  <p id="status">결제창으로 이동 중…</p>
+  <p id="status">결제 위젯을 준비하는 중…</p>
+  <div id="payment-method"></div>
+  <div id="agreement"></div>
+  <button id="pay" type="button" hidden disabled>결제하기</button>
   <script>
     (async function () {
       var params = new URLSearchParams(window.location.search);
@@ -24,9 +42,11 @@
       var successUrl = params.get("successUrl") || "";
       var failUrl = params.get("failUrl") || "";
       var status = document.getElementById("status");
+      var pay = document.getElementById("pay");
 
       function fail(message, homeHref) {
         var href = homeHref || "/cart";
+        pay.hidden = true;
         status.innerHTML =
           message + '<br><a href="' + href + '">장바구니로 돌아가기</a>';
       }
@@ -44,7 +64,7 @@
       }
 
       function errorMessage(e) {
-        return (e && (e.message || e.code)) || "결제창을 열지 못했습니다.";
+        return (e && (e.message || e.code)) || "결제를 시작하지 못했습니다.";
       }
 
       if (typeof TossPayments !== "function") {
@@ -60,27 +80,24 @@
         var tossPayments = TossPayments(clientKey);
         var widgets = tossPayments.widgets({ customerKey: customerKey });
         await widgets.setAmount({ currency: "KRW", value: amount });
-        var paymentWindow = await widgets.renderPaymentWindow({
-          variantKey: {
-            paymentMethod: "DEFAULT",
-            agreement: "AGREEMENT",
-          },
-        });
-        paymentWindow.on("paymentRequest", async function () {
+        await widgets.renderPaymentMethods({ selector: "#payment-method" });
+        await widgets.renderAgreement({ selector: "#agreement" });
+        status.textContent = "결제 수단을 선택한 뒤 결제하기를 눌러 주세요.";
+        pay.hidden = false;
+        pay.disabled = false;
+        pay.addEventListener("click", async function () {
+          pay.disabled = true;
           try {
             await widgets.requestPayment({
               orderId: orderId,
               orderName: orderName,
               successUrl: successUrl,
               failUrl: failUrl,
-              windowTarget: "self",
             });
           } catch (e) {
+            pay.disabled = false;
             failToPayUrl(errorMessage(e));
           }
-        });
-        paymentWindow.on("cancel", function () {
-          failToPayUrl("결제를 취소했습니다.");
         });
       } catch (e) {
         failToPayUrl(errorMessage(e));

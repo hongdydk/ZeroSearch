@@ -15,11 +15,19 @@ void main() {
       failUrl: 'https://mall.anoveli.com/payment/fail',
     );
 
-    expect(uri.path, '/toss-pay');
+    expect(uri.path, tossPayPath);
     expect(uri.queryParameters['clientKey'], 'test_ck');
     expect(uri.queryParameters['orderName'], '농심 백산수');
     expect(uri.queryParameters['amount'], '12900');
     expect(uri.toString(), startsWith('/toss-pay?'));
+    expect(uri.path, isNot(contains('.html')));
+  });
+
+  test('isTossPayDocumentPath only matches the HTML hop path', () {
+    expect(isTossPayDocumentPath('/toss-pay'), isTrue);
+    expect(isTossPayDocumentPath('/toss-pay/'), isTrue);
+    expect(isTossPayDocumentPath('/checkout'), isFalse);
+    expect(isTossPayDocumentPath('/toss-pay.html'), isFalse);
   });
 
   testWidgets('exit screen shows waiting copy', (tester) async {
