@@ -2,6 +2,9 @@
 node_modules/
 .pnpm-store/
 
+# openapi-generator-cli (npm) local config, created during Flutter codegen
+openapitools.json
+
 # Python
 __pycache__/
 *.py[cod]
