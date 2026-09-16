@@ -105,7 +105,7 @@ void main() {
     expect(tokens.portal, isNull);
   });
 
-  testWidgets('쇼핑몰 keeps buyer portal session of a promoted admin', (
+  testWidgets('쇼핑몰 from admin logs out even with buyer portal of promoted admin', (
     tester,
   ) async {
     final tokens = _Tokens(token: 'buyer-tok', portal: 'buyer');
@@ -117,8 +117,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('몰 카탈로그'), findsOneWidget);
-    expect(tokens.clearCount, 0);
-    expect(tokens.token, 'buyer-tok');
-    expect(tokens.portal, 'buyer');
+    expect(tokens.clearCount, greaterThanOrEqualTo(1));
+    expect(tokens.token, isNull);
+    expect(tokens.portal, isNull);
   });
 }

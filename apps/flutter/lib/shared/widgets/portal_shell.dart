@@ -101,15 +101,11 @@ class _PortalHeader extends ConsumerWidget {
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () {
-                    final session = ref.read(authStateProvider).valueOrNull;
-                    // 포털 JWT를 몰 구매 세션으로 가져가지 않는다.
-                    // 구매자 포털(승격 관리자가 /admin에 들어온 경우)은 유지한다.
-                    if (session != null &&
-                        session.isLoggedIn &&
-                        !session.isMallBuyer) {
-                      ref.read(authStateProvider.notifier).logout();
-                    }
+                  onPressed: () async {
+                    // 관리자·판매자 크롬에서 몰로 나갈 때는 항상 게스트.
+                    // 승격 관리자의 buyer JWT도 유지하지 않는다.
+                    await ref.read(authStateProvider.notifier).logout();
+                    if (!context.mounted) return;
                     context.go('/');
                   },
                   style: TextButton.styleFrom(
