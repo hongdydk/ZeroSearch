@@ -3,7 +3,8 @@ import uuid
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import case, or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import Seller, User
@@ -31,27 +32,70 @@ def get_seller_for_user(db: Session, user: User) -> Seller | None:
     return db.scalar(select(Seller).where(Seller.user_id == user.id))
 
 
-def ensure_platform_seller(db: Session, admin_user: User) -> Seller:
-    existing = db.scalar(select(Seller).where(Seller.seller_type == "platform"))
-    if existing is not None:
-        if existing.user_id != admin_user.id:
-            existing.user_id = admin_user.id
-        if existing.status != "active":
-            existing.status = "active"
-        db.flush()
-        return existing
-
-    seller = Seller(
-        id=uuid.uuid4(),
-        user_id=admin_user.id,
-        shop_name=PLATFORM_SHOP_NAME,
-        slug=PLATFORM_SLUG,
-        status="active",
-        seller_type="platform",
+def _find_official_seller(db: Session, admin_user: User) -> Seller | None:
+    """platform 타입, slug=official, 또는 해당 user_id 행 — 이미 있으면 INSERT 하지 않는다."""
+    return db.scalar(
+        select(Seller)
+        .where(
+            or_(
+                Seller.seller_type == "platform",
+                Seller.slug == PLATFORM_SLUG,
+                Seller.user_id == admin_user.id,
+            )
+        )
+        .order_by(
+            case(
+                (Seller.seller_type == "platform", 0),
+                (Seller.slug == PLATFORM_SLUG, 1),
+                else_=2,
+            )
+        )
     )
-    db.add(seller)
+
+
+def _adopt_platform_seller(db: Session, seller: Seller, admin_user: User) -> Seller:
+    seller.seller_type = "platform"
+    seller.status = "active"
+    seller.shop_name = PLATFORM_SHOP_NAME
+    if seller.slug != PLATFORM_SLUG:
+        slug_taken = db.scalar(
+            select(Seller.id).where(Seller.slug == PLATFORM_SLUG, Seller.id != seller.id)
+        )
+        if slug_taken is None:
+            seller.slug = PLATFORM_SLUG
+    if seller.user_id != admin_user.id:
+        user_taken = db.scalar(
+            select(Seller.id).where(Seller.user_id == admin_user.id, Seller.id != seller.id)
+        )
+        if user_taken is None:
+            seller.user_id = admin_user.id
     db.flush()
     return seller
+
+
+def ensure_platform_seller(db: Session, admin_user: User) -> Seller:
+    existing = _find_official_seller(db, admin_user)
+    if existing is not None:
+        return _adopt_platform_seller(db, existing, admin_user)
+
+    try:
+        with db.begin_nested():
+            seller = Seller(
+                id=uuid.uuid4(),
+                user_id=admin_user.id,
+                shop_name=PLATFORM_SHOP_NAME,
+                slug=PLATFORM_SLUG,
+                status="active",
+                seller_type="platform",
+            )
+            db.add(seller)
+            db.flush()
+            return seller
+    except IntegrityError:
+        recovered = _find_official_seller(db, admin_user)
+        if recovered is None:
+            raise
+        return _adopt_platform_seller(db, recovered, admin_user)
 
 
 def apply_for_seller(db: Session, user: User, shop_name: str) -> Seller:
