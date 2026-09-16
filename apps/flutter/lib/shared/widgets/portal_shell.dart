@@ -101,7 +101,17 @@ class _PortalHeader extends ConsumerWidget {
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () => context.go('/'),
+                  onPressed: () {
+                    final session = ref.read(authStateProvider).valueOrNull;
+                    // 포털 JWT를 몰 구매 세션으로 가져가지 않는다.
+                    // 구매자 포털(승격 관리자가 /admin에 들어온 경우)은 유지한다.
+                    if (session != null &&
+                        session.isLoggedIn &&
+                        !session.isMallBuyer) {
+                      ref.read(authStateProvider.notifier).logout();
+                    }
+                    context.go('/');
+                  },
                   style: TextButton.styleFrom(
                     foregroundColor: const Color(0xFF6B7280),
                     padding: const EdgeInsets.symmetric(horizontal: 10),

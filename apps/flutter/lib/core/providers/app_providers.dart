@@ -57,6 +57,10 @@ class AuthState {
 
   bool get isLoggedIn => token != null && token!.isNotEmpty;
 
+  /// 몰 AdaptiveShell에서 장바구니·결제에 쓸 구매자 세션인지.
+  /// 판매자·관리자 `loginPortal` JWT는 구매자로 취급하지 않는다.
+  bool get isMallBuyer => isLoggedIn && portal == LoginPortal.buyer;
+
   bool isPortal(LoginPortal value) => isLoggedIn && portal == value;
 
   /// `/admin`은 클라이언트 portal 플래그와 별개로 DB `isAdmin`이면 입장한다.

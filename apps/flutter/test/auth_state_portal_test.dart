@@ -41,4 +41,33 @@ void main() {
     );
     expect(session.canAccess(LoginPortal.admin), isTrue);
   });
+
+  test('admin portal JWT is not a mall buyer session', () {
+    final session = AuthState(
+      user: adminUser,
+      token: 'tok',
+      portal: LoginPortal.admin,
+    );
+    expect(session.isMallBuyer, isFalse);
+    expect(session.isPortal(LoginPortal.admin), isTrue);
+  });
+
+  test('seller portal JWT is not a mall buyer session', () {
+    final session = AuthState(
+      user: buyerUser,
+      token: 'tok',
+      portal: LoginPortal.seller,
+    );
+    expect(session.isMallBuyer, isFalse);
+  });
+
+  test('buyer portal stays a mall buyer even if user is admin', () {
+    final session = AuthState(
+      user: adminUser,
+      token: 'tok',
+      portal: LoginPortal.buyer,
+    );
+    expect(session.isMallBuyer, isTrue);
+    expect(session.canAccess(LoginPortal.admin), isTrue);
+  });
 }
