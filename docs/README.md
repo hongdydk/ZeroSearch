@@ -79,6 +79,6 @@
 | [follow-ups.md](./follow-ups.md) 운영 A–C | Phase 2 병행·이후 — 배포 부담 · 관측 · OpenAPI 계약 |
 | [phase3-spec.md](./phase3-spec.md) | 추후 — 판매자·관리자 기능 추가. 카탈로그 초안·승격은 [catalog-intake.md](./catalog-intake.md) |
 | 3.5 (후보) | 추후 — 배송지·주문 취소·환불 (“산다” 마감). Phase 4 직전·병행 → [phase4-spec.md](./phase4-spec.md) |
-| [phase4-spec.md](./phase4-spec.md) | **활성** — Flutter 웹 토스 카드 테스트 결제 |
+| [phase4-spec.md](./phase4-spec.md) | **활성** — Flutter 웹 토스 카드 테스트 결제 · 창 이슈 [issue-requests/toss-pay-window-not-opening.md](./issue-requests/toss-pay-window-not-opening.md) |
 
 **다음 적용 순서:** ① [follow-ups.md](./follow-ups.md) same-origin → ② [ux-issues.md](./ux-issues.md) Phase 2 #1–9 → ③ 운영 서브페이즈 A–C ([follow-ups.md](./follow-ups.md))
