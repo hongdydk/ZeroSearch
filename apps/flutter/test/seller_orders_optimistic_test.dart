@@ -57,29 +57,25 @@ void main() {
         overrides: [apiClientProvider.overrideWithValue(api)],
         child: MaterialApp(
           theme: AppTheme.web(),
-          home: const SellerOrdersScreen(),
+          home: const Scaffold(body: SellerOrdersScreen()),
         ),
       ),
     );
     await tester.pumpAndSettle();
 
-    await tester.tap(find.textContaining('전체'));
-    await tester.pump();
-
     expect(find.text('백산수'), findsOneWidget);
-    expect(find.text('준비'), findsOneWidget);
+    expect(find.widgetWithText(TextButton, '준비'), findsOneWidget);
 
-    await tester.tap(find.text('준비'));
+    await tester.tap(find.widgetWithText(TextButton, '준비'));
     await tester.pump();
 
     expect(api.patchCalls, 1);
     expect(api.patchBlock!.isCompleted, isFalse);
-    expect(find.text('발송'), findsOneWidget);
-    expect(find.text('준비'), findsNothing);
-    expect(find.text('백산수'), findsOneWidget);
+    expect(find.text('백산수'), findsNothing);
+    expect(find.widgetWithText(TextButton, '준비'), findsNothing);
 
     api.patchBlock!.complete();
     await tester.pump();
-    expect(find.text('발송'), findsOneWidget);
+    expect(find.text('백산수'), findsNothing);
   });
 }
