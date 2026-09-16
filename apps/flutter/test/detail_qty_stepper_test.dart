@@ -143,6 +143,7 @@ void main() {
           builder: (_, _) => Scaffold(body: child),
         ),
         GoRoute(path: '/login', builder: (_, _) => const Text('login-page')),
+        GoRoute(path: '/cart', builder: (_, _) => const Text('cart-page')),
       ],
     );
     await tester.pumpWidget(
@@ -175,6 +176,11 @@ void main() {
     expect(api.lastProductId, 'offer-1');
     expect(api.lastQty, 3);
     expect(find.text('장바구니에 담았습니다.'), findsOneWidget);
+    expect(find.text('장바구니 보기'), findsOneWidget);
+
+    await tester.tap(find.text('장바구니 보기'));
+    await tester.pumpAndSettle();
+    expect(find.text('cart-page'), findsOneWidget);
   });
 
   testWidgets('product detail stepper adds selected qty', (tester) async {

@@ -183,6 +183,8 @@ class CartModel {
   final List<CartItemModel> items;
   final int totalCredits;
   final bool checkoutBlocked;
+
+  int get totalQty => items.fold(0, (sum, item) => sum + item.qty);
 }
 
 class CatalogProductPageModel {

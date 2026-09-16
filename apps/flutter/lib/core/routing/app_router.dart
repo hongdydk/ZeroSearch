@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 
 import '../auth/login_portal.dart';
 import '../providers/app_providers.dart';
+import '../cart/pending_cart_add.dart';
 import 'safe_next_path.dart';
 import '../../features/admin/admin_screen.dart';
 import '../../features/auth/buyer_auth_gate.dart';
@@ -67,7 +68,10 @@ final routerProvider = Provider<GoRouter>((ref) {
         return '/login?next=${Uri.encodeQueryComponent(raw)}';
       }
       if (mallLoggedIn && isAuthRoute) {
-        return safeNextPath(state.uri.queryParameters['next']) ?? '/';
+        return stripPendingCartQuery(
+              safeNextPath(state.uri.queryParameters['next']),
+            ) ??
+            '/';
       }
       return null;
     },

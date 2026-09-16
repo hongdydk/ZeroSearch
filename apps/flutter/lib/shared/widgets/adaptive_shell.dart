@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/cart/consume_pending_cart_add.dart';
 import '../../core/layout/ui_platform.dart';
 import '../../core/routing/app_back_navigation.dart';
 import '../../core/routing/app_router.dart';
+import 'cart_count_badge.dart';
 import 'web_content_frame.dart';
 import 'web/web_naver_header.dart';
 
@@ -27,6 +29,7 @@ class WebShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    listenForPendingCartAdd(ref, context);
     final location = _webShellLocation(context);
     final compact = isCompactWeb(context);
 
@@ -73,6 +76,7 @@ class MallShell extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    listenForPendingCartAdd(ref, context);
     final location = GoRouterState.of(context).matchedLocation;
     final showBottomNav = !isSlimRoute(location) &&
         location != '/login' &&
@@ -95,7 +99,12 @@ class MallShell extends ConsumerWidget {
                 onDestinationSelected: (i) => context.go(_tabs[i].path),
                 destinations: [
                   for (final t in _tabs)
-                    NavigationDestination(icon: Icon(t.icon), label: t.label),
+                    NavigationDestination(
+                      icon: t.path == '/cart'
+                          ? CartCountBadge(child: Icon(t.icon))
+                          : Icon(t.icon),
+                      label: t.label,
+                    ),
                 ],
               )
             : null,
