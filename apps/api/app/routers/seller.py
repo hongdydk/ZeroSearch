@@ -16,6 +16,7 @@ from app.deps import get_current_user, require_active_seller
 
 from app.models import Seller, User
 
+from app.schemas.catalog_intake import CatalogIntakeItem, CatalogIntakeListResponse, SellerCardDraftCreateRequest
 from app.schemas.catalog_product import CatalogProductListResponse
 from app.schemas.product import ProductResponse
 
@@ -37,6 +38,7 @@ from app.schemas.seller import (
 
 )
 
+from app.services.catalog_intake import card_draft_to_item, create_card_draft, list_seller_card_drafts
 from app.services.catalog_products import search_seller_catalog_products
 from app.services.products import (
 
@@ -283,5 +285,25 @@ def seller_update_order_item_status(
     db.commit()
 
     return _seller_order_item_response(item)
+
+
+@router.get("/card-drafts", response_model=CatalogIntakeListResponse)
+def seller_list_card_drafts(
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> CatalogIntakeListResponse:
+    drafts = list_seller_card_drafts(db, seller)
+    return CatalogIntakeListResponse(items=[card_draft_to_item(d) for d in drafts], total=len(drafts))
+
+
+@router.post("/card-drafts", response_model=CatalogIntakeItem, status_code=status.HTTP_201_CREATED)
+def seller_create_card_draft(
+    payload: SellerCardDraftCreateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> CatalogIntakeItem:
+    draft = create_card_draft(db, seller, payload)
+    db.commit()
+    return card_draft_to_item(draft)
 
 

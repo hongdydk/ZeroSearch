@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 
 from app.models import (
     CartItem,
+    CatalogIntakeDraft,
     CatalogProduct,
     CreditTransaction,
     CreditWallet,
@@ -31,6 +32,7 @@ def truncate_data(db: Session, *, keep_users: bool) -> None:
     db.execute(delete(Order))
     db.execute(delete(CartItem))
     db.execute(delete(Subscription))
+    db.execute(delete(CatalogIntakeDraft))
     db.execute(delete(Product))
     db.execute(delete(CatalogProduct))
     db.execute(delete(Seller))

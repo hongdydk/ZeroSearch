@@ -742,6 +742,7 @@ class ApiClient {
     String? optionLabel,
     int? volumeMl,
     String? flavor,
+    String? imageUrl,
   }) async {
     final data = await _generatedCall(
       () => _generated.getSellerApi().sellerCreateProductSellerProductsPost(
@@ -758,11 +759,125 @@ class ApiClient {
             ..catalogProductId = catalogProductId
             ..optionLabel = optionLabel
             ..volumeMl = volumeMl
-            ..flavor = flavor,
+            ..flavor = flavor
+            ..imageUrl = imageUrl,
         ),
       ),
     );
     return productModelFromGenerated(data);
+  }
+
+  Future<List<IntakeDraftModel>> sellerCardDrafts() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'seller/card-drafts',
+      );
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map((e) => IntakeDraftModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<IntakeDraftModel> sellerCreateCardDraft({
+    required String manufacturer,
+    required String title,
+    required String category,
+    required int priceCredits,
+    required int stock,
+    required String optionLabel,
+    String? imageUrl,
+    String? flavor,
+    int? volumeMl,
+    String? description,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'seller/card-drafts',
+        data: {
+          'manufacturer': manufacturer,
+          'title': title,
+          'category': category,
+          'priceCredits': priceCredits,
+          'stock': stock,
+          'optionLabel': optionLabel,
+          if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+          if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
+          if (volumeMl != null) 'volumeMl': volumeMl,
+          if (description != null && description.isNotEmpty)
+            'description': description,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return IntakeDraftModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<List<IntakeDraftModel>> adminCatalogDrafts() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'admin/catalog/drafts',
+      );
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map((e) => IntakeDraftModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<IntakeDraftModel> adminAttachCatalogDraft({
+    required String draftId,
+    required String kind,
+    String? catalogProductId,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'admin/catalog/drafts/$draftId/attach',
+        data: {
+          'kind': kind,
+          if (catalogProductId != null && catalogProductId.isNotEmpty)
+            'catalogProductId': catalogProductId,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return IntakeDraftModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<IntakeDraftModel> adminPromoteCatalogDraft({
+    required String draftId,
+    required String category,
+    String? manufacturer,
+    String? title,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'admin/catalog/drafts/$draftId/promote',
+        data: {
+          'category': category,
+          if (manufacturer != null && manufacturer.isNotEmpty)
+            'manufacturer': manufacturer,
+          if (title != null && title.isNotEmpty) 'title': title,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return IntakeDraftModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<List<SellerOrderItemModel>> sellerOrders() async {

@@ -132,7 +132,7 @@ def create_seller_product(db: Session, seller: Seller, payload: SellerProductCre
         stock=payload.stock,
         category=catalog.category,
         image_url=payload.image_url or catalog.image_url,
-        status=payload.status,
+        status="draft",
         option_label=option_label,
         volume_ml=payload.volume_ml,
         flavor=payload.flavor,
@@ -160,6 +160,11 @@ def update_seller_product(
     if payload.image_url is not None:
         product.image_url = payload.image_url
     if payload.status is not None:
+        if payload.status == "published" and product.status != "published":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="검수 전에는 공개할 수 없습니다.",
+            )
         product.status = payload.status
     if payload.option_label is not None:
         product.option_label = payload.option_label

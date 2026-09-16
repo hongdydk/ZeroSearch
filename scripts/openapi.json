@@ -1,6 +1,34 @@
 {
   "components": {
     "schemas": {
+      "AdminAttachDraftRequest": {
+        "properties": {
+          "catalogProductId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogproductid"
+          },
+          "kind": {
+            "enum": [
+              "offer",
+              "card"
+            ],
+            "title": "Kind",
+            "type": "string"
+          }
+        },
+        "required": [
+          "kind"
+        ],
+        "title": "AdminAttachDraftRequest",
+        "type": "object"
+      },
       "AdminCreditGrantRequest": {
         "properties": {
           "amount": {
@@ -148,6 +176,45 @@
           "sellerType"
         ],
         "title": "AdminOrderItemResponse",
+        "type": "object"
+      },
+      "AdminPromoteDraftRequest": {
+        "properties": {
+          "category": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Category",
+            "type": "string"
+          },
+          "manufacturer": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manufacturer"
+          },
+          "title": {
+            "anyOf": [
+              {
+                "maxLength": 200,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Title"
+          }
+        },
+        "required": [
+          "category"
+        ],
+        "title": "AdminPromoteDraftRequest",
         "type": "object"
       },
       "AdminSellerItem": {
@@ -663,6 +730,172 @@
           "csv"
         ],
         "title": "CatalogImportTextRequest",
+        "type": "object"
+      },
+      "CatalogIntakeItem": {
+        "properties": {
+          "catalogProductId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogproductid"
+          },
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "flavor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "kind": {
+            "enum": [
+              "offer",
+              "card"
+            ],
+            "title": "Kind",
+            "type": "string"
+          },
+          "manufacturer": {
+            "default": "",
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "optionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optionlabel"
+          },
+          "priceCredits": {
+            "title": "Pricecredits",
+            "type": "integer"
+          },
+          "sellerId": {
+            "title": "Sellerid",
+            "type": "string"
+          },
+          "shopName": {
+            "title": "Shopname",
+            "type": "string"
+          },
+          "status": {
+            "enum": [
+              "pending",
+              "attached",
+              "promoted"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "stock": {
+            "title": "Stock",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "volumeMl": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumeml"
+          }
+        },
+        "required": [
+          "id",
+          "kind",
+          "status",
+          "sellerId",
+          "shopName",
+          "title",
+          "category",
+          "priceCredits",
+          "stock"
+        ],
+        "title": "CatalogIntakeItem",
+        "type": "object"
+      },
+      "CatalogIntakeListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogIntakeItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "CatalogIntakeListResponse",
         "type": "object"
       },
       "CatalogOfferItem": {
@@ -1514,6 +1747,106 @@
           "shopName"
         ],
         "title": "SellerApplyRequest",
+        "type": "object"
+      },
+      "SellerCardDraftCreateRequest": {
+        "properties": {
+          "category": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "flavor": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "manufacturer": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "optionLabel": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optionlabel"
+          },
+          "priceCredits": {
+            "exclusiveMinimum": 0.0,
+            "title": "Pricecredits",
+            "type": "integer"
+          },
+          "stock": {
+            "minimum": 0.0,
+            "title": "Stock",
+            "type": "integer"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "volumeMl": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumeml"
+          }
+        },
+        "required": [
+          "manufacturer",
+          "title",
+          "category",
+          "priceCredits",
+          "stock"
+        ],
+        "title": "SellerCardDraftCreateRequest",
         "type": "object"
       },
       "SellerOrderItemListResponse": {
@@ -2527,6 +2860,183 @@
           }
         },
         "summary": "Root"
+      }
+    },
+    "/admin/catalog/drafts": {
+      "get": {
+        "operationId": "list_catalog_drafts_admin_catalog_drafts_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogIntakeListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Catalog Drafts",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/drafts/{draft_id}/attach": {
+      "post": {
+        "operationId": "attach_catalog_draft_admin_catalog_drafts__draft_id__attach_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminAttachDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogIntakeItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Attach Catalog Draft",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/drafts/{draft_id}/promote": {
+      "post": {
+        "operationId": "promote_catalog_draft_admin_catalog_drafts__draft_id__promote_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminPromoteDraftRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogIntakeItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Promote Catalog Draft",
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/admin/catalog/import": {
@@ -4696,6 +5206,76 @@
           }
         ],
         "summary": "Seller Apply",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/card-drafts": {
+      "get": {
+        "operationId": "seller_list_card_drafts_seller_card_drafts_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogIntakeListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller List Card Drafts",
+        "tags": [
+          "seller"
+        ]
+      },
+      "post": {
+        "operationId": "seller_create_card_draft_seller_card_drafts_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerCardDraftCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogIntakeItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Create Card Draft",
         "tags": [
           "seller"
         ]
