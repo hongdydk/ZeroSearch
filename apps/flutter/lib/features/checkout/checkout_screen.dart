@@ -15,7 +15,8 @@ import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 
 String _newIdempotencyKey() {
-  final rand = Random.secure().nextInt(1 << 32).toRadixString(16);
+  // Web bitwise shifts truncate to 32 bits, so `1 << 32` becomes zero.
+  final rand = Random.secure().nextInt(0x100000000).toRadixString(16);
   return '${DateTime.now().toUtc().microsecondsSinceEpoch}-$rand';
 }
 
@@ -39,10 +40,9 @@ class _CheckoutScreenState extends ConsumerState<CheckoutScreen>
   Future<void> _pay(ShippingAddressModel address) async {
     setState(() {
       _checkingOut = true;
-      _checkoutKey ??= _newIdempotencyKey();
     });
-    final key = _checkoutKey!;
     try {
+      final key = _checkoutKey ??= _newIdempotencyKey();
       final prepared = await ref
           .read(apiClientProvider)
           .prepareTossPayment(idempotencyKey: key, addressId: address.id);
