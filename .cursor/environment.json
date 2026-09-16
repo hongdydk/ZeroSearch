@@ -7,14 +7,9 @@
     {
       "name": "api",
       "command": "cd apps/api && ./.venv/bin/python -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload"
-    },
-    {
-      "name": "flutter-web",
-      "command": "export PATH=\"/opt/flutter/bin:$PATH\" && cd apps/flutter && flutter run -d web-server --web-hostname 0.0.0.0 --web-port 8080 --dart-define=API_BASE_URL=http://localhost:8001"
     }
   ],
   "ports": [
-    { "name": "API (FastAPI)", "port": 8001 },
-    { "name": "Flutter web", "port": 8080 }
+    { "name": "API (FastAPI)", "port": 8001 }
   ]
 }

@@ -1,8 +1,10 @@
 #!/usr/bin/env bash
 # 제로 서치 (Zero Search) — Cloud Agent 환경 설치.
 # 체크아웃 후 1회(빌드 스냅샷) 실행. 멱등하게 다시 실행돼도 안전해야 한다.
+# 범위: 백엔드 실행 + 계약 컴파일 체크. (앱 호스팅/배포는 CI/CD가 담당 — VM 에서 Flutter 웹을 서빙하지 않는다.)
 #   - 시스템 패키지(postgres/jre) · Flutter SDK · Python venv · DB 마이그레이션/시드
 #   - OpenAPI → dart-dio 클라이언트 코드젠 (Docker 대신 openapi-generator-cli npm/Java jar 사용)
+#   - flutter analyze 로 OpenAPI↔Flutter 계약이 깨지지 않았는지 확인 (서빙은 하지 않음)
 set -euo pipefail
 
 REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
