@@ -12,6 +12,7 @@ import 'package:shopping_mall/core/routing/app_router.dart';
 import 'package:shopping_mall/core/storage/token_storage.dart';
 import 'package:shopping_mall/core/theme/app_theme.dart';
 import 'package:shopping_mall/features/payment/payment_result_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class _SuccessApi extends ApiClient {
   _SuccessApi() : super(tokenReader: () async => 'token');
@@ -63,6 +64,10 @@ class _LoggedInApi extends ApiClient {
       UserModel(id: 'u1', email: 'buyer@example.com', displayName: 'Buyer');
 
   @override
+  Future<CartModel> cart() async =>
+      CartModel(items: const [], totalCredits: 0);
+
+  @override
   Future<CatalogProductPageModel> catalogProducts({
     String? q,
     String? category,
@@ -108,10 +113,17 @@ class _Tokens extends TokenStorage {
   Future<void> writePortal(String portal) async {}
 
   @override
+  Future<void> loadLeftAts() async {}
+
+  @override
   Future<void> clear() async {}
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   test('Toss payment bridge is disabled outside web', () {
     expect(tossPaymentSupported, isFalse);
   });

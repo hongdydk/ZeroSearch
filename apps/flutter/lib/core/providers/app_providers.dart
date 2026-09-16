@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../auth/login_portal.dart';
+import '../cart/guest_cart.dart';
+import '../cart/guest_cart_storage.dart';
 import '../models/models.dart';
 import '../network/api_client.dart';
 import '../storage/token_storage.dart';
@@ -40,6 +42,9 @@ final apiClientProvider = Provider<ApiClient>((ref) {
 });
 
 final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
+
+final guestCartStorageProvider =
+    Provider<GuestCartStorage>((ref) => GuestCartStorage());
 
 final authStateProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<AuthState>>((ref) {
@@ -255,10 +260,11 @@ final productsProvider = FutureProvider.autoDispose<List<ProductModel>>((ref) as
 
 final cartProvider = FutureProvider.autoDispose<CartModel>((ref) async {
   final auth = ref.watch(authStateProvider).valueOrNull;
-  if (auth?.buyer == null) {
-    return CartModel(items: const [], totalCredits: 0, checkoutBlocked: false);
-  }
-  return ref.watch(apiClientProvider).cart();
+  return loadVisibleCart(
+    api: ref.watch(apiClientProvider),
+    guest: ref.watch(guestCartStorageProvider),
+    isBuyer: auth?.buyer != null,
+  );
 });
 
 class CatalogListState {

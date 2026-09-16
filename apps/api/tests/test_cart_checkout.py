@@ -49,6 +49,11 @@ def test_get_cart_requires_auth(client):
     assert response.status_code == 401
 
 
+def test_add_to_cart_requires_auth(client):
+    response = client.post("/me/cart", json={"productId": str(uuid.uuid4()), "qty": 1})
+    assert response.status_code == 401
+
+
 def test_add_to_cart(client):
     user = make_user()
     override_current_user(user)
@@ -161,6 +166,11 @@ def test_get_cart_sets_checkout_blocked(client):
     body = response.json()
     assert body["checkoutBlocked"] is True
     assert body["items"][0]["issueCode"] == "out_of_stock"
+
+
+def test_create_order_requires_auth(client):
+    response = client.post("/me/orders")
+    assert response.status_code == 401
 
 
 def test_legacy_credit_checkout_is_disabled(client):
