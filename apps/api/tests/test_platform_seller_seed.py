@@ -80,7 +80,8 @@ def test_ensure_platform_seller_recovers_from_unique_violation_on_insert():
     nested.__exit__.return_value = False
     db.begin_nested.return_value = nested
 
-    lookups = iter([None, existing, None])
+    # user_id / slug / platform 미적중 → INSERT UniqueViolation → user_id 로 복구 → slug 점유 여부
+    lookups = iter([None, None, None, existing, None])
     db.scalar.side_effect = lambda _stmt: next(lookups, None)
 
     flush_count = {"n": 0}
@@ -109,9 +110,31 @@ def _pg_session() -> tuple[Session, object]:
     return SessionLocal(), engine
 
 
+def _add_decoy_platform_seller(db: Session) -> Seller:
+    decoy_user = User(
+        email=f"decoy-{uuid.uuid4().hex[:10]}@test.local",
+        password_hash=hash_password("pw"),
+        display_name="Decoy",
+        is_admin=False,
+    )
+    db.add(decoy_user)
+    db.flush()
+    decoy = Seller(
+        user_id=decoy_user.id,
+        shop_name="다른 공식",
+        slug=f"decoy-{uuid.uuid4().hex[:8]}",
+        status="active",
+        seller_type="platform",
+    )
+    db.add(decoy)
+    db.flush()
+    return decoy
+
+
 def test_pg_ensure_platform_seller_when_user_already_has_seller():
     db, engine = _pg_session()
     try:
+        _add_decoy_platform_seller(db)
         admin = User(
             email=f"official-seed-{uuid.uuid4().hex[:10]}@test.local",
             password_hash=hash_password("pw"),
@@ -133,7 +156,9 @@ def test_pg_ensure_platform_seller_when_user_already_has_seller():
         first = ensure_platform_seller(db, admin)
         second = ensure_platform_seller(db, admin)
 
-        assert first.id == second.id
+        assert first.id == seeded.id
+        assert second.id == seeded.id
+        assert first.seller_type == "platform"
         seller_count = db.scalar(select(func.count()).select_from(Seller).where(Seller.user_id == admin.id))
         assert seller_count == 1
         db.rollback()
@@ -153,15 +178,15 @@ def test_pg_ensure_catalog_seed_rerun_does_not_raise():
         )
         db.add(admin)
         db.flush()
-        db.add(
-            Seller(
-                user_id=admin.id,
-                shop_name="기존 가게",
-                slug=f"existing-{uuid.uuid4().hex[:8]}",
-                status="active",
-                seller_type="merchant",
-            )
+        _add_decoy_platform_seller(db)
+        seeded = Seller(
+            user_id=admin.id,
+            shop_name="기존 가게",
+            slug=f"existing-{uuid.uuid4().hex[:8]}",
+            status="active",
+            seller_type="merchant",
         )
+        db.add(seeded)
         db.flush()
 
         ensure_catalog_seed(db)
@@ -169,6 +194,10 @@ def test_pg_ensure_catalog_seed_rerun_does_not_raise():
 
         seller_count = db.scalar(select(func.count()).select_from(Seller).where(Seller.user_id == admin.id))
         assert seller_count == 1
+        adopted = db.scalar(select(Seller).where(Seller.user_id == admin.id))
+        assert adopted is not None
+        assert adopted.id == seeded.id
+        assert adopted.seller_type == "platform"
         db.rollback()
     finally:
         db.close()

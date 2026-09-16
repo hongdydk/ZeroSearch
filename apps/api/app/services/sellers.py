@@ -3,7 +3,7 @@ import uuid
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import case, or_, select
+from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -33,24 +33,14 @@ def get_seller_for_user(db: Session, user: User) -> Seller | None:
 
 
 def _find_official_seller(db: Session, admin_user: User) -> Seller | None:
-    """platform 타입, slug=official, 또는 해당 user_id 행 — 이미 있으면 INSERT 하지 않는다."""
-    return db.scalar(
-        select(Seller)
-        .where(
-            or_(
-                Seller.seller_type == "platform",
-                Seller.slug == PLATFORM_SLUG,
-                Seller.user_id == admin_user.id,
-            )
-        )
-        .order_by(
-            case(
-                (Seller.seller_type == "platform", 0),
-                (Seller.slug == PLATFORM_SLUG, 1),
-                else_=2,
-            )
-        )
-    )
+    """같은 user_id 행을 최우선으로 재사용한다. 없으면 slug=official, 그다음 platform 타입."""
+    mine = db.scalar(select(Seller).where(Seller.user_id == admin_user.id))
+    if mine is not None:
+        return mine
+    by_slug = db.scalar(select(Seller).where(Seller.slug == PLATFORM_SLUG))
+    if by_slug is not None:
+        return by_slug
+    return db.scalar(select(Seller).where(Seller.seller_type == "platform").order_by(Seller.id))
 
 
 def _adopt_platform_seller(db: Session, seller: Seller, admin_user: User) -> Seller:
