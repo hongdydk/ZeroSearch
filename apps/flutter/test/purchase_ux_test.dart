@@ -205,9 +205,11 @@ void main() {
           apiClientProvider.overrideWithValue(api),
           tokenStorageProvider.overrideWithValue(tokens),
         ],
-        child: const MaterialApp(
-          home: LoginScreen(
-            next: '/catalog/cat-1?addOffer=offer-9&addQty=2',
+        child: MaterialApp(
+          home: Scaffold(
+            body: LoginScreen(
+              next: '/catalog/cat-1?addOffer=offer-9&addQty=2',
+            ),
           ),
         ),
       ),

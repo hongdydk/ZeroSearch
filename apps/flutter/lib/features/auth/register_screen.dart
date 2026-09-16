@@ -44,14 +44,20 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   @override
   void initState() {
     super.initState();
-    restorePendingCartAddFromNext(ref, widget.next);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      restorePendingCartAddFromNext(ref, widget.next);
+    });
   }
 
   @override
   void didUpdateWidget(covariant RegisterScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.next != widget.next) {
-      restorePendingCartAddFromNext(ref, widget.next);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        restorePendingCartAddFromNext(ref, widget.next);
+      });
     }
   }
 

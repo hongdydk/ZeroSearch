@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import '../network/api_exception.dart';
 import '../providers/app_providers.dart';
 import '../routing/login_location.dart';
+import '../routing/safe_next_path.dart';
 import 'cart_feedback.dart';
 import 'pending_cart_add.dart';
 
@@ -42,7 +43,14 @@ Future<void> consumePendingCartAddIfBuyer({
 }) async {
   if (ref.read(authStateProvider).valueOrNull?.isMallBuyer != true) return;
   if (ref.read(pendingCartAddClaimedProvider)) return;
-  final pending = ref.read(pendingCartAddProvider);
+  var pending = ref.read(pendingCartAddProvider);
+  if (pending == null) {
+    final loc = GoRouter.maybeOf(context)?.state.uri;
+    if (loc != null && (loc.path == '/login' || loc.path == '/register')) {
+      final next = safeNextPath(loc.queryParameters['next']);
+      if (next != null) pending = PendingCartAdd.tryParse(Uri.parse(next));
+    }
+  }
   if (pending == null) return;
 
   ref.read(pendingCartAddClaimedProvider.notifier).state = true;
