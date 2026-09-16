@@ -397,7 +397,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
               PortalMetricCard(
                 label: '총액',
                 value: '${stats['soldAmountSum'] ?? 0}',
-                hint: '크레딧',
+                hint: '원',
               ),
               PortalMetricCard(
                 label: '승인 대기',

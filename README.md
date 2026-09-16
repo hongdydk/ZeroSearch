@@ -100,9 +100,9 @@ pnpm dev:flutter       # http://localhost:8080
 |------|--------|----------|
 | 관리자 | `admin@mall.local` | `admin-dev-only` |
 
-- 신규 가입 크레딧 보너스: `SIGNUP_CREDIT_BONUS`(기본 100)
+- 신규 가입 원 보너스: `SIGNUP_CREDIT_BONUS`(기본 100)
 - 시드: 관리자 + 레거시 상품 8개 + **생수 데모**(백산수·평창수·제주삼다수, 다중 오퍼)
-- DummyJSON 추가 카탈로그: `cd apps/api && python -m scripts.import_dummyjson_catalog` (기본 30개, USD×10→크레딧)
+- DummyJSON 추가 카탈로그: `cd apps/api && python -m scripts.import_dummyjson_catalog` (기본 30개, USD×10→원)
 
 ## 개발 명령 (루트)
 

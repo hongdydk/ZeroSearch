@@ -1,4 +1,4 @@
-/// API `priceCredits` 값을 화면용 원화 문자열로 표시 (크레딧 UI 없음).
+/// API `priceCredits` 값을 화면용 원화 문자열로 표시.
 String formatWon(int amount, {bool fromPrice = false}) {
   final digits = amount.toString();
   final buf = StringBuffer();
@@ -11,7 +11,7 @@ String formatWon(int amount, {bool fromPrice = false}) {
   return fromPrice ? '${buf.toString()}원~' : '${buf.toString()}원';
 }
 
-/// 대표 상품 카드 — L당 median 또는 크레딧 median (보통). 최저가·「~」 없음.
+/// 대표 상품 카드 — L당 median 또는 원 median (보통). 최저가·「~」 없음.
 String formatCatalogRepresentativePrice({
   required String priceUnit,
   required String displayPriceLabel,
@@ -23,7 +23,7 @@ String formatCatalogRepresentativePrice({
     return '$displayPriceLabel ${formatWon(perLiter)}(보통)';
   }
   if (medianPriceCredits != null) {
-    return '$displayPriceLabel ${formatWon(medianPriceCredits)}(보통)';
+    return '${formatWon(medianPriceCredits)}(보통)';
   }
   // 공개 오퍼가 없으면 카드는 유지하고 가격만 숨긴다.
   return '가격 정보 없음';

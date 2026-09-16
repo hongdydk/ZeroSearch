@@ -6,7 +6,7 @@
 
 ## 목표
 
-Anoveli 인프라(인증·크레딧 지갑·Flutter 셸)를 재사용해 상품·장바구니·주문 골격을 만든다. LLM·소설 도메인은 포함하지 않는다.
+Anoveli 인프라(인증·원 지갑·Flutter 셸)를 재사용해 상품·장바구니·주문 골격을 만든다. LLM·소설 도메인은 포함하지 않는다.
 
 ## 엔티티
 
@@ -15,7 +15,7 @@ Anoveli 인프라(인증·크레딧 지갑·Flutter 셸)를 재사용해 상품�
 | 테이블 | 설명 |
 |--------|------|
 | `users` | 계정 (`episode_language` 등 소설 필드 제거) |
-| `credit_wallets` | 사용자별 크레딧 잔액 |
+| `credit_wallets` | 사용자별 잔액(원) |
 | `credit_transactions` | grant / debit / refund 이력 |
 
 ### 신규
@@ -37,15 +37,15 @@ Anoveli 인프라(인증·크레딧 지갑·Flutter 셸)를 재사용해 상품�
 |--------|------|------|
 | GET | `/health` | 헬스체크 |
 | GET | `/health/ready` | DB 준비 여부 |
-| POST | `/auth/register` | 가입 (+ 가입 보너스 크레딧) |
+| POST | `/auth/register` | 가입 (+ 가입 보너스 원) |
 | POST | `/auth/login` | 로그인 |
 | GET | `/auth/me` | 내 프로필 |
 | PATCH | `/auth/me/preferences` | 프로필·환경 설정 |
-| GET | `/me/credits` | 크레딧 잔액 |
+| GET | `/me/credits` | 잔액(원) |
 | GET | `/admin/stats` | 관리자 통계 |
 | GET | `/admin/users` | 사용자 목록 |
 | POST | `/admin/users/{user_id}/promote` | 관리자 승격 |
-| POST | `/admin/users/{user_id}/credits` | 크레딧 지급 |
+| POST | `/admin/users/{user_id}/credits` | 원 지급 |
 | POST | `/admin/db/reset` | DB 리셋 (dev) |
 
 ### 상품·장바구니·주문
@@ -66,7 +66,7 @@ Anoveli 인프라(인증·크레딧 지갑·Flutter 셸)를 재사용해 상품�
 | Method | Path | 설명 |
 |--------|------|------|
 | GET | `/membership/plans` | 플랜 목록 |
-| POST | `/me/membership/subscribe` | 구독(크레딧 차감 스텁) |
+| POST | `/me/membership/subscribe` | 구독(원 차감 스텁) |
 | GET | `/me/membership` | 내 구독 상태 |
 
 ## Flutter 라우트
@@ -85,13 +85,13 @@ Anoveli 인프라(인증·크레딧 지갑·Flutter 셸)를 재사용해 상품�
 ### 셸 IA
 
 - **앱 탭**: 홈 / 장바구니 / 주문 / MY (멤버십 탭은 레거시)
-- **웹 헤더**: 브랜드 · 검색(홈) · 장바구니 · 로그인/크레딧 · ≡(주문·설정·관리자)
+- **웹 헤더**: 브랜드 · 검색(홈) · 장바구니 · 로그인 · ≡(주문·설정·관리자)
 
 ## 시드
 
 - 관리자: `admin@mall.local` / `admin-dev-only`
 - 상품 약 8개
-- 가입 보너스 크레딧으로 주문 동작 확인
+- 가입 보너스 원으로 주문 동작 확인
 
 ## Definition of Done
 

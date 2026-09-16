@@ -7,7 +7,7 @@ Run after migration and base seed::
     python seed.py
     python -m scripts.import_dummyjson_catalog
 
-Price rule: DummyJSON ``price`` is USD; we store ``round(price * 10)`` credits
+Price rule: DummyJSON ``price`` is USD; we store ``round(price * 10)`` won (KRW)
 (e.g. $9.99 → 100, $549 → 5490). Idempotent — skips catalogs whose title
 already exists.
 """
@@ -77,7 +77,7 @@ def map_dummyjson_category(category: str) -> str:
 
 
 def price_to_credits(price: float) -> int:
-    """USD list price → integer credits (USD × 10, rounded)."""
+    """USD list price → integer won (USD × 10, rounded)."""
     return max(1, round(price * 10))
 
 

@@ -42,7 +42,7 @@ def _aggregate_offers(offers: list[Product]) -> tuple[int, float | None, int | N
     """Return offer_count, median_unit_price, median_price_credits, price_unit, display_label."""
     count = len(offers)
     if count == 0:
-        return 0, None, None, "credits", "크레딧(보통)"
+        return 0, None, None, "credits", "원"
 
     unit_prices = [
         offer.price_credits / offer.volume_ml
@@ -53,7 +53,7 @@ def _aggregate_offers(offers: list[Product]) -> tuple[int, float | None, int | N
         return count, _median(unit_prices), None, "ml", "L당"
 
     credit_prices = [float(offer.price_credits) for offer in offers]
-    return count, None, int(_median(credit_prices)), "credits", "크레딧(보통)"
+    return count, None, int(_median(credit_prices)), "credits", "원"
 
 
 def _catalog_search_filter(

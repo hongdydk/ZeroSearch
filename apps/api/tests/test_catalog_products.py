@@ -99,7 +99,7 @@ def test_aggregate_median_credits_fallback():
     assert median_unit is None
     assert median_credits == 45
     assert price_unit == "credits"
-    assert label == "크레딧(보통)"
+    assert label == "원"
 
 
 def test_aggregate_no_offers_returns_null_prices():
@@ -171,7 +171,7 @@ def test_list_catalog_products_includes_zero_offer_item(client):
             median_unit_price=None,
             median_price_credits=None,
             price_unit="credits",
-            display_price_label="크레딧(보통)",
+            display_price_label="원",
         )
     ]
     override_db(MagicMock())

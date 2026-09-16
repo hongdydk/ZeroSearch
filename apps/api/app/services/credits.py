@@ -80,7 +80,7 @@ def debit_credits(
     if wallet.balance < amount:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,
-            detail=f"크레딧이 부족합니다. 필요: {amount}, 보유: {wallet.balance}",
+            detail=f"잔액이 부족합니다. 필요: {amount}원, 보유: {wallet.balance}원",
         )
 
     wallet.balance -= amount
