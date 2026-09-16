@@ -112,6 +112,26 @@ def _pg_session() -> tuple[Session, object]:
 def test_pg_ensure_platform_seller_when_user_already_has_seller():
     db, engine = _pg_session()
     try:
+        # 동시성 테스트가 커밋한 platform 행이 여러 개여도 재호출이 같은 행을 고른다.
+        for _ in range(2):
+            other = User(
+                email=f"plat-left-{uuid.uuid4().hex[:10]}@test.local",
+                password_hash=hash_password("pw"),
+                display_name="Other",
+            )
+            db.add(other)
+            db.flush()
+            db.add(
+                Seller(
+                    user_id=other.id,
+                    shop_name=f"leftover-{uuid.uuid4().hex[:6]}",
+                    slug=f"leftover-{uuid.uuid4().hex[:8]}",
+                    status="active",
+                    seller_type="platform",
+                )
+            )
+            db.flush()
+
         admin = User(
             email=f"official-seed-{uuid.uuid4().hex[:10]}@test.local",
             password_hash=hash_password("pw"),

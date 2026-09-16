@@ -48,8 +48,10 @@ def _find_official_seller(db: Session, admin_user: User) -> Seller | None:
                 (Seller.seller_type == "platform", 0),
                 (Seller.slug == PLATFORM_SLUG, 1),
                 else_=2,
-            )
+            ),
+            Seller.id,
         )
+        .limit(1)
     )
 
 
