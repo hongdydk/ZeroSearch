@@ -488,3 +488,75 @@ class CatalogReferenceVariantModel {
     return '${parts.join(' · ')} ($originalTitle)';
   }
 }
+
+class IntakeDraftModel {
+  IntakeDraftModel({
+    required this.id,
+    required this.kind,
+    required this.status,
+    required this.sellerId,
+    required this.shopName,
+    required this.title,
+    required this.category,
+    required this.priceCredits,
+    required this.stock,
+    this.catalogProductId,
+    this.manufacturer = '',
+    this.imageUrl,
+    this.flavor,
+    this.optionLabel,
+    this.volumeMl,
+    this.description,
+  });
+
+  factory IntakeDraftModel.fromJson(Map<String, dynamic> json) {
+    return IntakeDraftModel(
+      id: json['id'] as String,
+      kind: json['kind'] as String? ?? 'card',
+      status: json['status'] as String? ?? 'pending',
+      sellerId: json['sellerId'] as String? ?? '',
+      shopName: json['shopName'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      category: json['category'] as String? ?? '',
+      priceCredits: json['priceCredits'] as int? ?? 0,
+      stock: json['stock'] as int? ?? 0,
+      catalogProductId: json['catalogProductId'] as String?,
+      manufacturer: json['manufacturer'] as String? ?? '',
+      imageUrl: json['imageUrl'] as String?,
+      flavor: json['flavor'] as String?,
+      optionLabel: json['optionLabel'] as String?,
+      volumeMl: json['volumeMl'] as int?,
+      description: json['description'] as String?,
+    );
+  }
+
+  final String id;
+  final String kind;
+  final String status;
+  final String sellerId;
+  final String shopName;
+  final String title;
+  final String category;
+  final int priceCredits;
+  final int stock;
+  final String? catalogProductId;
+  final String manufacturer;
+  final String? imageUrl;
+  final String? flavor;
+  final String? optionLabel;
+  final int? volumeMl;
+  final String? description;
+
+  bool get isCard => kind == 'card';
+  bool get isOffer => kind == 'offer';
+  bool get isPending => status == 'pending';
+
+  String get cardTitle {
+    final maker = manufacturer.trim();
+    final product = title.trim();
+    if (maker.isEmpty || product == maker || product.startsWith('$maker ')) {
+      return product;
+    }
+    return '$maker $product';
+  }
+}

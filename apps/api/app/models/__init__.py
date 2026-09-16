@@ -1,5 +1,6 @@
 from app.models.address import ShippingAddress
 from app.models.cart import CartItem
+from app.models.catalog_intake import CatalogIntakeDraft
 from app.models.catalog_product import CatalogProduct, CatalogProductAlias
 from app.models.credit import CreditTransaction, CreditWallet
 from app.models.membership import MembershipPlan, Subscription
@@ -15,6 +16,7 @@ __all__ = [
     "Seller",
     "CatalogProduct",
     "CatalogProductAlias",
+    "CatalogIntakeDraft",
     "CreditWallet",
     "CreditTransaction",
     "Product",

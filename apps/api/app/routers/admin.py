@@ -27,6 +27,12 @@ from app.schemas.seller import (
     AdminOrderItemResponse,
     SellerOrderItemStatusUpdate,
 )
+from app.schemas.catalog_intake import (
+    AdminAttachDraftRequest,
+    AdminPromoteDraftRequest,
+    CatalogIntakeItem,
+    CatalogIntakeListResponse,
+)
 from app.schemas.catalog_product import (
     CatalogImportJobResponse,
     CatalogImportResponse,
@@ -41,6 +47,7 @@ from app.services.admin_users import (
 )
 from app.services.catalog_import import import_catalog_csv
 from app.services.catalog_import_jobs import get_job, start_import_job
+from app.services.catalog_intake import attach_intake_draft, list_admin_intake_queue, promote_card_draft
 from app.services.credits import grant_credits
 from app.services.seller_orders import (
     list_admin_order_items,
@@ -331,6 +338,43 @@ def _admin_order_item_response(item) -> AdminOrderItemResponse:
         shop_name=item.seller.shop_name if item.seller else "",
         seller_type=item.seller.seller_type if item.seller else "merchant",  # type: ignore[arg-type]
     )
+
+
+@router.get("/catalog/drafts", response_model=CatalogIntakeListResponse)
+def list_catalog_drafts(
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> CatalogIntakeListResponse:
+    items, total = list_admin_intake_queue(db, offset=offset, limit=limit)
+    return CatalogIntakeListResponse(items=items, total=total)
+
+
+@router.post("/catalog/drafts/{draft_id}/attach", response_model=CatalogIntakeItem)
+def attach_catalog_draft(
+    draft_id: UUID,
+    payload: AdminAttachDraftRequest,
+    admin: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CatalogIntakeItem:
+    item = attach_intake_draft(db, draft_id, payload, admin)
+    db.commit()
+    logger.info("Admin %s attached catalog draft %s kind=%s", admin.email, draft_id, payload.kind)
+    return item
+
+
+@router.post("/catalog/drafts/{draft_id}/promote", response_model=CatalogIntakeItem)
+def promote_catalog_draft(
+    draft_id: UUID,
+    payload: AdminPromoteDraftRequest,
+    admin: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CatalogIntakeItem:
+    item = promote_card_draft(db, draft_id, payload, admin)
+    db.commit()
+    logger.info("Admin %s promoted catalog draft %s", admin.email, draft_id)
+    return item
 
 
 @router.get("/orders", response_model=AdminOrderItemListResponse)

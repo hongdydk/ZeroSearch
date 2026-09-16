@@ -1,15 +1,38 @@
-# 카탈로그 등록·분류 (방향, 추후)
+# 카탈로그 등록·분류 (판매자 초안 → MD 검수)
 
-**상태:** 미착수. Phase 2 DoD·구현 범위 아님. 활성 운영은 계속 [README](./README.md) 「대표 상품은 누가 만드나」+ `data/aihub-catalog.csv`.
-착수 시 Plan에서 허용 경로·DoD를 고정한다. 그때까지 판매자 insert 구멍을 넓히지 않는다.
+**상태:** MVP 구현. 활성 CSV 운영(`data/aihub-catalog.csv`)은 그대로 두고, 판매자 등록 구멍을 초안 큐로 막는다.
+고신뢰 자동 붙이기·canonical 종류 목록·`price_unit` 재설계는 이 범위에 넣지 않았다.
 
-판매자·관리자 포털 보강과 같이 가기 좋으면 [phase3-spec.md](./phase3-spec.md). 종류 트리·병합 키를 바꾸기 전이면 Phase 3 전이라도 Plan으로 열 수 있다.
+판매자·관리자 포털 보강 방향은 [phase3-spec.md](./phase3-spec.md). 카드 identity 원칙은 [README](./README.md) 「대표 상품은 누가 만드나」.
 
 ---
 
-## 왜 미룸
+## 허용 경로 (이번 구현)
 
-비교군(한 장에 올릴 품목)과 종류(그 장이 나란히 서는 줄)를 지금 코드로 확정하면, AI-Hub 소분류 교정·PDP 본문에 노동이 묶인다. **공개 구매 플로우는 두고**, 등록 게이트는 방향만 고정한다.
+- `apps/api/app/models/catalog_intake.py`
+- `apps/api/alembic/versions/011_catalog_intake_drafts.py`
+- `apps/api/app/schemas/catalog_intake.py`
+- `apps/api/app/services/catalog_intake.py`
+- `apps/api/app/services/products.py` (오퍼 생성은 항상 `draft`, 판매자 공개 금지)
+- `apps/api/app/routers/seller.py` (`POST /seller/products`, `/seller/card-drafts`)
+- `apps/api/app/routers/admin.py` (`/admin/catalog/drafts`, attach, promote)
+- `apps/api/tests/test_catalog_intake.py`
+- `apps/flutter/lib/features/seller/seller_products_screen.dart`
+- `apps/flutter/lib/features/admin/admin_screen.dart`
+- `apps/flutter/lib/core/network/api_client.dart`
+- `apps/flutter/lib/core/models/models.dart`
+- `scripts/openapi.json`
+
+---
+
+## 짧은 DoD
+
+- [x] 있는 품목: 판매자는 기존 카드에 **오퍼 초안**(가격·재고·팩·사진). `published`로 바로 카드에 안 붙음
+- [x] 없는 품목: 판매자는 **카드 초안** + 오퍼 1줄. `catalog_products` insert 없음
+- [x] MD(`/admin` 카탈로그): 큐에서 **기존 카드에 붙이기** 또는 **초안을 카드로 승격**(종류 선택)
+- [x] 공개 목록·상세는 승인된 `catalog_products` + `status=published` 오퍼만
+- [x] 제목만으로 카탈로그를 만들거나 없는 품목을 공개 목록에 넣는 경로 없음
+- [x] OpenAPI export · 게이트 테스트
 
 ---
 
@@ -28,23 +51,13 @@
 
 ---
 
-## 하지 않음
+## 하지 않음 (유지)
 
 - 판매자 제목·HTML이 곧 상품 페이지 (전통 PDP)
 - 판매자 등록이 곧바로 `catalog_products` insert · 목록 노출
 - 사후 카테고리 태그만 달고 identity는 판매자 제목에 맡김
 - 상세 칩마다 다른 묶음의 최저가를 대표가로 보여 주기
 - 영양·퀴즈·합리적 소비 코치로 제품 한 줄을 바꾸기
-- 이 문서를 Phase 2 구현 티켓으로 쓰기
-
----
-
-## 착수할 때 (초안, DoD 아님)
-
-1. 오퍼 초안 상태와 신규 카드 큐 (공개 전)
-2. 기존 카드 검색·제안, 고신뢰만 자동 붙이기 후보
-3. MD 승격: 종류 + 카드 병합/분리
-4. canonical 종류 목록 + `price_unit` + 원본 분류 매핑
-5. 제목 insert 구멍 제거
+- 고신뢰 자동 붙이기, canonical 종류 목록, `price_unit` 재설계 (추후)
 
 겸직(공식 `platform` 판매자 = MD)이어도 승격 규칙은 입점과 같다. 대기만 짧게 할 수 있다.

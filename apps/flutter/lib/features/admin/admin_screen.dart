@@ -34,6 +34,8 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
   List<SellerOrderItemModel> _orderItems = [];
 
+  List<IntakeDraftModel> _catalogDrafts = [];
+
   String _resetMode = 'seed';
 
   String? _message;
@@ -84,8 +86,13 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
     List<AdminSellerModel> pending = [];
 
+    List<IntakeDraftModel> drafts = [];
+
     try {
       pending = await api.adminSellers(status: 'pending');
+    } catch (_) {}
+    try {
+      drafts = await api.adminCatalogDrafts();
     } catch (_) {}
 
     await _loadOrders(silent: true);
@@ -105,6 +112,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
           ),
         );
       _pendingSellers = pending;
+      _catalogDrafts = drafts;
     });
   }
 
@@ -193,6 +201,107 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text(text)));
+      }
+    });
+  }
+
+  Future<void> _attachDraft(IntakeDraftModel draft) async {
+    String? catalogId = draft.catalogProductId;
+    if (draft.isCard || catalogId == null || catalogId.isEmpty) {
+      catalogId = await showDialog<String>(
+        context: context,
+        builder: (ctx) => const _AdminCatalogPickDialog(),
+      );
+      if (catalogId == null || catalogId.isEmpty) return;
+    }
+    await runBusy('draft:${draft.id}', () async {
+      try {
+        await ref.read(apiClientProvider).adminAttachCatalogDraft(
+          draftId: draft.id,
+          kind: draft.kind,
+          catalogProductId: catalogId,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('기존 카드에 붙였습니다.')));
+        await _load();
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.message)));
+        }
+      }
+    });
+  }
+
+  Future<void> _promoteDraft(IntakeDraftModel draft) async {
+    final categoryCtrl = TextEditingController(text: draft.category);
+    final manufacturerCtrl = TextEditingController(text: draft.manufacturer);
+    final titleCtrl = TextEditingController(text: draft.title);
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('카드로 승격'),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: manufacturerCtrl,
+                decoration: const InputDecoration(labelText: '회사'),
+              ),
+              TextField(
+                controller: titleCtrl,
+                decoration: const InputDecoration(labelText: '품목명'),
+              ),
+              TextField(
+                controller: categoryCtrl,
+                decoration: const InputDecoration(labelText: '종류'),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('승격'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final category = categoryCtrl.text.trim();
+    if (category.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('종류를 적어 주세요.')));
+      return;
+    }
+    await runBusy('draft:${draft.id}', () async {
+      try {
+        await ref.read(apiClientProvider).adminPromoteCatalogDraft(
+          draftId: draft.id,
+          category: category,
+          manufacturer: manufacturerCtrl.text.trim(),
+          title: titleCtrl.text.trim(),
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('초안을 카탈로그 카드로 올렸습니다.')));
+        await _load();
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.message)));
+        }
       }
     });
   }
@@ -554,17 +663,12 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const PortalSection(
-          title: '카드 검수 큐',
-          child: Padding(
-            padding: EdgeInsets.all(18),
-            child: ListTile(
-              contentPadding: EdgeInsets.zero,
-              leading: Icon(Icons.category_outlined),
-              title: Text('준비 중'),
-              subtitle: Text('카드 초안 연결·승격 API가 추가되면 이곳에서 검수합니다.'),
-            ),
-          ),
+        AdminCatalogDraftsPanel(
+          drafts: _catalogDrafts,
+          pageLocked: _pageLocked,
+          isRowBusy: (id) => isBusy('draft:$id'),
+          onAttach: _attachDraft,
+          onPromote: _promoteDraft,
         ),
         const SizedBox(height: 18),
         PortalSection(
@@ -940,6 +1044,167 @@ class _CatalogImportPanel extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class AdminCatalogDraftsPanel extends StatelessWidget {
+  const AdminCatalogDraftsPanel({
+    super.key,
+    required this.drafts,
+    required this.pageLocked,
+    required this.isRowBusy,
+    required this.onAttach,
+    required this.onPromote,
+  });
+
+  final List<IntakeDraftModel> drafts;
+  final bool pageLocked;
+  final bool Function(String id) isRowBusy;
+  final void Function(IntakeDraftModel draft) onAttach;
+  final void Function(IntakeDraftModel draft) onPromote;
+
+  @override
+  Widget build(BuildContext context) {
+    return PortalSection(
+      title: '카드 검수 큐 ${drafts.length}건',
+      child: drafts.isEmpty
+          ? const Padding(
+              padding: EdgeInsets.all(18),
+              child: Text('대기 중인 오퍼·카드 초안이 없습니다.'),
+            )
+          : Column(
+              children: [
+                for (final draft in drafts)
+                  ListTile(
+                    leading: Icon(
+                      draft.isCard
+                          ? Icons.category_outlined
+                          : Icons.inventory_2_outlined,
+                    ),
+                    title: Text(draft.cardTitle),
+                    subtitle: Text(
+                      '${draft.isCard ? '카드 초안' : '오퍼 초안'} · '
+                      '${draft.shopName} · ${draft.category} · '
+                      '${draft.optionLabel ?? ''} · ${draft.priceCredits}원',
+                    ),
+                    trailing: Wrap(
+                      spacing: 8,
+                      children: [
+                        TextButton(
+                          onPressed:
+                              pageLocked || isRowBusy(draft.id)
+                              ? null
+                              : () => onAttach(draft),
+                          child: isRowBusy(draft.id)
+                              ? busyProgress()
+                              : Text(draft.isCard ? '기존 카드에 붙이기' : '승인'),
+                        ),
+                        if (draft.isCard)
+                          FilledButton(
+                            onPressed:
+                                pageLocked || isRowBusy(draft.id)
+                                ? null
+                                : () => onPromote(draft),
+                            child: const Text('카드로 승격'),
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+class _AdminCatalogPickDialog extends ConsumerStatefulWidget {
+  const _AdminCatalogPickDialog();
+
+  @override
+  ConsumerState<_AdminCatalogPickDialog> createState() =>
+      _AdminCatalogPickDialogState();
+}
+
+class _AdminCatalogPickDialogState
+    extends ConsumerState<_AdminCatalogPickDialog> {
+  final _q = TextEditingController();
+  List<CatalogProductModel> _items = [];
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    _q.dispose();
+    super.dispose();
+  }
+
+  Future<void> _search() async {
+    final q = _q.text.trim();
+    if (q.isEmpty || _loading) return;
+    setState(() => _loading = true);
+    try {
+      final page = await ref.read(apiClientProvider).catalogProducts(q: q);
+      setState(() => _items = page.items);
+    } on ApiException catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('붙일 카드 찾기'),
+      content: SizedBox(
+        width: 480,
+        height: 420,
+        child: Column(
+          children: [
+            TextField(
+              controller: _q,
+              decoration: const InputDecoration(
+                labelText: '품목·제조사·분류',
+                hintText: '백산수, 떡갈비',
+              ),
+              onSubmitted: _loading ? null : (_) => _search(),
+            ),
+            const SizedBox(height: 8),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(
+                onPressed: _loading ? null : _search,
+                child: Text(_loading ? '검색 중…' : '검색'),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Expanded(
+              child: _loading
+                  ? const Center(child: CircularProgressIndicator())
+                  : ListView.builder(
+                      itemCount: _items.length,
+                      itemBuilder: (context, index) {
+                        final item = _items[index];
+                        return ListTile(
+                          title: Text(item.cardTitle),
+                          subtitle: Text(item.category),
+                          onTap: () => Navigator.pop(context, item.id),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('닫기'),
+        ),
+      ],
     );
   }
 }
