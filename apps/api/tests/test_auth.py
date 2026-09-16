@@ -50,6 +50,22 @@ def test_login_invalid_credentials(client):
     )
 
     assert response.status_code == 401
+    assert response.json()["detail"] == "이메일 또는 비밀번호가 올바르지 않습니다."
+
+
+def test_login_wrong_password_uses_same_message(client):
+    mock_db = MagicMock()
+    override_db(mock_db)
+    mock_db.scalar.return_value = make_user(email="buyer@mall.local")
+
+    with patch("app.routers.auth.verify_password", return_value=False):
+        response = client.post(
+            "/auth/login",
+            json={"email": "buyer@mall.local", "password": "wrongpass"},
+        )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "이메일 또는 비밀번호가 올바르지 않습니다."
 
 
 def test_login_admin_portal_rejects_non_admin(client):

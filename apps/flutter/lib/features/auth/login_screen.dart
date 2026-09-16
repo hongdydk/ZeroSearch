@@ -22,6 +22,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   String? _error;
+  bool _credentialHint = false;
   bool _loading = false;
 
   String _registerLocation() {
@@ -42,7 +43,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _submit() async {
     setState(() {
-      _error = null;
       _loading = true;
     });
     try {
@@ -55,9 +55,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go(safeNextPath(widget.next) ?? widget.portal.homePath);
       }
     } on ApiException catch (e) {
-      if (mounted) setState(() => _error = e.message);
+      if (mounted) {
+        setState(() {
+          _error = visibleLoginError(e);
+          _credentialHint = widget.portal != LoginPortal.admin &&
+              isLoginCredentialsFailure(e);
+        });
+      }
     } catch (e) {
-      if (mounted) setState(() => _error = e.toString());
+      if (mounted) {
+        setState(() {
+          _error = visibleLoginError(e);
+          _credentialHint = false;
+        });
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
     }
@@ -98,6 +109,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            if (_credentialHint) ...[
+              const SizedBox(height: 4),
+              Text(
+                loginCredentialsHint,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
           ],
           const SizedBox(height: 16),
           FilledButton(
