@@ -98,4 +98,8 @@ npx --yes @openapitools/openapi-generator-cli@2.x generate \
 bash scripts/fix-generated-dart-parts.sh
 ( cd apps/flutter && flutter pub get )
 
+# OpenAPI↔Flutter 계약 컴파일 체크. info 린트는 통과, error/warning(계약 깨짐)은 설치 실패로 막는다.
+echo "==> flutter analyze (계약 컴파일 체크, --no-fatal-infos)"
+( cd apps/flutter && "${FLUTTER_HOME}/bin/flutter" analyze --no-fatal-infos )
+
 echo "==> 설치 완료"
