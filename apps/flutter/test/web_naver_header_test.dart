@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:shopping_mall/core/auth/login_portal.dart';
+import 'package:shopping_mall/core/catalog/browse_location.dart';
 import 'package:shopping_mall/core/layout/ui_platform.dart';
 import 'package:shopping_mall/core/models/models.dart';
 import 'package:shopping_mall/core/network/api_client.dart';
@@ -74,6 +76,9 @@ class _LoggedInTokenStorage extends TokenStorage {
   Future<void> writePortal(String portal) async {}
 
   @override
+  Future<void> loadLeftAts() async {}
+
+  @override
   Future<void> clear() async {}
 }
 
@@ -94,10 +99,13 @@ class _LoggedOutTokenStorage extends TokenStorage {
   Future<void> writePortal(String portal) async {}
 
   @override
+  Future<void> loadLeftAts() async {}
+
+  @override
   Future<void> clear() async {}
 }
 
-Widget _headerHarness({required bool loggedIn}) {
+Widget _headerHarness({required bool loggedIn, String location = '/'}) {
   return ProviderScope(
     overrides: [
       apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
@@ -110,7 +118,7 @@ Widget _headerHarness({required bool loggedIn}) {
       home: Scaffold(
         body: Column(
           children: [
-            const WebNaverHeader(location: '/'),
+            WebNaverHeader(location: location),
             const Expanded(child: SizedBox()),
           ],
         ),
@@ -205,5 +213,86 @@ void main() {
     expect(find.byType(AppBar), findsNothing);
     expect(find.text('제로 서치'), findsOneWidget);
     expect(find.text('밥, 떡, 쌀…'), findsOneWidget);
+  });
+
+  test('mall buyer search is on catalog, product, cart, checkout', () {
+    expect(showsMallBuyerSearch('/'), isTrue);
+    expect(showsMallBuyerSearch('/catalog/abc'), isTrue);
+    expect(showsMallBuyerSearch('/products/p1'), isTrue);
+    expect(showsMallBuyerSearch('/cart'), isTrue);
+    expect(showsMallBuyerSearch('/checkout'), isTrue);
+    expect(showsMallBuyerSearch('/orders'), isFalse);
+    expect(showsMallBuyerSearch('/admin'), isFalse);
+    expect(showsMallBuyerSearch('/seller'), isFalse);
+  });
+
+  testWidgets('search field is visible on mall shopping pages', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    for (final location in [
+      '/',
+      '/catalog/cat-1',
+      '/products/p1',
+      '/cart',
+      '/checkout',
+    ]) {
+      await tester.pumpWidget(_headerHarness(loggedIn: false, location: location));
+      await tester.pump();
+      expect(find.text('밥, 떡, 쌀…'), findsOneWidget, reason: location);
+    }
+
+    await tester.pumpWidget(_headerHarness(loggedIn: false, location: '/orders'));
+    await tester.pump();
+    expect(find.text('밥, 떡, 쌀…'), findsNothing);
+  });
+
+  testWidgets('header search submit goes to catalog query', (tester) async {
+    debugForceWebUi = true;
+    await tester.binding.setSurfaceSize(const Size(1280, 800));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    late GoRouter router;
+    router = GoRouter(
+      initialLocation: '/catalog/cat-1',
+      routes: [
+        ShellRoute(
+          builder: (context, state, child) => WebShell(child: child),
+          routes: [
+            GoRoute(path: '/', builder: (_, _) => const Text('home-catalog')),
+            GoRoute(
+              path: '/catalog/:id',
+              builder: (_, _) => const Text('catalog-detail'),
+            ),
+          ],
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [
+          apiClientProvider.overrideWithValue(_HeaderTestApiClient()),
+          tokenStorageProvider.overrideWithValue(_LoggedOutTokenStorage()),
+        ],
+        child: MaterialApp.router(
+          theme: AppTheme.web(),
+          routerConfig: router,
+        ),
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 200));
+
+    expect(find.text('catalog-detail'), findsOneWidget);
+    expect(find.text('밥, 떡, 쌀…'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField), '떡갈비');
+    await tester.testTextInput.receiveAction(TextInputAction.done);
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.path, '/');
+    expect(router.state.uri.queryParameters['q'], '떡갈비');
+    expect(find.text('home-catalog'), findsOneWidget);
   });
 }

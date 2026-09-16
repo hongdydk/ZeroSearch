@@ -2,14 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/format/price_format.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/layout/ui_platform.dart';
 import '../../core/routing/app_back_navigation.dart';
+import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/product_image.dart';
+import '../../shared/widgets/qty_stepper.dart';
 import '../../shared/widgets/seller_badge.dart';
 
 class ProductDetailScreen extends ConsumerStatefulWidget {
@@ -21,44 +24,55 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<ProductDetailScreen> createState() => _ProductDetailScreenState();
 }
 
-class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
-  bool _loading = false;
+class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
+    with AsyncBusyState {
+  Future<ProductModel>? _productFuture;
+  int _qty = 1;
 
-  Future<void> _addToCart() async {
+  Future<ProductModel> _loadProduct() =>
+      _productFuture ??= ref.read(apiClientProvider).product(widget.productId);
+
+  Future<void> _addToCart(int stock) async {
+    if (isBusy()) return;
+    if (ref.read(authStateProvider).isLoading) return;
     final auth = ref.read(authStateProvider).valueOrNull;
     if (auth?.isMallBuyer != true) {
       if (!mounted) return;
       context.go(
         Uri(
           path: '/login',
-          queryParameters: {'next': '/products/${widget.productId}'},
+          queryParameters: {
+            'next': GoRouter.maybeOf(context)?.state.uri.toString() ??
+                '/products/${widget.productId}',
+          },
         ).toString(),
       );
       return;
     }
 
-    setState(() => _loading = true);
-    try {
-      await ref.read(apiClientProvider).addToCart(widget.productId);
-      ref.invalidate(cartProvider);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('장바구니에 담았습니다.')),
-      );
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
-      );
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    final qty = _qty.clamp(1, stock);
+    await runBusy('add', () async {
+      try {
+        await ref.read(apiClientProvider).addToCart(widget.productId, qty: qty);
+        ref.invalidate(cartProvider);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('장바구니에 담았습니다.')),
+        );
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
+        );
+      }
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(authStateProvider);
     return FutureBuilder(
-      future: ref.read(apiClientProvider).product(widget.productId),
+      future: _loadProduct(),
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return PageFormScaffold(
@@ -95,7 +109,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 const SizedBox(height: 12),
                 Center(
                   child: TextButton(
-                    onPressed: () => setState(() {}),
+                    onPressed: () => setState(() => _productFuture = null),
                     child: const Text('다시 시도'),
                   ),
                 ),
@@ -159,16 +173,28 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
                 Text(product.description!, style: Theme.of(context).textTheme.bodyLarge),
               ],
               const SizedBox(height: 24),
-              FilledButton.icon(
-                onPressed: _loading || product.stock < 1 ? null : _addToCart,
-                icon: _loading
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.add_shopping_cart),
-                label: Text(product.stock < 1 ? '품절' : '장바구니 담기'),
+              Row(
+                children: [
+                  if (product.stock >= 1)
+                    QtyStepper(
+                      value: _qty.clamp(1, product.stock),
+                      max: product.stock,
+                      enabled: !isBusy(),
+                      onChanged: (v) => setState(() => _qty = v),
+                    ),
+                  if (product.stock >= 1) const SizedBox(width: 8),
+                  Expanded(
+                    child: FilledButton.icon(
+                      onPressed: isBusy() || product.stock < 1
+                          ? null
+                          : () => _addToCart(product.stock),
+                      icon: isBusy()
+                          ? busyProgress(size: 18)
+                          : const Icon(Icons.add_shopping_cart),
+                      label: Text(product.stock < 1 ? '품절' : '장바구니 담기'),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

@@ -9,8 +9,10 @@ import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/routing/app_back_navigation.dart';
+import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/product_image.dart';
+import '../../shared/widgets/qty_stepper.dart';
 import '../../shared/widgets/seller_badge.dart';
 
 class CatalogDetailScreen extends ConsumerStatefulWidget {
@@ -22,39 +24,50 @@ class CatalogDetailScreen extends ConsumerStatefulWidget {
   ConsumerState<CatalogDetailScreen> createState() => _CatalogDetailScreenState();
 }
 
-class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
-  String? _loadingOfferId;
+class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
+    with AsyncBusyState {
+  final Map<String, int> _qtyByOffer = {};
 
-  Future<void> _addToCart(String offerId) async {
-    if (_loadingOfferId != null) return;
+  int _qtyFor(CatalogOfferModel offer) {
+    final max = offer.stock < 1 ? 1 : offer.stock;
+    return (_qtyByOffer[offer.id] ?? 1).clamp(1, max);
+  }
+
+  Future<void> _addToCart(CatalogOfferModel offer) async {
+    final key = 'add:${offer.id}';
+    if (isBusy(key) || isBusy()) return;
+    if (ref.read(authStateProvider).isLoading) return;
     final auth = ref.read(authStateProvider).valueOrNull;
     if (auth?.isMallBuyer != true) {
       if (!mounted) return;
       context.go(
         Uri(
           path: '/login',
-          queryParameters: {'next': '/catalog/${widget.catalogId}'},
+          queryParameters: {
+            'next': GoRouter.maybeOf(context)?.state.uri.toString() ??
+                '/catalog/${widget.catalogId}',
+          },
         ).toString(),
       );
       return;
     }
 
-    setState(() => _loadingOfferId = offerId);
-    try {
-      await ref.read(apiClientProvider).addToCart(offerId);
-      ref.invalidate(cartProvider);
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('장바구니에 담았습니다.')),
-      );
-    } on ApiException catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
-      );
-    } finally {
-      if (mounted) setState(() => _loadingOfferId = null);
-    }
+    final qty = _qtyFor(offer);
+    await runBusy(key, () async {
+      try {
+        await ref.read(apiClientProvider).addToCart(offer.id, qty: qty);
+        ref.invalidate(cartProvider);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('장바구니에 담았습니다.')),
+        );
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.message), backgroundColor: Theme.of(context).colorScheme.error),
+        );
+      }
+    });
   }
 
   String _offerLabel(CatalogOfferModel offer) {
@@ -70,6 +83,7 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    ref.watch(authStateProvider);
     final detailAsync = ref.watch(catalogProductDetailProvider(widget.catalogId));
 
     return detailAsync.when(
@@ -156,7 +170,8 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
               )
             else
               ...detail.offers.map((offer) {
-                final loading = _loadingOfferId == offer.id;
+                final loading = isBusy('add:${offer.id}');
+                final qty = _qtyFor(offer);
                 return Card(
                   margin: const EdgeInsets.only(bottom: 8),
                   child: Padding(
@@ -190,27 +205,31 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen> {
                           ],
                         ),
                         const SizedBox(height: 10),
-                        Row(
+                        Wrap(
+                          spacing: 8,
+                          runSpacing: 4,
+                          crossAxisAlignment: WrapCrossAlignment.center,
                           children: [
-                            Expanded(
-                              child: Text(
-                                formatWon(offer.priceCredits),
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                                      fontWeight: FontWeight.w700,
-                                    ),
-                              ),
+                            Text(
+                              formatWon(offer.priceCredits),
+                              style: Theme.of(context).textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                  ),
                             ),
+                            if (offer.stock >= 1)
+                              QtyStepper(
+                                value: qty,
+                                max: offer.stock,
+                                enabled: !isBusy(),
+                                onChanged: (v) =>
+                                    setState(() => _qtyByOffer[offer.id] = v),
+                              ),
                             FilledButton(
-                              onPressed: _loadingOfferId != null || offer.stock < 1
+                              onPressed: isBusy() || offer.stock < 1
                                   ? null
-                                  : () => _addToCart(offer.id),
+                                  : () => _addToCart(offer),
                               child: loading
-                                  ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(strokeWidth: 2),
-                                    )
+                                  ? busyProgress()
                                   : Text(offer.stock < 1 ? '품절' : '담기'),
                             ),
                           ],

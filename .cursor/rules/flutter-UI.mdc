@@ -10,7 +10,7 @@ globs:
 
 ## 글로벌 헤더 (몰)
 
-- **웹** (`WebNaverHeader`): brand · 검색(홈) · 장바구니 · 로그인 · **≡ 전체 메뉴** SSOT.
+- **웹** (`WebNaverHeader`): brand · 검색(몰 구매 화면) · 장바구니 · 로그인 · **≡ 전체 메뉴** SSOT. 검색 노출: `showsMallBuyerSearch`.
 - ≡ 메뉴: `주문`·`멤버십`·`설정` · 시연용 `판매자 센터`(`/seller`)·`관리자`(`/admin`) · `로그아웃`.
 - MY 드롭다운·≡ 홈 항목 금지.
 - **앱** (`AdaptiveShell`): 하단 탭 **홈 / 장바구니 / 주문 / 멤버십 / MY**.

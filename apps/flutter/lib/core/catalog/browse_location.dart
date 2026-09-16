@@ -4,8 +4,18 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../providers/app_providers.dart';
 
-/// Browse URL SSOT: `/`, `/?major=`, `/?major=&mid=`, `/?q=`.
-String browseLocation({String? major, String? mid, String? q}) {
+/// 몰 구매 화면(카탈로그·상세·장바구니·결제)에서 헤더 검색을 연다. 포털·주문·설정은 제외.
+bool showsMallBuyerSearch(String location) {
+  if (location == '/') return true;
+  if (location.startsWith('/catalog/')) return true;
+  if (location.startsWith('/products/')) return true;
+  if (location == '/cart' || location.startsWith('/cart/')) return true;
+  if (location == '/checkout' || location.startsWith('/checkout/')) return true;
+  return false;
+}
+
+/// Browse URL SSOT: `/`, `/?major=`, `/?major=&mid=`, `/?major=&mid=&category=`, `/?q=`.
+String browseLocation({String? major, String? mid, String? category, String? q}) {
   final trimmedQ = q?.trim() ?? '';
   if (trimmedQ.isNotEmpty) {
     return Uri(path: '/', queryParameters: {'q': trimmedQ}).toString();
@@ -13,6 +23,7 @@ String browseLocation({String? major, String? mid, String? q}) {
   final params = <String, String>{};
   if (major != null && major.isNotEmpty) params['major'] = major;
   if (mid != null && mid.isNotEmpty) params['mid'] = mid;
+  if (category != null && category.isNotEmpty) params['category'] = category;
   if (params.isEmpty) return '/';
   return Uri(path: '/', queryParameters: params).toString();
 }
@@ -21,7 +32,8 @@ bool hasBrowseQuery(Uri uri) {
   final q = uri.queryParameters['q']?.trim() ?? '';
   final major = uri.queryParameters['major']?.trim() ?? '';
   final mid = uri.queryParameters['mid']?.trim() ?? '';
-  return q.isNotEmpty || major.isNotEmpty || mid.isNotEmpty;
+  final category = uri.queryParameters['category']?.trim() ?? '';
+  return q.isNotEmpty || major.isNotEmpty || mid.isNotEmpty || category.isNotEmpty;
 }
 
 /// Deep-link step-down when the stack cannot pop.
@@ -30,6 +42,13 @@ String browseStepDown(Uri uri) {
   if (q.isNotEmpty) return '/';
   final major = uri.queryParameters['major']?.trim() ?? '';
   final mid = uri.queryParameters['mid']?.trim() ?? '';
+  final category = uri.queryParameters['category']?.trim() ?? '';
+  if (category.isNotEmpty && mid.isNotEmpty) {
+    return browseLocation(
+      major: major.isEmpty ? null : major,
+      mid: mid,
+    );
+  }
   if (mid.isNotEmpty && major.isNotEmpty) {
     return browseLocation(major: major);
   }

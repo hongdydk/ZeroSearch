@@ -17,7 +17,7 @@ class WebNaverHeader extends ConsumerWidget {
   final String location;
   final bool compact;
 
-  bool get _isHome => location == '/';
+  bool get _showsSearch => showsMallBuyerSearch(location);
 
   static const _onTealMuted = Color(0xFFD5E2E0);
 
@@ -38,7 +38,7 @@ class WebNaverHeader extends ConsumerWidget {
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       _TopRow(auth: auth, showSearch: false),
-                      if (_isHome) ...[
+                      if (_showsSearch) ...[
                         const SizedBox(height: 10),
                         _CatalogSearchField(value: ref.watch(catalogSearchProvider)),
                       ],
@@ -46,8 +46,8 @@ class WebNaverHeader extends ConsumerWidget {
                   )
                 : _TopRow(
                     auth: auth,
-                    showSearch: _isHome,
-                    search: _isHome
+                    showSearch: _showsSearch,
+                    search: _showsSearch
                         ? _CatalogSearchField(value: ref.watch(catalogSearchProvider))
                         : null,
                   ),
