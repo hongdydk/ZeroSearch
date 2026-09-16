@@ -32,10 +32,17 @@ def get_seller_for_user(db: Session, user: User) -> Seller | None:
 
 
 def ensure_platform_seller(db: Session, admin_user: User) -> Seller:
+    """Idempotent: reuse platform row, else the admin's seller. Never INSERT a second user_id."""
     existing = db.scalar(select(Seller).where(Seller.seller_type == "platform"))
+    if existing is None:
+        existing = get_seller_for_user(db, admin_user)
+
     if existing is not None:
         if existing.user_id != admin_user.id:
-            existing.user_id = admin_user.id
+            owned = get_seller_for_user(db, admin_user)
+            if owned is None:
+                existing.user_id = admin_user.id
+        existing.seller_type = "platform"
         if existing.status != "active":
             existing.status = "active"
         db.flush()

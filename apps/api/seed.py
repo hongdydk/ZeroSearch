@@ -195,9 +195,9 @@ def seed_beverage_demo(db: Session) -> None:
 
 
 def ensure_catalog_seed(db: Session) -> None:
-    admin_user = db.scalar(select(User).where(User.is_admin.is_(True)))
+    admin_user = ensure_admin_user(db)
     if admin_user is None:
-        admin_user = ensure_admin_user(db)
+        admin_user = db.scalar(select(User).where(User.is_admin.is_(True)))
     if admin_user is None:
         return
 
