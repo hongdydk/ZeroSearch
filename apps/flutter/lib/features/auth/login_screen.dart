@@ -55,9 +55,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         context.go(safeNextPath(widget.next) ?? widget.portal.homePath);
       }
     } on ApiException catch (e) {
-      setState(() => _error = e.message);
+      if (mounted) setState(() => _error = e.message);
     } catch (e) {
-      setState(() => _error = e.toString());
+      if (mounted) setState(() => _error = e.toString());
     } finally {
       if (mounted) setState(() => _loading = false);
     }

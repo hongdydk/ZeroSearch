@@ -22,7 +22,8 @@ class PortalAuthGate extends ConsumerWidget {
     if (auth.isLoading) {
       return const Center(child: CircularProgressIndicator());
     }
-    if (auth.valueOrNull?.isPortal(portal) == true) {
+    final session = auth.valueOrNull;
+    if (session?.canAccess(portal) == true) {
       return child;
     }
     return LoginScreen(portal: portal);

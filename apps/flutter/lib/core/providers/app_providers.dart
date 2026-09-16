@@ -58,6 +58,12 @@ class AuthState {
   bool get isLoggedIn => token != null && token!.isNotEmpty;
 
   bool isPortal(LoginPortal value) => isLoggedIn && portal == value;
+
+  /// `/admin`은 클라이언트 portal 플래그와 별개로 DB `isAdmin`이면 입장한다.
+  bool canAccess(LoginPortal required) {
+    if (isPortal(required)) return true;
+    return required == LoginPortal.admin && isLoggedIn && user?.isAdmin == true;
+  }
 }
 
 class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
@@ -89,17 +95,12 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
     String password, {
     LoginPortal portal = LoginPortal.buyer,
   }) async {
-    state = const AsyncValue.loading();
-    try {
-      final token = await _api.login(email, password, portal: portal);
-      await _tokens.write(token);
-      await _tokens.writePortal(portal.name);
-      final user = await _api.me();
-      state = AsyncValue.data(AuthState(user: user, token: token, portal: portal));
-    } catch (e, st) {
-      state = AsyncValue.error(e, st);
-      rethrow;
-    }
+    // 전역 loading/error로 바꾸면 PortalAuthGate가 로그인 폼을 내려 403 문구가 사라진다.
+    final token = await _api.login(email, password, portal: portal);
+    await _tokens.write(token);
+    await _tokens.writePortal(portal.name);
+    final user = await _api.me();
+    state = AsyncValue.data(AuthState(user: user, token: token, portal: portal));
   }
 
   Future<void> register(

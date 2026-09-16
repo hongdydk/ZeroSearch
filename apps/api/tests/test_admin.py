@@ -5,7 +5,7 @@ import pytest
 from fastapi import HTTPException
 
 from app.deps import require_admin
-from tests.factories import make_user, override_current_user
+from tests.factories import make_user, override_current_user, override_db
 
 
 def test_require_admin_rejects_non_admin():
@@ -101,3 +101,22 @@ def test_db_reset_ok_with_confirm(client):
     assert response.status_code == 200
     assert response.json()["message"] == "done"
     mock_reset.assert_called_once()
+
+
+def test_promote_sets_is_admin(client):
+    admin = make_user(is_admin=True)
+    target = make_user(email="buyer@mall.local", is_admin=False)
+    override_current_user(admin)
+
+    mock_db = MagicMock()
+    mock_db.get.return_value = target
+    override_db(mock_db)
+
+    response = client.post(
+        f"/admin/users/{target.id}/promote",
+        headers={"Authorization": "Bearer fake"},
+    )
+
+    assert response.status_code == 200
+    assert target.is_admin is True
+    assert response.json()["isAdmin"] is True
