@@ -211,7 +211,7 @@ class _AuthBlock extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    if (auth?.isLoggedIn != true) {
+    if (auth?.isMallBuyer != true) {
       return TextButton(
         onPressed: () => context.go('/login'),
         style: TextButton.styleFrom(
@@ -233,8 +233,8 @@ class _LoggedInBlock extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = auth?.user?.displayName?.trim().isNotEmpty == true
-        ? auth!.user!.displayName!
+    final label = auth?.buyer?.user.displayName?.trim().isNotEmpty == true
+        ? auth!.buyer!.user.displayName!
         : 'MY';
     return TextButton(
       onPressed: () => context.go('/settings'),
@@ -270,7 +270,7 @@ class _ServicesMenu extends ConsumerWidget {
         const PopupMenuDivider(),
         const PopupMenuItem(value: '/seller', child: Text('판매자 센터')),
         const PopupMenuItem(value: '/admin', child: Text('관리자')),
-        if (auth?.isLoggedIn == true)
+        if (auth?.isMallBuyer == true)
           const PopupMenuItem(value: 'logout', child: Text('로그아웃')),
       ],
       child: const Padding(

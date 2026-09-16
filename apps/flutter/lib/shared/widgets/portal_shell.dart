@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/auth/login_portal.dart';
 import '../../core/layout/ui_platform.dart';
 import '../../core/providers/app_providers.dart';
 import '../../core/routing/app_back_navigation.dart';
@@ -23,7 +24,10 @@ class PortalShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authStateProvider).valueOrNull;
-    final loggedIn = auth?.isLoggedIn == true;
+    final portal = homePath.startsWith('/admin')
+        ? LoginPortal.admin
+        : LoginPortal.seller;
+    final loggedIn = auth?.canAccess(portal) == true;
 
     return PopScope(
       canPop: false,
@@ -101,11 +105,11 @@ class _PortalHeader extends ConsumerWidget {
                 ),
                 const Spacer(),
                 TextButton(
-                  onPressed: () async {
-                    // 관리자·판매자 크롬에서 몰로 나갈 때는 항상 게스트.
-                    // 승격 관리자의 buyer JWT도 유지하지 않는다.
-                    await ref.read(authStateProvider.notifier).logout();
-                    if (!context.mounted) return;
+                  onPressed: () {
+                    // 관리자·판매자 JWT는 두고, 몰은 구매자 슬롯만 연다.
+                    ref
+                        .read(authStateProvider.notifier)
+                        .setActive(LoginPortal.buyer);
                     context.go('/');
                   },
                   style: TextButton.styleFrom(
@@ -117,7 +121,10 @@ class _PortalHeader extends ConsumerWidget {
                 if (showLogout)
                   TextButton(
                     onPressed: () {
-                      ref.read(authStateProvider.notifier).logout();
+                      final portal = homePath.startsWith('/admin')
+                          ? LoginPortal.admin
+                          : LoginPortal.seller;
+                      ref.read(authStateProvider.notifier).logout(portal);
                       context.go(homePath);
                     },
                     style: TextButton.styleFrom(

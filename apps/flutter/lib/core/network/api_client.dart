@@ -23,7 +23,7 @@ void _normalizeDioRequest(RequestOptions options) {
 
 class ApiClient {
   ApiClient({TokenReader? tokenReader})
-    : _tokenReader = tokenReader ?? TokenStorage().read {
+    : _tokenReader = tokenReader ?? TokenStorage().readActiveToken {
     _dio = Dio(
       BaseOptions(
         baseUrl: '${ApiConfig.baseUrl}/',

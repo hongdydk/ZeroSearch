@@ -5,10 +5,6 @@ import '../models/models.dart';
 import '../network/api_client.dart';
 import '../storage/token_storage.dart';
 
-final apiClientProvider = Provider<ApiClient>((ref) => ApiClient());
-
-final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
-
 /// 홈 카탈로그 검색어 — 웹 헤더·카탈로그 화면 공유 (즉시 반영).
 final catalogSearchProvider = StateProvider<String>((ref) => '');
 
@@ -36,6 +32,13 @@ final catalogFlavorFilterProvider = StateProvider<String?>((ref) => null);
 final catalogVolumeMinFilterProvider = StateProvider<int?>((ref) => null);
 final catalogVolumeMaxFilterProvider = StateProvider<int?>((ref) => null);
 
+final apiClientProvider = Provider<ApiClient>((ref) {
+  final tokens = ref.watch(tokenStorageProvider);
+  return ApiClient(tokenReader: () => tokens.readActiveToken());
+});
+
+final tokenStorageProvider = Provider<TokenStorage>((ref) => TokenStorage());
+
 final authStateProvider =
     StateNotifierProvider<AuthNotifier, AsyncValue<AuthState>>((ref) {
   return AuthNotifier(
@@ -44,30 +47,59 @@ final authStateProvider =
   );
 });
 
+class PortalSession {
+  const PortalSession({required this.token, required this.user});
+
+  final String token;
+  final UserModel user;
+}
+
 class AuthState {
   const AuthState({
-    this.user,
-    this.token,
-    this.portal = LoginPortal.buyer,
+    this.active = LoginPortal.buyer,
+    this.buyer,
+    this.seller,
+    this.admin,
   });
 
-  final UserModel? user;
-  final String? token;
-  final LoginPortal portal;
+  final LoginPortal active;
+  final PortalSession? buyer;
+  final PortalSession? seller;
+  final PortalSession? admin;
+
+  PortalSession? session(LoginPortal portal) => switch (portal) {
+        LoginPortal.buyer => buyer,
+        LoginPortal.seller => seller,
+        LoginPortal.admin => admin,
+      };
+
+  UserModel? get user => session(active)?.user;
+  String? get token => session(active)?.token;
+  LoginPortal get portal => active;
 
   bool get isLoggedIn => token != null && token!.isNotEmpty;
 
-  /// 몰 AdaptiveShell에서 장바구니·결제에 쓸 구매자 세션인지.
-  /// 판매자·관리자 `loginPortal` JWT는 구매자로 취급하지 않는다.
-  bool get isMallBuyer => isLoggedIn && portal == LoginPortal.buyer;
+  /// 몰 헤더·장바구니·결제는 구매자 슬롯만 본다.
+  bool get isMallBuyer => buyer != null;
 
-  bool isPortal(LoginPortal value) => isLoggedIn && portal == value;
+  bool isPortal(LoginPortal value) => session(value) != null;
 
-  /// `/admin`은 클라이언트 portal 플래그와 별개로 DB `isAdmin`이면 입장한다.
-  bool canAccess(LoginPortal required) {
-    if (isPortal(required)) return true;
-    return required == LoginPortal.admin && isLoggedIn && user?.isAdmin == true;
-  }
+  /// 포털 입장은 그 포털에 저장된 JWT만. 구매자 `isAdmin`으로 /admin에 타지 않는다.
+  bool canAccess(LoginPortal required) => isPortal(required);
+
+  AuthState withActive(LoginPortal portal) => AuthState(
+        active: portal,
+        buyer: buyer,
+        seller: seller,
+        admin: admin,
+      );
+
+  AuthState withSession(LoginPortal portal, PortalSession? value) => AuthState(
+        active: active,
+        buyer: portal == LoginPortal.buyer ? value : buyer,
+        seller: portal == LoginPortal.seller ? value : seller,
+        admin: portal == LoginPortal.admin ? value : admin,
+      );
 }
 
 class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
@@ -79,19 +111,35 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
   final TokenStorage _tokens;
 
   Future<void> _bootstrap() async {
-    try {
-      final token = await _tokens.read();
-      if (token == null || token.isEmpty) {
-        state = const AsyncValue.data(AuthState());
-        return;
+    var next = const AuthState();
+    for (final portal in LoginPortal.values) {
+      final slot = await _restore(portal);
+      if (slot != null) {
+        next = next.withSession(portal, slot);
       }
-      final portal = LoginPortal.parse(await _tokens.readPortal());
-      final user = await _api.me();
-      state = AsyncValue.data(AuthState(user: user, token: token, portal: portal));
-    } catch (e) {
-      await _tokens.clear();
-      state = const AsyncValue.data(AuthState());
     }
+    _tokens.activePortal = LoginPortal.buyer;
+    state = AsyncValue.data(next);
+  }
+
+  Future<PortalSession?> _restore(LoginPortal portal) async {
+    final token = await _tokens.readPortalToken(portal);
+    if (token == null || token.isEmpty) return null;
+    _tokens.activePortal = portal;
+    try {
+      final user = await _api.me();
+      return PortalSession(token: token, user: user);
+    } catch (_) {
+      await _tokens.clearPortal(portal);
+      return null;
+    }
+  }
+
+  void setActive(LoginPortal portal) {
+    _tokens.activePortal = portal;
+    final current = state.valueOrNull;
+    if (current == null || current.active == portal) return;
+    state = AsyncValue.data(current.withActive(portal));
   }
 
   Future<void> login(
@@ -101,10 +149,15 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
   }) async {
     // 전역 loading/error로 바꾸면 PortalAuthGate가 로그인 폼을 내려 403 문구가 사라진다.
     final token = await _api.login(email, password, portal: portal);
-    await _tokens.write(token);
-    await _tokens.writePortal(portal.name);
+    await _tokens.writePortalToken(portal, token);
+    _tokens.activePortal = portal;
     final user = await _api.me();
-    state = AsyncValue.data(AuthState(user: user, token: token, portal: portal));
+    final current = state.valueOrNull ?? const AuthState();
+    state = AsyncValue.data(
+      current
+          .withSession(portal, PortalSession(token: token, user: user))
+          .withActive(portal),
+    );
   }
 
   Future<void> register(
@@ -115,35 +168,47 @@ class AuthNotifier extends StateNotifier<AsyncValue<AuthState>> {
   }) async {
     state = const AsyncValue.loading();
     try {
-      final token = await _api.register(email, password, displayName: displayName);
-      await _tokens.write(token);
-      await _tokens.writePortal(portal.name);
+      final token =
+          await _api.register(email, password, displayName: displayName);
+      await _tokens.writePortalToken(portal, token);
+      _tokens.activePortal = portal;
       final user = await _api.me();
-      state = AsyncValue.data(AuthState(user: user, token: token, portal: portal));
+      state = AsyncValue.data(
+        const AuthState()
+            .withSession(portal, PortalSession(token: token, user: user))
+            .withActive(portal),
+      );
     } catch (e, st) {
       state = AsyncValue.error(e, st);
       rethrow;
     }
   }
 
-  Future<void> logout() async {
-    await _tokens.clear();
-    state = const AsyncValue.data(AuthState());
+  Future<void> logout([LoginPortal? portal]) async {
+    final current = state.valueOrNull ?? const AuthState();
+    final target = portal ?? current.active;
+    await _tokens.clearPortal(target);
+    state = AsyncValue.data(current.withSession(target, null));
   }
 
   Future<void> refreshUser() async {
     final current = state.valueOrNull;
-    if (current?.token == null) return;
+    final token = current?.token;
+    if (current == null || token == null) return;
+    _tokens.activePortal = current.active;
     final user = await _api.me();
     state = AsyncValue.data(
-      AuthState(user: user, token: current!.token, portal: current.portal),
+      current.withSession(
+        current.active,
+        PortalSession(token: token, user: user),
+      ),
     );
   }
 }
 
 final creditsProvider = FutureProvider.autoDispose<int?>((ref) async {
   final auth = ref.watch(authStateProvider).valueOrNull;
-  if (auth?.token == null) return null;
+  if (auth?.buyer == null) return null;
   return ref.watch(apiClientProvider).credits();
 });
 
@@ -153,7 +218,7 @@ final productsProvider = FutureProvider.autoDispose<List<ProductModel>>((ref) as
 
 final cartProvider = FutureProvider.autoDispose<CartModel>((ref) async {
   final auth = ref.watch(authStateProvider).valueOrNull;
-  if (auth?.token == null) {
+  if (auth?.buyer == null) {
     return CartModel(items: const [], totalCredits: 0, checkoutBlocked: false);
   }
   return ref.watch(apiClientProvider).cart();
@@ -268,6 +333,6 @@ final membershipPlansProvider = FutureProvider.autoDispose<List<MembershipPlanMo
 
 final myMembershipProvider = FutureProvider.autoDispose<SubscriptionModel?>((ref) async {
   final auth = ref.watch(authStateProvider).valueOrNull;
-  if (auth?.token == null) return null;
+  if (auth?.buyer == null) return null;
   return ref.watch(apiClientProvider).myMembership();
 });

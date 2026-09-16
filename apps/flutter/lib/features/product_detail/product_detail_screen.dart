@@ -26,7 +26,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
 
   Future<void> _addToCart() async {
     final auth = ref.read(authStateProvider).valueOrNull;
-    if (auth?.isLoggedIn != true) {
+    if (auth?.isMallBuyer != true) {
       if (!mounted) return;
       context.go(
         Uri(

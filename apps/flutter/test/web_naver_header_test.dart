@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shopping_mall/core/auth/login_portal.dart';
 import 'package:shopping_mall/core/layout/ui_platform.dart';
 import 'package:shopping_mall/core/models/models.dart';
 import 'package:shopping_mall/core/network/api_client.dart';
@@ -57,6 +58,10 @@ class _HeaderTestApiClient extends ApiClient {
 
 class _LoggedInTokenStorage extends TokenStorage {
   @override
+  Future<String?> readPortalToken(LoginPortal portal) async =>
+      portal == LoginPortal.buyer ? 'test-token' : null;
+
+  @override
   Future<String?> read() async => 'test-token';
 
   @override
@@ -73,6 +78,9 @@ class _LoggedInTokenStorage extends TokenStorage {
 }
 
 class _LoggedOutTokenStorage extends TokenStorage {
+  @override
+  Future<String?> readPortalToken(LoginPortal portal) async => null;
+
   @override
   Future<String?> read() async => null;
 

@@ -44,29 +44,29 @@ final routerProvider = Provider<GoRouter>((ref) {
       // bootstrap 중에는 미로그인으로 취급하지 않음 (로그인 flash 방지).
       if (auth.isLoading) return null;
 
-      var loggedIn = auth.valueOrNull?.isLoggedIn ?? false;
-      final portal = auth.valueOrNull?.portal ?? LoginPortal.buyer;
       final path = state.matchedLocation;
+      final wanted = path.startsWith('/admin')
+          ? LoginPortal.admin
+          : path.startsWith('/seller')
+              ? LoginPortal.seller
+              : LoginPortal.buyer;
+      ref.read(authStateProvider.notifier).setActive(wanted);
 
       // 판매자·관리자 포털은 경로를 유지하고 PortalAuthGate에서 로그인 UI를 띄운다.
       if (path.startsWith('/seller') || path.startsWith('/admin')) {
         return null;
       }
 
-      // URL로 몰에 들어와도 포털 JWT를 구매 세션으로 쓰지 않는다.
-      if (loggedIn && portal != LoginPortal.buyer) {
-        ref.read(authStateProvider.notifier).logout();
-        loggedIn = false;
-      }
+      final mallLoggedIn = auth.valueOrNull?.isMallBuyer ?? false;
 
       final isAuthRoute = path == '/login' || path == '/register';
-      if (!loggedIn && _requiresAuth(path)) {
+      if (!mallLoggedIn && _requiresAuth(path)) {
         final raw = state.uri.hasQuery
             ? '${state.matchedLocation}?${state.uri.query}'
             : state.matchedLocation;
         return '/login?next=${Uri.encodeQueryComponent(raw)}';
       }
-      if (loggedIn && portal == LoginPortal.buyer && isAuthRoute) {
+      if (mallLoggedIn && isAuthRoute) {
         return safeNextPath(state.uri.queryParameters['next']) ?? '/';
       }
       return null;
