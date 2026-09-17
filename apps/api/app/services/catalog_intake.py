@@ -14,14 +14,37 @@ from app.schemas.catalog_intake import (
     SellerCardDraftCreateRequest,
 )
 from app.services.catalog_remerge import resolve_catalog_product
+from app.services.catalog_l1 import apply_auto_l1_tags, set_l1_tags
+from app.services.guest_l1 import infer_l1_tags, suggestions_payload
 
 
 def _now() -> datetime:
     return datetime.now(UTC)
 
 
+def _l1_preview(
+    *,
+    title: str,
+    manufacturer: str = "",
+    category: str = "",
+    storage: str | None = None,
+) -> tuple[list[dict], list[str]]:
+    result = infer_l1_tags(
+        title=title,
+        manufacturer=manufacturer,
+        category=category,
+        storage=storage,
+    )
+    return suggestions_payload(result), result.tags
+
+
 def card_draft_to_item(draft: CatalogIntakeDraft) -> CatalogIntakeItem:
     seller = draft.seller
+    suggested, tags = _l1_preview(
+        title=draft.title,
+        manufacturer=draft.manufacturer,
+        category=draft.category,
+    )
     return CatalogIntakeItem(
         id=str(draft.id),
         kind="card",
@@ -40,6 +63,8 @@ def card_draft_to_item(draft: CatalogIntakeDraft) -> CatalogIntakeItem:
         price_credits=draft.price_credits,
         stock=draft.stock,
         created_at=draft.created_at,
+        suggested_l1_tags=suggested,
+        l1_tags=tags,
     )
 
 
@@ -50,6 +75,12 @@ def _card_item(draft: CatalogIntakeDraft) -> CatalogIntakeItem:
 def _offer_item(product: Product) -> CatalogIntakeItem:
     catalog = product.catalog_product
     seller = product.seller
+    manufacturer = (catalog.manufacturer if catalog else "") or ""
+    suggested, tags = _l1_preview(
+        title=product.title,
+        manufacturer=manufacturer,
+        category=product.category,
+    )
     return CatalogIntakeItem(
         id=str(product.id),
         kind="offer",
@@ -57,7 +88,7 @@ def _offer_item(product: Product) -> CatalogIntakeItem:
         seller_id=str(product.seller_id),
         shop_name=seller.shop_name if seller else "",
         catalog_product_id=str(product.catalog_product_id),
-        manufacturer=(catalog.manufacturer if catalog else "") or "",
+        manufacturer=manufacturer,
         title=product.title,
         category=product.category,
         image_url=product.image_url,
@@ -68,6 +99,8 @@ def _offer_item(product: Product) -> CatalogIntakeItem:
         price_credits=product.price_credits,
         stock=product.stock,
         created_at=product.created_at,
+        suggested_l1_tags=suggested,
+        l1_tags=tags,
     )
 
 
@@ -309,6 +342,10 @@ def promote_card_draft(
         price_unit="ml",
     )
     db.add(catalog)
+    if payload.l1_tags is not None:
+        set_l1_tags(catalog, payload.l1_tags, storage=payload.storage)
+    else:
+        apply_auto_l1_tags(catalog, only_if_empty=False)
     try:
         db.flush()
     except IntegrityError as exc:

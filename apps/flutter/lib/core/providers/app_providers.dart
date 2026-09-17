@@ -31,6 +31,18 @@ final catalogMidProvider = StateProvider<String?>((ref) => null);
 /// 소분류(대표 상품 category) — 목록 세부 필터.
 final catalogCategoryProvider = StateProvider<String?>((ref) => null);
 
+/// 게스트 1차 태그 (손님 브라우즈 입구).
+final catalogL1Provider = StateProvider<String?>((ref) => null);
+
+/// `brand` | `menu`
+final catalogL1AxisProvider = StateProvider<String?>((ref) => null);
+
+final catalogL1BrandProvider = StateProvider<String?>((ref) => null);
+final catalogL1MenuProvider = StateProvider<String?>((ref) => null);
+final catalogStorageFilterProvider = StateProvider<String?>((ref) => null);
+final catalogL1AllProvider = StateProvider<bool>((ref) => false);
+final catalogL1AxisScrollOffsetProvider = StateProvider<double>((ref) => 0);
+
 /// 맛·용량 옵션 필터 — catalog_screen 본문 전용.
 final catalogFlavorFilterProvider = StateProvider<String?>((ref) => null);
 final catalogVolumeMinFilterProvider = StateProvider<int?>((ref) => null);
@@ -512,6 +524,11 @@ class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState>
   @override
   Future<CatalogListState> build() async {
     final q = ref.watch(catalogDebouncedSearchProvider).trim();
+    final l1 = ref.watch(catalogL1Provider);
+    final brand = ref.watch(catalogL1BrandProvider);
+    final menu = ref.watch(catalogL1MenuProvider);
+    final storage = ref.watch(catalogStorageFilterProvider);
+    final allInL1 = ref.watch(catalogL1AllProvider);
     final major = ref.watch(catalogMajorProvider);
     final mid = ref.watch(catalogMidProvider);
     final category = ref.watch(catalogCategoryProvider);
@@ -523,6 +540,10 @@ class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState>
           category: category,
           categoryMajor: major,
           categoryMid: mid,
+          l1Tag: l1,
+          storage: storage,
+          brand: allInL1 ? null : brand,
+          menu: allInL1 ? null : menu,
           flavor: flavor,
           volumeMlMin: volumeMin,
           volumeMlMax: volumeMax,
@@ -549,6 +570,14 @@ class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState>
             category: ref.read(catalogCategoryProvider),
             categoryMajor: ref.read(catalogMajorProvider),
             categoryMid: ref.read(catalogMidProvider),
+            l1Tag: ref.read(catalogL1Provider),
+            storage: ref.read(catalogStorageFilterProvider),
+            brand: ref.read(catalogL1AllProvider)
+                ? null
+                : ref.read(catalogL1BrandProvider),
+            menu: ref.read(catalogL1AllProvider)
+                ? null
+                : ref.read(catalogL1MenuProvider),
             flavor: ref.read(catalogFlavorFilterProvider),
             volumeMlMin: ref.read(catalogVolumeMinFilterProvider),
             volumeMlMax: ref.read(catalogVolumeMaxFilterProvider),
@@ -574,6 +603,14 @@ final catalogProductsProvider =
     AsyncNotifierProvider.autoDispose<CatalogProductsNotifier, CatalogListState>(
   CatalogProductsNotifier.new,
 );
+
+final guestL1FacetsProvider =
+    FutureProvider.autoDispose<GuestL1FacetsModel?>((ref) async {
+  final l1 = ref.watch(catalogL1Provider);
+  if (l1 == null || l1.isEmpty) return null;
+  final storage = ref.watch(catalogStorageFilterProvider);
+  return ref.watch(apiClientProvider).guestL1Facets(l1Tag: l1, storage: storage);
+});
 
 final catalogProductDetailProvider =
     FutureProvider.autoDispose.family<CatalogProductDetailModel, String>((ref, id) async {

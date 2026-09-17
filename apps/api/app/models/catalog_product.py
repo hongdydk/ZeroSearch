@@ -33,6 +33,8 @@ class CatalogProduct(Base):
         JSONB, nullable=False, default=list, server_default="[]"
     )
     price_unit: Mapped[str] = mapped_column(String(10), nullable=False, server_default="ml")
+    l1_tags: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
+    storage: Mapped[str | None] = mapped_column(String(20), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

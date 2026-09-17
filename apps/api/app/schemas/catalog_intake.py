@@ -42,6 +42,8 @@ class CatalogIntakeItem(BaseModel):
     price_credits: int = Field(alias="priceCredits")
     stock: int
     created_at: datetime | None = Field(default=None, alias="createdAt")
+    suggested_l1_tags: list[dict] = Field(default_factory=list, alias="suggestedL1Tags")
+    l1_tags: list[str] = Field(default_factory=list, alias="l1Tags")
 
     model_config = {"populate_by_name": True, "from_attributes": True, "ser_json_by_alias": True}
 
@@ -76,5 +78,7 @@ class AdminPromoteDraftRequest(BaseModel):
     category: str = Field(min_length=1, max_length=120)
     manufacturer: str | None = Field(default=None, max_length=200)
     title: str | None = Field(default=None, max_length=200)
+    l1_tags: list[str] | None = Field(default=None, alias="l1Tags")
+    storage: str | None = None
 
     model_config = {"populate_by_name": True}

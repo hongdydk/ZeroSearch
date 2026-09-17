@@ -13,6 +13,7 @@ from app.schemas.catalog_product import (
     CatalogReferenceVariant,
 )
 from app.schemas.seller import SellerSummary
+from app.services.catalog_l1 import l1_tag_filter
 from app.services.catalog_remerge import resolve_catalog_product
 
 
@@ -62,6 +63,10 @@ def _catalog_search_filter(
     *,
     category_major: str | None = None,
     category_mid: str | None = None,
+    l1_tag: str | None = None,
+    storage: str | None = None,
+    brand: str | None = None,
+    menu: str | None = None,
 ):
     filters = []
     if q:
@@ -83,6 +88,16 @@ def _catalog_search_filter(
         filters.append(CatalogProduct.category_major == category_major)
     if category_mid:
         filters.append(CatalogProduct.category_mid == category_mid)
+    if l1_tag:
+        tag_filter = l1_tag_filter(l1_tag)
+        if tag_filter is not None:
+            filters.append(tag_filter)
+    if storage in {"상온", "냉장", "냉동"}:
+        filters.append(CatalogProduct.storage == storage)
+    if brand:
+        filters.append(CatalogProduct.manufacturer == brand)
+    if menu:
+        filters.append(CatalogProduct.title == menu)
     return filters
 
 
@@ -119,6 +134,8 @@ def _list_item(catalog: CatalogProduct, offers: list[Product]) -> CatalogProduct
         median_price_credits=median_credits,
         price_unit=price_unit,  # type: ignore[arg-type]
         display_price_label=display_label,
+        l1_tags=list(catalog.l1_tags or []),
+        storage=catalog.storage,
     )
 
 
@@ -132,6 +149,10 @@ def list_catalog_products(
     flavor: str | None = None,
     volume_ml_min: int | None = None,
     volume_ml_max: int | None = None,
+    l1_tag: str | None = None,
+    storage: str | None = None,
+    brand: str | None = None,
+    menu: str | None = None,
     offset: int = 0,
     limit: int = 50,
     require_offers: bool = False,
@@ -141,6 +162,10 @@ def list_catalog_products(
         category,
         category_major=category_major,
         category_mid=category_mid,
+        l1_tag=l1_tag,
+        storage=storage,
+        brand=brand,
+        menu=menu,
     )
     stmt = select(CatalogProduct)
     count_stmt = select(func.count()).select_from(CatalogProduct)
@@ -257,4 +282,6 @@ def get_catalog_product(
         offers=offer_items,
         reference_variants=reference_variants,
         created_at=catalog.created_at,
+        l1_tags=list(catalog.l1_tags or []),
+        storage=catalog.storage,
     )

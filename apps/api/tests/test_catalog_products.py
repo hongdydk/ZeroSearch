@@ -230,3 +230,70 @@ def test_get_catalog_product_not_found(client):
         response = client.get(f"/catalog-products/{uuid.uuid4()}")
 
     assert response.status_code == 404
+
+
+def test_guest_l1_list_has_fifteen_overlapping_names(client):
+    response = client.get("/catalog-products/guest-l1")
+    assert response.status_code == 200
+    items = response.json()["items"]
+    names = [row["name"] for row in items]
+    assert names == [
+        "생수/음료",
+        "커피/원두/차",
+        "과자/초콜릿/시리얼",
+        "라면/면류",
+        "통조림/캔",
+        "반찬/간편식/대용식",
+        "국/탕/찌개",
+        "즉석밥/볶음밥",
+        "죽/스프",
+        "분식/만두/피자",
+        "짜장/카레/돈까스",
+        "냉장/냉동/간편요리",
+        "가루/조미료/오일",
+        "장류/소스",
+        "유제품/아이스크림",
+    ]
+    assert items[3]["defaultAxis"] == "brand"
+    assert items[6]["defaultAxis"] == "menu"
+
+
+def test_list_catalog_products_l1_query(client):
+    override_db(MagicMock())
+    with patch("app.routers.catalog_products.list_catalog_products", return_value=([], 0)) as mock_list:
+        response = client.get(
+            "/catalog-products",
+            params={"l1Tag": "라면/면류", "brand": "농심", "storage": "상온"},
+        )
+    assert response.status_code == 200
+    _, kwargs = mock_list.call_args
+    assert kwargs["l1_tag"] == "라면/면류"
+    assert kwargs["brand"] == "농심"
+    assert kwargs["storage"] == "상온"
+
+
+def test_guest_l1_facets(client):
+    override_db(MagicMock())
+    payload = {
+        "l1_tag": "라면/면류",
+        "default_axis": "brand",
+        "brands": [{"name": "농심", "count": 2}],
+        "menus": [{"name": "신라면", "count": 1}],
+    }
+    with patch("app.routers.catalog_products.list_l1_facets", return_value=payload):
+        response = client.get("/catalog-products/guest-l1/facets", params={"l1Tag": "라면/면류"})
+    assert response.status_code == 200
+    body = response.json()
+    assert body["l1Tag"] == "라면/면류"
+    assert body["brands"][0]["name"] == "농심"
+    assert body["menus"][0]["name"] == "신라면"
+
+
+def test_catalog_l1_filter_compiles():
+    stmt = select(CatalogProduct).where(
+        *_catalog_search_filter(None, None, l1_tag="라면/면류", storage="냉동", brand="농심")
+    )
+    sql = str(stmt.compile(dialect=postgresql.dialect()))
+    assert "l1_tags" in sql
+    assert "storage" in sql
+

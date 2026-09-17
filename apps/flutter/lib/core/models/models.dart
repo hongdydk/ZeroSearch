@@ -488,6 +488,8 @@ class CatalogProductModel {
     this.medianUnitPrice,
     this.medianPriceCredits,
     this.volumeOptions = const [],
+    this.l1Tags = const [],
+    this.storage,
   });
 
   factory CatalogProductModel.fromJson(Map<String, dynamic> json) {
@@ -506,6 +508,10 @@ class CatalogProductModel {
       volumeOptions: (json['volumeOptions'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
+      l1Tags: (json['l1Tags'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+      storage: json['storage'] as String?,
     );
   }
 
@@ -521,6 +527,8 @@ class CatalogProductModel {
   final double? medianUnitPrice;
   final int? medianPriceCredits;
   final List<String> volumeOptions;
+  final List<String> l1Tags;
+  final String? storage;
 
   String get cardTitle {
     final maker = manufacturer.trim();
@@ -530,6 +538,51 @@ class CatalogProductModel {
     }
     return '$maker $product';
   }
+}
+
+class GuestL1FacetItem {
+  const GuestL1FacetItem({required this.name, required this.count});
+
+  factory GuestL1FacetItem.fromJson(Map<String, dynamic> json) {
+    return GuestL1FacetItem(
+      name: json['name'] as String? ?? '',
+      count: json['count'] as int? ?? 0,
+    );
+  }
+
+  final String name;
+  final int count;
+}
+
+class GuestL1FacetsModel {
+  const GuestL1FacetsModel({
+    required this.l1Tag,
+    required this.defaultAxis,
+    this.brands = const [],
+    this.menus = const [],
+  });
+
+  factory GuestL1FacetsModel.fromJson(Map<String, dynamic> json) {
+    List<GuestL1FacetItem> parse(String key) {
+      final raw = json[key] as List<dynamic>? ?? [];
+      return raw
+          .whereType<Map>()
+          .map((e) => GuestL1FacetItem.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    }
+
+    return GuestL1FacetsModel(
+      l1Tag: json['l1Tag'] as String? ?? '',
+      defaultAxis: json['defaultAxis'] as String? ?? 'brand',
+      brands: parse('brands'),
+      menus: parse('menus'),
+    );
+  }
+
+  final String l1Tag;
+  final String defaultAxis;
+  final List<GuestL1FacetItem> brands;
+  final List<GuestL1FacetItem> menus;
 }
 
 class CatalogOfferModel {
@@ -620,6 +673,8 @@ class IntakeDraftModel {
     this.optionLabel,
     this.volumeMl,
     this.description,
+    this.suggestedL1Tags = const [],
+    this.l1Tags = const [],
   });
 
   factory IntakeDraftModel.fromJson(Map<String, dynamic> json) {
@@ -640,6 +695,20 @@ class IntakeDraftModel {
       optionLabel: json['optionLabel'] as String?,
       volumeMl: json['volumeMl'] as int?,
       description: json['description'] as String?,
+      suggestedL1Tags: (json['suggestedL1Tags'] as List<dynamic>? ?? [])
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .map(
+            (e) => (
+              tag: e['tag'] as String? ?? '',
+              confidence: e['confidence'] as String? ?? 'mid',
+            ),
+          )
+          .where((e) => e.tag.isNotEmpty)
+          .toList(),
+      l1Tags: (json['l1Tags'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
     );
   }
 
@@ -659,6 +728,8 @@ class IntakeDraftModel {
   final String? optionLabel;
   final int? volumeMl;
   final String? description;
+  final List<({String tag, String confidence})> suggestedL1Tags;
+  final List<String> l1Tags;
 
   bool get isCard => kind == 'card';
   bool get isOffer => kind == 'offer';

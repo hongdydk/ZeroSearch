@@ -24,6 +24,8 @@ class CatalogProductListItem(BaseModel):
     median_price_credits: int | None = Field(default=None, alias="medianPriceCredits")
     price_unit: PriceUnit = Field(alias="priceUnit")
     display_price_label: str = Field(alias="displayPriceLabel")
+    l1_tags: list[str] = Field(default_factory=list, alias="l1Tags")
+    storage: str | None = None
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
@@ -83,6 +85,8 @@ class CatalogProductDetailResponse(BaseModel):
         default_factory=list, alias="referenceVariants"
     )
     created_at: datetime | None = Field(default=None, alias="createdAt")
+    l1_tags: list[str] = Field(default_factory=list, alias="l1Tags")
+    storage: str | None = None
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
@@ -97,6 +101,33 @@ class CatalogImportResponse(BaseModel):
     upserted: int
     canonical_groups: int | None = Field(default=None, alias="canonicalGroups")
     category_remerged: int | None = Field(default=None, alias="categoryRemerged")
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class GuestL1Item(BaseModel):
+    name: str
+    default_axis: Literal["brand", "menu"] = Field(alias="defaultAxis")
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class GuestL1ListResponse(BaseModel):
+    items: list[GuestL1Item]
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class GuestL1FacetItem(BaseModel):
+    name: str
+    count: int
+
+
+class GuestL1FacetsResponse(BaseModel):
+    l1_tag: str = Field(alias="l1Tag")
+    default_axis: Literal["brand", "menu"] = Field(alias="defaultAxis")
+    brands: list[GuestL1FacetItem]
+    menus: list[GuestL1FacetItem]
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

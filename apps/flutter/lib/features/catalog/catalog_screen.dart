@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/catalog/browse_location.dart';
+import '../../core/catalog/guest_l1.dart';
 import '../../core/catalog/table_taxonomy.dart';
 import '../../core/format/price_format.dart';
 import '../../core/layout/ui_platform.dart';
@@ -13,6 +14,7 @@ import '../../core/theme/app_theme.dart';
 import '../../core/theme/mall_tokens.dart';
 import '../../shared/widgets/mall_info_banner.dart';
 import '../../shared/widgets/product_image.dart';
+import 'guest_l1_axis_view.dart';
 
 class CatalogScreen extends ConsumerStatefulWidget {
   const CatalogScreen({super.key});
@@ -58,8 +60,22 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     _searchDebounce.cancel();
 
     final q = (uri.queryParameters['q'] ?? '').trim();
+    final l1Raw = uri.queryParameters['l1'];
+    final axisRaw = uri.queryParameters['axis'];
+    final brandRaw = uri.queryParameters['brand'];
+    final menuRaw = uri.queryParameters['menu'];
+    final storageRaw = uri.queryParameters['storage'];
+    final all = uri.queryParameters['all'] == '1';
     final majorRaw = uri.queryParameters['major'];
     final midRaw = uri.queryParameters['mid'];
+    final l1 = (l1Raw == null || l1Raw.isEmpty) ? null : l1Raw;
+    final axis = (axisRaw == null || axisRaw.isEmpty)
+        ? (l1 == null ? null : guestL1DefaultAxis(l1))
+        : axisRaw;
+    final brand = (brandRaw == null || brandRaw.isEmpty) ? null : brandRaw;
+    final menu = (menuRaw == null || menuRaw.isEmpty) ? null : menuRaw;
+    final storage =
+        (storageRaw == null || storageRaw.isEmpty) ? null : storageRaw;
     final major = (majorRaw == null || majorRaw.isEmpty) ? null : majorRaw;
     final mid = (midRaw == null || midRaw.isEmpty) ? null : midRaw;
 
@@ -69,6 +85,24 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       }
       if (ref.read(catalogDebouncedSearchProvider) != q) {
         ref.read(catalogDebouncedSearchProvider.notifier).state = q;
+      }
+      if (ref.read(catalogL1Provider) != null) {
+        ref.read(catalogL1Provider.notifier).state = null;
+      }
+      if (ref.read(catalogL1AxisProvider) != null) {
+        ref.read(catalogL1AxisProvider.notifier).state = null;
+      }
+      if (ref.read(catalogL1BrandProvider) != null) {
+        ref.read(catalogL1BrandProvider.notifier).state = null;
+      }
+      if (ref.read(catalogL1MenuProvider) != null) {
+        ref.read(catalogL1MenuProvider.notifier).state = null;
+      }
+      if (ref.read(catalogStorageFilterProvider) != null) {
+        ref.read(catalogStorageFilterProvider.notifier).state = null;
+      }
+      if (ref.read(catalogL1AllProvider)) {
+        ref.read(catalogL1AllProvider.notifier).state = false;
       }
       if (ref.read(catalogMajorProvider) != null) {
         ref.read(catalogMajorProvider.notifier).state = null;
@@ -88,6 +122,20 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     if (ref.read(catalogDebouncedSearchProvider).isNotEmpty) {
       ref.read(catalogDebouncedSearchProvider.notifier).state = '';
     }
+    void setIfChanged(StateProvider<String?> provider, String? value) {
+      if (ref.read(provider) != value) {
+        ref.read(provider.notifier).state = value;
+      }
+    }
+
+    setIfChanged(catalogL1Provider, l1);
+    setIfChanged(catalogL1AxisProvider, axis);
+    setIfChanged(catalogL1BrandProvider, brand);
+    setIfChanged(catalogL1MenuProvider, menu);
+    setIfChanged(catalogStorageFilterProvider, storage);
+    if (ref.read(catalogL1AllProvider) != all) {
+      ref.read(catalogL1AllProvider.notifier).state = all;
+    }
     final majorChanged = ref.read(catalogMajorProvider) != major;
     final midChanged = ref.read(catalogMidProvider) != mid;
     if (majorChanged) {
@@ -96,24 +144,112 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     if (midChanged) {
       ref.read(catalogMidProvider.notifier).state = mid;
     }
-    if (majorChanged || midChanged) {
+    if (majorChanged || midChanged || l1 != null) {
       ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     }
   }
 
-  void _applyMajorDrill(String name) {
-    ref.read(catalogMidScrollOffsetProvider.notifier).state = 0;
+  void _applyL1Drill(String name) {
+    ref.read(catalogL1AxisScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogSearchProvider.notifier).state = '';
     ref.read(catalogDebouncedSearchProvider.notifier).state = '';
     ref.read(catalogCategoryProvider.notifier).state = null;
     ref.read(catalogFlavorFilterProvider.notifier).state = null;
     ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
+    ref.read(catalogMajorProvider.notifier).state = null;
     ref.read(catalogMidProvider.notifier).state = null;
-    ref.read(catalogMajorProvider.notifier).state = name;
-    // go (not push): one CatalogScreen + URL history. push stacked screens
-    // that share providers and left drill state stuck after pop.
-    context.go(browseLocation(major: name));
+    ref.read(catalogL1BrandProvider.notifier).state = null;
+    ref.read(catalogL1MenuProvider.notifier).state = null;
+    ref.read(catalogStorageFilterProvider.notifier).state = null;
+    ref.read(catalogL1AllProvider.notifier).state = false;
+    ref.read(catalogL1AxisProvider.notifier).state = guestL1DefaultAxis(name);
+    ref.read(catalogL1Provider.notifier).state = name;
+    context.go(browseLocation(l1: name, axis: guestL1DefaultAxis(name)));
+  }
+
+  void _applyL1Axis(String axis) {
+    final l1 = ref.read(catalogL1Provider);
+    if (l1 == null) return;
+    ref.read(catalogL1AxisScrollOffsetProvider.notifier).state = 0;
+    ref.read(catalogL1BrandProvider.notifier).state = null;
+    ref.read(catalogL1MenuProvider.notifier).state = null;
+    ref.read(catalogL1AllProvider.notifier).state = false;
+    ref.read(catalogL1AxisProvider.notifier).state = axis;
+    context.go(
+      browseLocation(
+        l1: l1,
+        axis: axis,
+        storage: ref.read(catalogStorageFilterProvider),
+      ),
+    );
+  }
+
+  void _applyL1Storage(String? storage) {
+    final l1 = ref.read(catalogL1Provider);
+    if (l1 == null) return;
+    ref.read(catalogStorageFilterProvider.notifier).state = storage;
+    context.go(
+      browseLocation(
+        l1: l1,
+        axis: ref.read(catalogL1AxisProvider),
+        brand: ref.read(catalogL1BrandProvider),
+        menu: ref.read(catalogL1MenuProvider),
+        storage: storage,
+        all: ref.read(catalogL1AllProvider),
+      ),
+    );
+  }
+
+  void _applyL1Brand(String name) {
+    final l1 = ref.read(catalogL1Provider);
+    if (l1 == null) return;
+    ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
+    ref.read(catalogL1AllProvider.notifier).state = false;
+    ref.read(catalogL1MenuProvider.notifier).state = null;
+    ref.read(catalogL1BrandProvider.notifier).state = name;
+    context.go(
+      browseLocation(
+        l1: l1,
+        axis: 'brand',
+        brand: name,
+        storage: ref.read(catalogStorageFilterProvider),
+      ),
+    );
+  }
+
+  void _applyL1Menu(String name) {
+    final l1 = ref.read(catalogL1Provider);
+    if (l1 == null) return;
+    ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
+    ref.read(catalogL1AllProvider.notifier).state = false;
+    ref.read(catalogL1BrandProvider.notifier).state = null;
+    ref.read(catalogL1MenuProvider.notifier).state = name;
+    context.go(
+      browseLocation(
+        l1: l1,
+        axis: 'menu',
+        menu: name,
+        storage: ref.read(catalogStorageFilterProvider),
+      ),
+    );
+  }
+
+  void _applyL1All() {
+    final l1 = ref.read(catalogL1Provider);
+    if (l1 == null) return;
+    ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
+    ref.read(catalogL1BrandProvider.notifier).state = null;
+    ref.read(catalogL1MenuProvider.notifier).state = null;
+    ref.read(catalogL1AllProvider.notifier).state = true;
+    context.go(
+      browseLocation(
+        l1: l1,
+        axis: ref.read(catalogL1AxisProvider),
+        storage: ref.read(catalogStorageFilterProvider),
+        all: true,
+      ),
+    );
   }
 
   void _applyMidDrill(String major, String name) {
@@ -152,6 +288,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
   Widget build(BuildContext context) {
     final typedSearch = ref.watch(catalogSearchProvider).trim();
     final debouncedSearch = ref.watch(catalogDebouncedSearchProvider).trim();
+    final urlL1 = ref.watch(catalogL1Provider);
+    final urlAxis = ref.watch(catalogL1AxisProvider);
+    final urlBrand = ref.watch(catalogL1BrandProvider);
+    final urlMenu = ref.watch(catalogL1MenuProvider);
+    final urlStorage = ref.watch(catalogStorageFilterProvider);
+    final urlAll = ref.watch(catalogL1AllProvider);
     final urlMajor = ref.watch(catalogMajorProvider);
     final urlMid = ref.watch(catalogMidProvider);
     final category = ref.watch(catalogCategoryProvider);
@@ -169,9 +311,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     );
 
     final inSearch = typedSearch.isNotEmpty;
+    final l1 = inSearch ? null : urlL1;
     final major = inSearch ? null : urlMajor;
     final mid = inSearch ? null : urlMid;
     final showWater = showsWaterFilters(
+      l1: urlL1,
       mid: urlMid,
       category: category,
       q: debouncedSearch,
@@ -180,10 +324,24 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       _clearStaleWaterFilters(false);
     }
 
-    final isLanding = !inSearch && major == null && mid == null && category == null;
-    final isMidBrowse = !inSearch && major != null && mid == null && category == null;
+    final isLanding = !inSearch &&
+        l1 == null &&
+        major == null &&
+        mid == null &&
+        category == null;
+    final isL1Axis = !inSearch &&
+        l1 != null &&
+        !urlAll &&
+        urlBrand == null &&
+        urlMenu == null;
+    final isMidBrowse = !inSearch &&
+        l1 == null &&
+        major != null &&
+        mid == null &&
+        category == null;
     final awaitingFirstSearch = inSearch &&
         debouncedSearch.isEmpty &&
+        urlL1 == null &&
         urlMajor == null &&
         urlMid == null &&
         category == null;
@@ -195,8 +353,23 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         initialScrollOffset: ref.watch(catalogLandingScrollOffsetProvider),
         onScrollOffset: (v) =>
             ref.read(catalogLandingScrollOffsetProvider.notifier).state = v,
-        onPickMajor: _applyMajorDrill,
+        onPickMajor: _applyL1Drill,
         onSearchChanged: _onSearchTyped,
+      );
+    }
+
+    if (isL1Axis) {
+      return GuestL1AxisView(
+        l1: l1,
+        axis: urlAxis ?? guestL1DefaultAxis(l1),
+        storage: urlStorage,
+        padding: padding,
+        onBack: () => popBrowseOrHome(context),
+        onAxis: _applyL1Axis,
+        onStorage: _applyL1Storage,
+        onPickBrand: _applyL1Brand,
+        onPickMenu: _applyL1Menu,
+        onSeeAll: _applyL1All,
       );
     }
 
@@ -214,11 +387,13 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       );
     }
 
-    final bannerText = mid != null
-        ? '“${tableMajorLabel(major ?? '')} · $mid” · 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
-        : inSearch
-            ? '“$typedSearch” 검색 — 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
-            : '같은 회사·품목은 카드 1장 · 단위당 대표가(중위)만 표시합니다.';
+    final bannerText = l1 != null
+        ? '“$l1${urlBrand != null ? ' · $urlBrand' : ''}${urlMenu != null ? ' · $urlMenu' : ''}” · 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
+        : mid != null
+            ? '“${tableMajorLabel(major ?? '')} · $mid” · 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
+            : inSearch
+                ? '“$typedSearch” 검색 — 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
+                : '같은 회사·품목은 카드 1장 · 단위당 대표가(중위)만 표시합니다.';
 
     final catalogAsync = awaitingFirstSearch ? null : ref.watch(catalogProductsProvider);
 
@@ -241,18 +416,23 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 onPressed: () => popBrowseOrHome(context),
                 icon: const Icon(Icons.arrow_back, size: 18),
                 label: Text(
-                  !inSearch && mid != null && major != null
-                      ? tableMajorLabel(major)
-                      : '식탁',
+                  !inSearch && l1 != null
+                      ? l1
+                      : !inSearch && mid != null && major != null
+                          ? tableMajorLabel(major)
+                          : '홈',
                 ),
               ),
               Flexible(
                 child: Text(
-                  mid ??
+                  urlBrand ??
+                      urlMenu ??
+                      mid ??
                       category ??
                       (inSearch
                           ? '검색'
-                          : (major != null ? tableMajorLabel(major) : '목록')),
+                          : (l1 ??
+                              (major != null ? tableMajorLabel(major) : '목록'))),
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w700,
@@ -313,7 +493,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       data: (page) {
         if (page.items.isEmpty) {
           return const Center(
-            child: Text('조건에 맞는 상품이 없습니다.\n검색어나 식탁 분류를 바꿔 보세요.'),
+            child: Text('조건에 맞는 상품이 없습니다.\n검색어나 분류를 바꿔 보세요.'),
           );
         }
         return _CatalogProductGrid(
@@ -509,10 +689,10 @@ class _LandingViewState extends State<_LandingView> {
 
   @override
   Widget build(BuildContext context) {
-    final majors = orderedTableTaxonomy();
-    final today = kTodayMajorNames
-        .map(tableMajorByName)
-        .whereType<TableMajor>()
+    final majors = kGuestL1Categories;
+    final today = kTodayL1Names
+        .map(guestL1ByName)
+        .whereType<GuestL1Category>()
         .toList();
 
     return ListView(
@@ -575,7 +755,7 @@ class _LandingViewState extends State<_LandingView> {
               ),
               const SizedBox(height: 6),
               Text(
-                '지금 식탁에 올리기 좋은.',
+                '지금 장보기 좋은.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
                       color: const Color(0xA0212121),
                       fontSize: 13,
@@ -661,8 +841,8 @@ class _HeroBlockState extends State<_HeroBlock> {
     final pages = [
       _HeroPanel(
         kicker: '이 마켓',
-        title: '식탁부터 고르면,\n카드가 쭈르륵',
-        lede: '밥이면 밥, 떡이면 떡. 회사는 그 다음입니다.',
+        title: '1차부터 고르면,\n카드가 쭈르륵',
+        lede: '라면이면 라면, 생수면 생수. 회사는 그 다음입니다.',
         cta: '카테고리 보기',
         onTap: widget.onPrimary,
         imageUrl: _HeroBlock._images[0],
@@ -721,7 +901,7 @@ class _HeroBlockState extends State<_HeroBlock> {
       _HeroPanel(
         kicker: '장보기',
         title: '종류로 들어가면\n비교가 쉬워집니다',
-        lede: '생수·떡갈비처럼 식탁 분류부터. 검색은 보조입니다.',
+        lede: '생수/음료·라면/면류처럼 1차부터. 검색은 보조입니다.',
         cta: '카테고리 보기',
         onTap: widget.onPrimary,
         imageUrl: _HeroBlock._images[4],
@@ -1104,7 +1284,7 @@ class _SiteFooter extends StatelessWidget {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    '식탁부터 고르고, 한 장으로 비교합니다.',
+                    '1차부터 고르고, 한 장으로 비교합니다.',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: 0.82),
                       fontSize: 13,
@@ -1132,7 +1312,7 @@ class _SiteFooter extends StatelessWidget {
                         ),
                         const SizedBox(height: 8),
                         Text(
-                          '식탁부터 고르고, 한 장으로 비교합니다.',
+                          '1차부터 고르고, 한 장으로 비교합니다.',
                           style: TextStyle(
                             color: Colors.white.withValues(alpha: 0.82),
                             fontSize: 13,
@@ -1156,16 +1336,16 @@ class _MajorCircleRow extends StatefulWidget {
   /// Narrow / mobile: compact horizontal row.
   static const _compactItemWidth = 72.0;
   static const _compactCircle = 56.0;
-  static const _compactRowHeight = 86.0;
+  static const _compactRowHeight = 100.0;
   static const _compactGap = 12.0;
 
   /// Wide / desktop: closer to original landing photo size.
   static const _wideItemWidth = 100.0;
   static const _wideCircle = 80.0;
-  static const _wideRowHeight = 112.0;
+  static const _wideRowHeight = 128.0;
   static const _wideGap = 16.0;
 
-  final List<TableMajor> majors;
+  final List<GuestL1Category> majors;
   final ValueChanged<String> onPick;
 
   @override
@@ -1258,8 +1438,8 @@ class _MajorCircleRowState extends State<_MajorCircleRow> {
               separatorBuilder: (_, __) => SizedBox(width: gap),
               itemBuilder: (context, index) {
                 final m = widget.majors[index];
-                final label = tableMajorLabel(m.name);
-                final imageUrl = tableMajorImageUrl(m.name);
+                final label = m.name;
+                final imageUrl = m.imageUrl;
                 return SizedBox(
                   width: itemWidth,
                   child: InkWell(
@@ -1312,13 +1492,14 @@ class _MajorCircleRowState extends State<_MajorCircleRow> {
                         const SizedBox(height: 8),
                         Text(
                           label,
-                          maxLines: 1,
+                          maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                           textAlign: TextAlign.center,
                           style: const TextStyle(
-                            fontSize: 12,
+                            fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: AppTheme.brandTeal,
+                            height: 1.15,
                           ),
                         ),
                       ],
@@ -1345,7 +1526,7 @@ class _MajorCircleRowState extends State<_MajorCircleRow> {
 class _TodayGrid extends StatelessWidget {
   const _TodayGrid({required this.items, required this.onPick});
 
-  final List<TableMajor> items;
+  final List<GuestL1Category> items;
   final ValueChanged<String> onPick;
 
   @override
@@ -1367,8 +1548,8 @@ class _TodayGrid extends StatelessWidget {
       ),
       itemBuilder: (context, index) {
         final m = items[index];
-        final label = tableMajorLabel(m.name);
-        final imageUrl = tableMajorImageUrl(m.name);
+        final label = m.name;
+        final imageUrl = m.imageUrl;
         final tag = index == 0 ? '지금 많이' : '오늘';
         return Material(
           color: Colors.white,
@@ -1454,7 +1635,7 @@ class _TodayGrid extends StatelessWidget {
                       ),
                       const SizedBox(height: 10),
                       Text(
-                        '중분류 ${m.mids.length}',
+                        m.defaultAxis == 'menu' ? '메뉴부터' : '브랜드부터',
                         style: const TextStyle(
                           fontSize: 13,
                           fontWeight: FontWeight.w500,
