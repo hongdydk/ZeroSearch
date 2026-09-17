@@ -38,6 +38,8 @@ class CatalogProductListItem(BaseModel):
 class CatalogProductListResponse(BaseModel):
     items: list[CatalogProductListItem]
     total: int
+    available_flavors: list[str] = Field(default_factory=list, alias="availableFlavors")
+    has_volume_min_2000: bool = Field(default=False, alias="hasVolumeMin2000")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

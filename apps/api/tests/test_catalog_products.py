@@ -10,10 +10,13 @@ from sqlalchemy.dialects import postgresql
 from app.models import CatalogProduct, Product, Seller
 from app.schemas.catalog_product import CatalogProductListItem
 from app.services.catalog_products import (
+    CatalogIdentityRow,
+    CatalogListResult,
     _aggregate_offers,
     _catalog_search_filter,
     get_catalog_product,
-    list_catalog_products,
+    offer_filter_facets,
+    pick_identity_survivor_ids,
 )
 from tests.factories import override_db
 
@@ -134,7 +137,12 @@ def test_list_catalog_products(client):
     ]
     override_db(MagicMock())
 
-    with patch("app.routers.catalog_products.list_catalog_products", return_value=(items, 1)):
+    with patch(
+        "app.routers.catalog_products.list_catalog_products",
+        return_value=CatalogListResult(
+            items=items, total=1, available_flavors=["레몬"], has_volume_min_2000=True
+        ),
+    ):
         response = client.get("/catalog-products?q=생수")
 
     assert response.status_code == 200
@@ -143,12 +151,19 @@ def test_list_catalog_products(client):
     assert body["items"][0]["title"] == "백산수"
     assert body["items"][0]["medianUnitPrice"] == 0.52
     assert "minPriceCredits" not in body["items"][0]
+    assert body["availableFlavors"] == ["레몬"]
+    assert body["hasVolumeMin2000"] is True
 
 
 def test_list_catalog_products_flavor_filter(client):
     override_db(MagicMock())
 
-    with patch("app.routers.catalog_products.list_catalog_products", return_value=([], 0)) as mock_list:
+    with patch(
+        "app.routers.catalog_products.list_catalog_products",
+        return_value=CatalogListResult(
+            items=[], total=0, available_flavors=[], has_volume_min_2000=False
+        ),
+    ) as mock_list:
         response = client.get("/catalog-products?flavor=레몬&volumeMlMin=2000")
 
     assert response.status_code == 200
@@ -176,7 +191,12 @@ def test_list_catalog_products_includes_zero_offer_item(client):
     ]
     override_db(MagicMock())
 
-    with patch("app.routers.catalog_products.list_catalog_products", return_value=(items, 1)):
+    with patch(
+        "app.routers.catalog_products.list_catalog_products",
+        return_value=CatalogListResult(
+            items=items, total=1, available_flavors=[], has_volume_min_2000=False
+        ),
+    ):
         response = client.get("/catalog-products?q=생수")
 
     assert response.status_code == 200
@@ -190,7 +210,12 @@ def test_list_catalog_products_includes_zero_offer_item(client):
 def test_list_catalog_products_empty_volume_filters(client):
     override_db(MagicMock())
 
-    with patch("app.routers.catalog_products.list_catalog_products", return_value=([], 0)) as mock_list:
+    with patch(
+        "app.routers.catalog_products.list_catalog_products",
+        return_value=CatalogListResult(
+            items=[], total=0, available_flavors=[], has_volume_min_2000=False
+        ),
+    ) as mock_list:
         response = client.get("/catalog-products?volumeMlMin=&volumeMlMax=")
 
     assert response.status_code == 200
@@ -260,7 +285,12 @@ def test_guest_l1_list_has_fifteen_overlapping_names(client):
 
 def test_list_catalog_products_l1_query(client):
     override_db(MagicMock())
-    with patch("app.routers.catalog_products.list_catalog_products", return_value=([], 0)) as mock_list:
+    with patch(
+        "app.routers.catalog_products.list_catalog_products",
+        return_value=CatalogListResult(
+            items=[], total=0, available_flavors=[], has_volume_min_2000=False
+        ),
+    ) as mock_list:
         response = client.get(
             "/catalog-products",
             params={"l1Tag": "라면/면류", "brand": "농심", "storage": "상온"},
@@ -290,6 +320,78 @@ def test_guest_l1_facets(client):
 
 
 def test_catalog_l1_filter_compiles():
+    stmt = select(CatalogProduct).where(
+        *_catalog_search_filter(None, None, l1_tag="라면/면류", storage="냉동", brand="농심")
+    )
+    sql = str(stmt.compile(dialect=postgresql.dialect()))
+    assert "l1_tags" in sql
+    assert "storage" in sql
+
+
+def test_pick_identity_survivors_collapses_samdasoo_like_duplicates():
+    offered = uuid.uuid4()
+    empty = uuid.uuid4()
+    other_maker = uuid.uuid4()
+    survivors = pick_identity_survivor_ids(
+        [
+            CatalogIdentityRow(
+                id=empty,
+                manufacturer="제주특별자치도개발공사",
+                title="제주삼다수",
+                offer_count=0,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=offered,
+                manufacturer="제주특별자치도개발공사",
+                title="제주삼다수",
+                offer_count=3,
+                created_at=None,
+                has_image=True,
+            ),
+            CatalogIdentityRow(
+                id=other_maker,
+                manufacturer="광동",
+                title="제주삼다수",
+                offer_count=0,
+                created_at=None,
+            ),
+        ]
+    )
+    assert survivors == [offered, other_maker]
+
+
+def test_pick_identity_keeps_unique_zero_offer_card():
+    only = uuid.uuid4()
+    assert pick_identity_survivor_ids(
+        [
+            CatalogIdentityRow(
+                id=only,
+                manufacturer="팔도",
+                title="비락식혜",
+                offer_count=0,
+                created_at=None,
+            )
+        ]
+    ) == [only]
+
+
+def test_offer_filter_facets_do_not_leak_water_flavors_into_sikhye():
+    flavors, has_volume = offer_filter_facets(
+        [None, None, ""],
+        [238, 500, 1800],
+    )
+    assert flavors == []
+    assert has_volume is False
+
+
+def test_offer_filter_facets_keep_flavors_present_in_result_set():
+    flavors, has_volume = offer_filter_facets(
+        ["레몬", "자몽", "레몬", None],
+        [500, 10000, 2000],
+    )
+    assert flavors == ["레몬", "자몽"]
+    assert has_volume is True
     stmt = select(CatalogProduct).where(
         *_catalog_search_filter(None, None, l1_tag="라면/면류", storage="냉동", brand="농심")
     )

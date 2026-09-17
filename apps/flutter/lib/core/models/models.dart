@@ -299,10 +299,17 @@ class CartModel {
 }
 
 class CatalogProductPageModel {
-  CatalogProductPageModel({required this.items, required this.total});
+  CatalogProductPageModel({
+    required this.items,
+    required this.total,
+    this.availableFlavors = const [],
+    this.hasVolumeMin2000 = false,
+  });
 
   final List<CatalogProductModel> items;
   final int total;
+  final List<String> availableFlavors;
+  final bool hasVolumeMin2000;
 
   bool get hasMore => items.length < total;
 }

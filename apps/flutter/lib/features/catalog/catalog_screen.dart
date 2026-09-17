@@ -19,8 +19,6 @@ import 'guest_l1_axis_view.dart';
 class CatalogScreen extends ConsumerStatefulWidget {
   const CatalogScreen({super.key});
 
-  static const _flavorOptions = ['레몬', '자몽'];
-
   @override
   ConsumerState<CatalogScreen> createState() => _CatalogScreenState();
 }
@@ -207,6 +205,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogL1AllProvider.notifier).state = false;
     ref.read(catalogL1MenuProvider.notifier).state = null;
+    ref.read(catalogFlavorFilterProvider.notifier).state = null;
+    ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
     ref.read(catalogL1BrandProvider.notifier).state = name;
     context.go(
       browseLocation(
@@ -224,6 +224,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogL1AllProvider.notifier).state = false;
     ref.read(catalogL1BrandProvider.notifier).state = null;
+    ref.read(catalogFlavorFilterProvider.notifier).state = null;
+    ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
     ref.read(catalogL1MenuProvider.notifier).state = name;
     context.go(
       browseLocation(
@@ -241,6 +243,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogL1BrandProvider.notifier).state = null;
     ref.read(catalogL1MenuProvider.notifier).state = null;
+    ref.read(catalogFlavorFilterProvider.notifier).state = null;
+    ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
     ref.read(catalogL1AllProvider.notifier).state = true;
     context.go(
       browseLocation(
@@ -271,14 +275,15 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     });
   }
 
-  void _clearStaleWaterFilters(bool showWater) {
-    if (showWater) return;
+  void _clearStaleOfferFilters(OfferFilterFacets facets) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      if (ref.read(catalogFlavorFilterProvider) != null) {
+      final flavor = ref.read(catalogFlavorFilterProvider);
+      if (flavor != null && !facets.flavors.contains(flavor)) {
         ref.read(catalogFlavorFilterProvider.notifier).state = null;
       }
-      if (ref.read(catalogVolumeMinFilterProvider) != null) {
+      final volumeMin = ref.read(catalogVolumeMinFilterProvider);
+      if (volumeMin != null && !facets.hasVolumeMin2000) {
         ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
       }
     });
@@ -314,15 +319,6 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     final l1 = inSearch ? null : urlL1;
     final major = inSearch ? null : urlMajor;
     final mid = inSearch ? null : urlMid;
-    final showWater = showsWaterFilters(
-      l1: urlL1,
-      mid: urlMid,
-      category: category,
-      q: debouncedSearch,
-    );
-    if (!showWater && (flavor != null || volumeMin != null)) {
-      _clearStaleWaterFilters(false);
-    }
 
     final isLanding = !inSearch &&
         l1 == null &&
@@ -396,6 +392,15 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 : '같은 회사·품목은 카드 1장 · 단위당 대표가(중위)만 표시합니다.';
 
     final catalogAsync = awaitingFirstSearch ? null : ref.watch(catalogProductsProvider);
+    final resultFacets = offerFilterFacets(
+      availableFlavors: catalogAsync?.valueOrNull?.availableFlavors ?? const [],
+      hasVolumeMin2000: catalogAsync?.valueOrNull?.hasVolumeMin2000 ?? false,
+    );
+    final flavorStale = flavor != null && !resultFacets.flavors.contains(flavor);
+    final volumeStale = volumeMin != null && !resultFacets.hasVolumeMin2000;
+    if (flavorStale || volumeStale) {
+      _clearStaleOfferFilters(resultFacets);
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -448,10 +453,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             padding: padding.copyWith(top: 8, bottom: 0),
             child: MallInfoBanner(text: bannerText),
           ),
-        if (showWater)
+        if (resultFacets.hasChips)
           Padding(
             padding: padding.copyWith(top: 12, bottom: 0),
             child: _FilterChips(
+              flavors: resultFacets.flavors,
+              showVolumeMin: resultFacets.hasVolumeMin2000,
               flavor: flavor,
               volumeMin: volumeMin,
               onFlavor: (v) => ref.read(catalogFlavorFilterProvider.notifier).state = v,
@@ -1851,12 +1858,16 @@ class _SyncedSearchFieldState extends State<_SyncedSearchField> {
 
 class _FilterChips extends StatelessWidget {
   const _FilterChips({
+    required this.flavors,
+    required this.showVolumeMin,
     required this.flavor,
     required this.volumeMin,
     required this.onFlavor,
     required this.onVolumeMin,
   });
 
+  final List<String> flavors;
+  final bool showVolumeMin;
   final String? flavor;
   final int? volumeMin;
   final ValueChanged<String?> onFlavor;
@@ -1876,18 +1887,19 @@ class _FilterChips extends StatelessWidget {
             onVolumeMin(null);
           },
         ),
-        ...CatalogScreen._flavorOptions.map(
+        ...flavors.map(
           (f) => FilterChip(
             label: Text(f),
             selected: flavor == f,
             onSelected: (selected) => onFlavor(selected ? f : null),
           ),
         ),
-        FilterChip(
-          label: const Text('2L 이상'),
-          selected: volumeMin == 2000,
-          onSelected: (selected) => onVolumeMin(selected ? 2000 : null),
-        ),
+        if (showVolumeMin)
+          FilterChip(
+            label: const Text('2L 이상'),
+            selected: volumeMin == 2000,
+            onSelected: (selected) => onVolumeMin(selected ? 2000 : null),
+          ),
       ],
     );
   }

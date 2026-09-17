@@ -327,7 +327,10 @@ def _ensure_catalog(db: Session, data: dict) -> CatalogProduct:
         )
     )
     if catalog is None:
-        catalog = db.scalar(select(CatalogProduct).where(CatalogProduct.title == data["title"]))
+        title_stmt = select(CatalogProduct).where(CatalogProduct.title == data["title"])
+        if manufacturer:
+            title_stmt = title_stmt.where(CatalogProduct.manufacturer == manufacturer)
+        catalog = db.scalar(title_stmt)
     if catalog is None:
         catalog = CatalogProduct(
             title=data["title"],

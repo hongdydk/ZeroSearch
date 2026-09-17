@@ -104,14 +104,44 @@ String browseStepDown(Uri uri) {
   return '/';
 }
 
-/// Flavor/volume chips: 생수 종류일 때만.
+/// Flavor/volume chips: 현재 결과 집합의 공개 오퍼에서만.
+class OfferFilterFacets {
+  const OfferFilterFacets({
+    this.flavors = const [],
+    this.hasVolumeMin2000 = false,
+  });
+
+  final List<String> flavors;
+  final bool hasVolumeMin2000;
+
+  bool get hasChips => flavors.isNotEmpty || hasVolumeMin2000;
+}
+
+OfferFilterFacets offerFilterFacets({
+  Iterable<String> availableFlavors = const [],
+  bool hasVolumeMin2000 = false,
+}) {
+  final flavors = <String>[];
+  final seen = <String>{};
+  for (final raw in availableFlavors) {
+    final name = raw.trim();
+    if (name.isEmpty || seen.contains(name)) continue;
+    seen.add(name);
+    flavors.add(name);
+  }
+  return OfferFilterFacets(
+    flavors: flavors,
+    hasVolumeMin2000: hasVolumeMin2000,
+  );
+}
+
+/// Legacy water-kind gate. Prefer [offerFilterFacets] for guest chips.
 bool showsWaterFilters({
   String? l1,
   String? mid,
   String? category,
   String? q,
 }) {
-  if (l1 == '생수/음료') return true;
   if (mid == '생수') return true;
   if (category == '생수' || category == '일반생수') return true;
   return (q ?? '').trim() == '생수';

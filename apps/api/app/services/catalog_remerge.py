@@ -266,6 +266,17 @@ def apply_db_remarge(db: Session) -> RemargeReport:
         db.flush()
 
         survivor.title = group.canonical_title
+        if group.category and survivor.category != group.category:
+            dest_clash = db.scalar(
+                select(CatalogProduct.id).where(
+                    CatalogProduct.manufacturer == survivor.manufacturer,
+                    CatalogProduct.category == group.category,
+                    CatalogProduct.title == survivor.title,
+                    CatalogProduct.id != survivor.id,
+                )
+            )
+            if dest_clash is None:
+                survivor.category = group.category
         survivor.volume_options = vols
         survivor.reference_variants = refs
         if group.category_major:
