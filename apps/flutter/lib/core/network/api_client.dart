@@ -196,6 +196,12 @@ class ApiClient {
       );
       final items = response.data?['items'] as List<dynamic>? ?? [];
       final total = response.data?['total'] as int? ?? items.length;
+      final flavors = (response.data?['availableFlavors'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList();
+      final hasVolumeMin2000 =
+          response.data?['hasVolumeMin2000'] as bool? ?? false;
       return CatalogProductPageModel(
         items: items
             .whereType<Map>()
@@ -204,6 +210,8 @@ class ApiClient {
             )
             .toList(),
         total: total,
+        availableFlavors: flavors,
+        hasVolumeMin2000: hasVolumeMin2000,
       );
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);

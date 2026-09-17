@@ -75,7 +75,7 @@ def get_catalog_products(
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> CatalogProductListResponse:
-    items, total = list_catalog_products(
+    result = list_catalog_products(
         db,
         q=q,
         category=category,
@@ -91,7 +91,12 @@ def get_catalog_products(
         offset=offset,
         limit=limit,
     )
-    return CatalogProductListResponse(items=items, total=total)
+    return CatalogProductListResponse(
+        items=result.items,
+        total=result.total,
+        available_flavors=result.available_flavors,
+        has_volume_min_2000=result.has_volume_min_2000,
+    )
 
 
 @router.get("/{catalog_id}", response_model=CatalogProductDetailResponse)

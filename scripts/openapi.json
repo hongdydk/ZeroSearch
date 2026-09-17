@@ -1267,6 +1267,18 @@
       },
       "CatalogProductListResponse": {
         "properties": {
+          "availableFlavors": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Availableflavors",
+            "type": "array"
+          },
+          "hasVolumeMin2000": {
+            "default": false,
+            "title": "Hasvolumemin2000",
+            "type": "boolean"
+          },
           "items": {
             "items": {
               "$ref": "#/components/schemas/CatalogProductListItem"

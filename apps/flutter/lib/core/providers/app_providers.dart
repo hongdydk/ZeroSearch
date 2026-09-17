@@ -511,11 +511,15 @@ class CatalogListState {
     required this.items,
     required this.total,
     this.loadingMore = false,
+    this.availableFlavors = const [],
+    this.hasVolumeMin2000 = false,
   });
 
   final List<CatalogProductModel> items;
   final int total;
   final bool loadingMore;
+  final List<String> availableFlavors;
+  final bool hasVolumeMin2000;
 
   bool get hasMore => items.length < total;
 }
@@ -550,7 +554,12 @@ class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState>
           offset: 0,
           limit: 50,
         );
-    return CatalogListState(items: page.items, total: page.total);
+    return CatalogListState(
+      items: page.items,
+      total: page.total,
+      availableFlavors: page.availableFlavors,
+      hasVolumeMin2000: page.hasVolumeMin2000,
+    );
   }
 
   Future<void> loadMore() async {
@@ -561,6 +570,8 @@ class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState>
         items: current.items,
         total: current.total,
         loadingMore: true,
+        availableFlavors: current.availableFlavors,
+        hasVolumeMin2000: current.hasVolumeMin2000,
       ),
     );
     try {
@@ -588,11 +599,18 @@ class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState>
         CatalogListState(
           items: [...current.items, ...page.items],
           total: page.total,
+          availableFlavors: current.availableFlavors,
+          hasVolumeMin2000: current.hasVolumeMin2000,
         ),
       );
     } catch (_) {
       state = AsyncData(
-        CatalogListState(items: current.items, total: current.total),
+        CatalogListState(
+          items: current.items,
+          total: current.total,
+          availableFlavors: current.availableFlavors,
+          hasVolumeMin2000: current.hasVolumeMin2000,
+        ),
       );
       rethrow;
     }

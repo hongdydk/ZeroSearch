@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 from typing import Iterable, Sequence
 
 # 규칙 변경 시 bump — deploy fingerprint에 포함.
-NORMALIZATION_VERSION = "v3"
+NORMALIZATION_VERSION = "v4"
 
 # 자동 병합 임계값 (고신뢰만 자동 적용).
 HIGH_CONFIDENCE = 0.92
@@ -351,6 +351,7 @@ def cluster_parsed_titles(
         for members in clusters.values():
             groups.append(_build_group(maker, category, members))
 
+    groups = _merge_cross_category_identity(groups)
     groups.sort(key=lambda g: (g.manufacturer, g.category, g.canonical_title))
     return groups, medium
 
@@ -392,7 +393,9 @@ def _build_group(
         for other in members:
             if other is m:
                 continue
-            confidences.append(_pair_confidence(m, other))
+            conf = _pair_confidence(m, other)
+            if conf > 0:
+                confidences.append(conf)
     confidence = min(confidences) if confidences else 1.0
     return CanonicalGroup(
         manufacturer=manufacturer,
@@ -441,8 +444,8 @@ def canonicalize_csv_rows(rows: Iterable[dict]) -> tuple[list[CanonicalGroup], l
 
     groups, medium = cluster_parsed_titles(parsed)
     for group in groups:
-        # major/mid: 멤버 중 첫 non-null
-        for m in group.members:
+        members = [m for m in group.members if m.category == group.category] + list(group.members)
+        for m in members:
             info = meta.get((m.manufacturer, m.category, m.raw_title)) or {}
             if not group.category_major and info.get("category_major"):
                 group.category_major = info["category_major"]
@@ -462,6 +465,44 @@ def canonicalize_csv_rows(rows: Iterable[dict]) -> tuple[list[CanonicalGroup], l
         for a, b, conf in medium
     ]
     return groups, medium_report
+
+
+def card_identity_key(manufacturer: str, title: str) -> tuple[str, str]:
+    """손님 카드 identity: 회사 + 품목명(용량·공백 무시). 소분류는 넣지 않는다."""
+    return (normalize_manufacturer(manufacturer), _compact_key(title))
+
+
+def _merge_cross_category_identity(groups: list[CanonicalGroup]) -> list[CanonicalGroup]:
+    """같은 제조사·같은 기본 품목명이면 AI-Hub 소분류가 달라도 한 장으로 합친다."""
+    by_key: dict[tuple[str, str], list[CanonicalGroup]] = {}
+    for group in groups:
+        key = card_identity_key(group.manufacturer, group.canonical_title)
+        by_key.setdefault(key, []).append(group)
+
+    merged: list[CanonicalGroup] = []
+    for bucket in by_key.values():
+        if len(bucket) == 1:
+            merged.append(bucket[0])
+            continue
+        primary = max(bucket, key=_identity_group_rank)
+        members = [member for group in bucket for member in group.members]
+        combined = _build_group(primary.manufacturer, primary.category, members)
+        combined.category_major = primary.category_major
+        combined.category_mid = primary.category_mid
+        for group in bucket:
+            if not combined.category_major and group.category_major:
+                combined.category_major = group.category_major
+            if not combined.category_mid and group.category_mid:
+                combined.category_mid = group.category_mid
+        merged.append(combined)
+    return merged
+
+
+def _identity_group_rank(group: CanonicalGroup) -> tuple:
+    mid = group.category_mid or ""
+    category = group.category or ""
+    waterish = category in {"일반생수", "생수"} or mid == "생수"
+    return (len(group.members), 1 if waterish else 0, -len(category), category)
 
 
 def fingerprint_token() -> str:

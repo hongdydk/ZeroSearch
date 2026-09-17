@@ -104,3 +104,50 @@ def test_canonicalize_csv_rows_builds_reference_variants():
     assert len(pringles.reference_variants) == 2
     assert pringles.category_major == "과자"
     assert isinstance(medium, list)
+
+
+def test_cluster_merges_same_maker_item_across_wrong_categories():
+    items = [
+        parse_catalog_title(
+            manufacturer="제주특별자치도개발공사",
+            category="일반생수",
+            title="제주삼다수2L",
+        ),
+        parse_catalog_title(
+            manufacturer="제주특별자치도개발공사",
+            category="커피음료",
+            title="제주삼다수500ML",
+        ),
+        parse_catalog_title(
+            manufacturer="광동",
+            category="일반생수",
+            title="광동)제주삼다수",
+        ),
+    ]
+    groups, _ = cluster_parsed_titles(items)
+    jeju = [
+        g
+        for g in groups
+        if g.manufacturer == "제주특별자치도개발공사" and g.canonical_title == "제주삼다수"
+    ]
+    gwangdong = [g for g in groups if g.manufacturer == "광동"]
+    assert len(jeju) == 1
+    assert len(jeju[0].members) == 2
+    assert jeju[0].category == "일반생수"
+    assert len(gwangdong) == 1
+
+
+def test_cluster_merges_paldo_sikhye_split_categories():
+    items = [
+        parse_catalog_title(manufacturer="팔도", category="비타민/에너지음료", title="팔도비락식혜1.8L"),
+        parse_catalog_title(manufacturer="팔도", category="전통차음료", title="팔도비락식혜238ML"),
+        parse_catalog_title(manufacturer="팔도", category="전통차음료", title="팔도비락식혜500ML"),
+        parse_catalog_title(manufacturer="비락식혜", category="과일음료", title="비락식혜1.2L"),
+    ]
+    groups, _ = cluster_parsed_titles(items)
+    paldo = [g for g in groups if g.manufacturer == "팔도"]
+    other = [g for g in groups if g.manufacturer == "비락식혜"]
+    assert len(paldo) == 1
+    assert len(paldo[0].members) == 3
+    assert paldo[0].canonical_title == "비락식혜"
+    assert len(other) == 1
