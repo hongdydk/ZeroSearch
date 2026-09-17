@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../core/catalog/guest_l1.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/layout/ui_platform.dart';
 import '../../core/models/models.dart';
@@ -202,40 +203,76 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
     final categoryCtrl = TextEditingController(text: draft.category);
     final manufacturerCtrl = TextEditingController(text: draft.manufacturer);
     final titleCtrl = TextEditingController(text: draft.title);
+    final selected = <String>{
+      ...draft.l1Tags,
+      ...draft.suggestedL1Tags
+          .where((s) => s.confidence == 'high')
+          .map((s) => s.tag),
+    };
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('카드로 승격'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: manufacturerCtrl,
-                decoration: const InputDecoration(labelText: '회사'),
+      builder: (ctx) {
+        return StatefulBuilder(
+          builder: (ctx, setLocal) {
+            return AlertDialog(
+              title: const Text('카드로 승격'),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextField(
+                      controller: manufacturerCtrl,
+                      decoration: const InputDecoration(labelText: '회사'),
+                    ),
+                    TextField(
+                      controller: titleCtrl,
+                      decoration: const InputDecoration(labelText: '품목명'),
+                    ),
+                    TextField(
+                      controller: categoryCtrl,
+                      decoration: const InputDecoration(labelText: '종류'),
+                    ),
+                    const SizedBox(height: 12),
+                    const Text('손님 1차 태그 (겹침 허용)'),
+                    const SizedBox(height: 8),
+                    Wrap(
+                      spacing: 6,
+                      runSpacing: 6,
+                      children: [
+                        for (final name in kGuestL1Categories.map((e) => e.name))
+                          FilterChip(
+                            label: Text(name),
+                            selected: selected.contains(name),
+                            onSelected: (on) {
+                              setLocal(() {
+                                if (on) {
+                                  selected.add(name);
+                                } else {
+                                  selected.remove(name);
+                                }
+                              });
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
+                ),
               ),
-              TextField(
-                controller: titleCtrl,
-                decoration: const InputDecoration(labelText: '품목명'),
-              ),
-              TextField(
-                controller: categoryCtrl,
-                decoration: const InputDecoration(labelText: '종류'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('승격'),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx, false),
+                  child: const Text('취소'),
+                ),
+                FilledButton(
+                  onPressed: () => Navigator.pop(ctx, true),
+                  child: const Text('승격'),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
     if (ok != true) return;
     final category = categoryCtrl.text.trim();
@@ -252,6 +289,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
           category: category,
           manufacturer: manufacturerCtrl.text.trim(),
           title: titleCtrl.text.trim(),
+          l1Tags: selected.toList(),
         );
         if (!mounted) return;
         ScaffoldMessenger.of(

@@ -309,6 +309,38 @@ def test_promote_card_draft_creates_catalog_and_published_offer():
     assert item.status == "promoted"
 
 
+def test_promote_doenjang_jjigae_auto_tags_soup_not_sauce():
+    seller = _seller()
+    draft = _draft(seller, title="된장찌개 레토르트", manufacturer="오뚜기", category="즉석국/찌개")
+    db = MagicMock()
+    db.scalar.side_effect = [draft, 0]
+    added: list[object] = []
+
+    def _add(obj: object) -> None:
+        added.append(obj)
+        if getattr(obj, "id", None) is None:
+            obj.id = uuid.uuid4()
+
+    db.add.side_effect = _add
+    reviewer = make_user(is_admin=True)
+
+    promote_card_draft(
+        db,
+        draft.id,
+        AdminPromoteDraftRequest(
+            category="즉석국/찌개",
+            manufacturer="오뚜기",
+            title="된장찌개 레토르트",
+        ),
+        reviewer,
+    )
+
+    catalogs = [obj for obj in added if isinstance(obj, CatalogProduct)]
+    assert catalogs[0].l1_tags is not None
+    assert "국/탕/찌개" in catalogs[0].l1_tags
+    assert "장류/소스" not in catalogs[0].l1_tags
+
+
 def test_promote_card_draft_conflict_when_card_exists():
     seller = _seller()
     draft = _draft(seller)

@@ -6,8 +6,16 @@ from pydantic import BeforeValidator
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.schemas.catalog_product import CatalogProductDetailResponse, CatalogProductListResponse
+from app.schemas.catalog_product import (
+    CatalogProductDetailResponse,
+    CatalogProductListResponse,
+    GuestL1FacetsResponse,
+    GuestL1Item,
+    GuestL1ListResponse,
+)
+from app.services.catalog_l1 import list_l1_facets
 from app.services.catalog_products import get_catalog_product, list_catalog_products
+from app.services.guest_l1 import GUEST_L1_TAGS, default_axis_for
 
 router = APIRouter(prefix="/catalog-products", tags=["catalog-products"])
 
@@ -33,6 +41,23 @@ OptionalVolumeMlMax = Annotated[
 ]
 
 
+@router.get("/guest-l1", response_model=GuestL1ListResponse)
+def get_guest_l1_categories() -> GuestL1ListResponse:
+    return GuestL1ListResponse(
+        items=[GuestL1Item(name=name, default_axis=default_axis_for(name)) for name in GUEST_L1_TAGS]
+    )
+
+
+@router.get("/guest-l1/facets", response_model=GuestL1FacetsResponse)
+def get_guest_l1_facets(
+    db: Annotated[Session, Depends(get_db)],
+    l1_tag: Annotated[str, Query(alias="l1Tag")],
+    storage: str | None = None,
+) -> GuestL1FacetsResponse:
+    payload = list_l1_facets(db, l1_tag=l1_tag, storage=storage)
+    return GuestL1FacetsResponse.model_validate(payload)
+
+
 @router.get("", response_model=CatalogProductListResponse)
 def get_catalog_products(
     db: Annotated[Session, Depends(get_db)],
@@ -40,6 +65,10 @@ def get_catalog_products(
     category: str | None = None,
     category_major: Annotated[str | None, Query(alias="categoryMajor")] = None,
     category_mid: Annotated[str | None, Query(alias="categoryMid")] = None,
+    l1_tag: Annotated[str | None, Query(alias="l1Tag")] = None,
+    storage: str | None = None,
+    brand: str | None = None,
+    menu: str | None = None,
     flavor: str | None = None,
     volume_ml_min: OptionalVolumeMlMin = None,
     volume_ml_max: OptionalVolumeMlMax = None,
@@ -52,6 +81,10 @@ def get_catalog_products(
         category=category,
         category_major=category_major,
         category_mid=category_mid,
+        l1_tag=l1_tag,
+        storage=storage,
+        brand=brand,
+        menu=menu,
         flavor=flavor,
         volume_ml_min=volume_ml_min,
         volume_ml_max=volume_ml_max,

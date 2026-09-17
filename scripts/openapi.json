@@ -186,6 +186,20 @@
             "title": "Category",
             "type": "string"
           },
+          "l1Tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "L1Tags"
+          },
           "manufacturer": {
             "anyOf": [
               {
@@ -197,6 +211,17 @@
               }
             ],
             "title": "Manufacturer"
+          },
+          "storage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage"
           },
           "title": {
             "anyOf": [
@@ -806,6 +831,13 @@
             "title": "Kind",
             "type": "string"
           },
+          "l1Tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "L1Tags",
+            "type": "array"
+          },
           "manufacturer": {
             "default": "",
             "title": "Manufacturer",
@@ -846,6 +878,14 @@
           "stock": {
             "title": "Stock",
             "type": "integer"
+          },
+          "suggestedL1Tags": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "title": "Suggestedl1Tags",
+            "type": "array"
           },
           "title": {
             "title": "Title",
@@ -1024,6 +1064,13 @@
             ],
             "title": "Imageurl"
           },
+          "l1Tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "L1Tags",
+            "type": "array"
+          },
           "manufacturer": {
             "default": "",
             "title": "Manufacturer",
@@ -1046,6 +1093,17 @@
             },
             "title": "Referencevariants",
             "type": "array"
+          },
+          "storage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage"
           },
           "title": {
             "title": "Title",
@@ -1127,6 +1185,13 @@
             ],
             "title": "Imageurl"
           },
+          "l1Tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "L1Tags",
+            "type": "array"
+          },
           "manufacturer": {
             "default": "",
             "title": "Manufacturer",
@@ -1165,6 +1230,17 @@
             ],
             "title": "Priceunit",
             "type": "string"
+          },
+          "storage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage"
           },
           "title": {
             "title": "Title",
@@ -1307,6 +1383,100 @@
           "message"
         ],
         "title": "DbResetResponse",
+        "type": "object"
+      },
+      "GuestL1FacetItem": {
+        "properties": {
+          "count": {
+            "title": "Count",
+            "type": "integer"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "count"
+        ],
+        "title": "GuestL1FacetItem",
+        "type": "object"
+      },
+      "GuestL1FacetsResponse": {
+        "properties": {
+          "brands": {
+            "items": {
+              "$ref": "#/components/schemas/GuestL1FacetItem"
+            },
+            "title": "Brands",
+            "type": "array"
+          },
+          "defaultAxis": {
+            "enum": [
+              "brand",
+              "menu"
+            ],
+            "title": "Defaultaxis",
+            "type": "string"
+          },
+          "l1Tag": {
+            "title": "L1Tag",
+            "type": "string"
+          },
+          "menus": {
+            "items": {
+              "$ref": "#/components/schemas/GuestL1FacetItem"
+            },
+            "title": "Menus",
+            "type": "array"
+          }
+        },
+        "required": [
+          "l1Tag",
+          "defaultAxis",
+          "brands",
+          "menus"
+        ],
+        "title": "GuestL1FacetsResponse",
+        "type": "object"
+      },
+      "GuestL1Item": {
+        "properties": {
+          "defaultAxis": {
+            "enum": [
+              "brand",
+              "menu"
+            ],
+            "title": "Defaultaxis",
+            "type": "string"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          }
+        },
+        "required": [
+          "name",
+          "defaultAxis"
+        ],
+        "title": "GuestL1Item",
+        "type": "object"
+      },
+      "GuestL1ListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/GuestL1Item"
+            },
+            "title": "Items",
+            "type": "array"
+          }
+        },
+        "required": [
+          "items"
+        ],
+        "title": "GuestL1ListResponse",
         "type": "object"
       },
       "HTTPValidationError": {
@@ -4025,6 +4195,70 @@
           },
           {
             "in": "query",
+            "name": "l1Tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "L1Tag"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storage",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Storage"
+            }
+          },
+          {
+            "in": "query",
+            "name": "brand",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Brand"
+            }
+          },
+          {
+            "in": "query",
+            "name": "menu",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Menu"
+            }
+          },
+          {
+            "in": "query",
             "name": "flavor",
             "required": false,
             "schema": {
@@ -4118,6 +4352,85 @@
           }
         },
         "summary": "Get Catalog Products",
+        "tags": [
+          "catalog-products"
+        ]
+      }
+    },
+    "/catalog-products/guest-l1": {
+      "get": {
+        "operationId": "get_guest_l1_categories_catalog_products_guest_l1_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestL1ListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Get Guest L1 Categories",
+        "tags": [
+          "catalog-products"
+        ]
+      }
+    },
+    "/catalog-products/guest-l1/facets": {
+      "get": {
+        "operationId": "get_guest_l1_facets_catalog_products_guest_l1_facets_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "l1Tag",
+            "required": true,
+            "schema": {
+              "title": "L1Tag",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storage",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Storage"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GuestL1FacetsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Guest L1 Facets",
         "tags": [
           "catalog-products"
         ]

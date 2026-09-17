@@ -23,12 +23,48 @@ class _Api extends ApiClient {
     String? category,
     String? categoryMajor,
     String? categoryMid,
+    String? l1Tag,
+    String? storage,
+    String? brand,
+    String? menu,
     String? flavor,
     int? volumeMlMin,
     int? volumeMlMax,
     int offset = 0,
     int limit = 50,
-  }) async => CatalogProductPageModel(items: const [], total: 0);
+  }) async => CatalogProductPageModel(
+    items: [
+      if (l1Tag == '라면/면류' && (brand == '농심' || menu == '신라면'))
+        CatalogProductModel(
+          id: 'cat-shin',
+          title: '신라면',
+          manufacturer: '농심',
+          category: '국물봉지라면',
+          offerCount: 2,
+          priceUnit: 'credits',
+          displayPriceLabel: '원',
+          medianPriceCredits: 4200,
+        ),
+    ],
+    total: l1Tag == '라면/면류' && (brand == '농심' || menu == '신라면') ? 1 : 0,
+  );
+
+  @override
+  Future<GuestL1FacetsModel> guestL1Facets({
+    required String l1Tag,
+    String? storage,
+  }) async => GuestL1FacetsModel(
+    l1Tag: l1Tag,
+    defaultAxis: 'brand',
+    brands: const [
+      GuestL1FacetItem(name: '농심', count: 2),
+      GuestL1FacetItem(name: '오뚜기', count: 1),
+    ],
+    menus: const [
+      GuestL1FacetItem(name: '신라면', count: 1),
+      GuestL1FacetItem(name: '진라면 매운맛', count: 1),
+    ],
+  );
 }
 
 class _Tokens extends TokenStorage {
@@ -51,80 +87,76 @@ class _Tokens extends TokenStorage {
   Future<void> clear() async {}
 }
 
+Future<GoRouter> _pumpMall(WidgetTester tester) async {
+  late GoRouter router;
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        apiClientProvider.overrideWithValue(_Api()),
+        tokenStorageProvider.overrideWithValue(_Tokens()),
+      ],
+      child: Consumer(
+        builder: (context, ref, _) {
+          router = ref.watch(routerProvider);
+          return MaterialApp.router(
+            theme: AppTheme.web(),
+            routerConfig: router,
+          );
+        },
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+  return router;
+}
+
 void main() {
-  testWidgets('table major tap navigates to mid list', (tester) async {
+  testWidgets('guest L1 tap opens brand/menu axis without confirm', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    late GoRouter router;
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          apiClientProvider.overrideWithValue(_Api()),
-          tokenStorageProvider.overrideWithValue(_Tokens()),
-        ],
-        child: Consumer(
-          builder: (context, ref, _) {
-            router = ref.watch(routerProvider);
-            return MaterialApp.router(
-              theme: AppTheme.web(),
-              routerConfig: router,
-            );
-          },
-        ),
-      ),
-    );
+    final router = await _pumpMall(tester);
+    expect(find.text('라면/면류'), findsWidgets);
 
-    await tester.pumpAndSettle();
-    expect(find.textContaining('식탁'), findsWidgets);
-    expect(find.text('면류'), findsWidgets);
-
-    await tester.tap(find.text('면류').first);
+    await tester.tap(find.text('라면/면류').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('봉지면'), findsOneWidget);
-    expect(find.text('용기면'), findsOneWidget);
-    expect(router.state.uri.queryParameters['major'], '면류');
+    expect(router.state.uri.queryParameters['l1'], '라면/면류');
+    expect(find.text('브랜드부터'), findsWidgets);
+    expect(find.text('메뉴부터'), findsWidgets);
+    expect(find.text('농심'), findsOneWidget);
+    expect(find.text('오뚜기'), findsOneWidget);
+
+    await tester.tap(find.text('메뉴부터').first);
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.queryParameters['axis'], 'menu');
+    expect(find.text('신라면'), findsOneWidget);
+    expect(find.text('농심'), findsNothing);
   });
 
-  testWidgets('mid tap and browse back step down', (tester) async {
+  testWidgets('L1 brand pick shows catalog cards and back steps down', (
+    tester,
+  ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
-    late GoRouter router;
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          apiClientProvider.overrideWithValue(_Api()),
-          tokenStorageProvider.overrideWithValue(_Tokens()),
-        ],
-        child: Consumer(
-          builder: (context, ref, _) {
-            router = ref.watch(routerProvider);
-            return MaterialApp.router(
-              theme: AppTheme.web(),
-              routerConfig: router,
-            );
-          },
-        ),
-      ),
-    );
-
+    final router = await _pumpMall(tester);
+    await tester.tap(find.text('라면/면류').first);
     await tester.pumpAndSettle();
-    await tester.tap(find.text('면류').first);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('봉지면'));
+    await tester.tap(find.text('농심'));
     await tester.pumpAndSettle();
 
-    expect(router.state.uri.queryParameters['mid'], '봉지면');
-    expect(find.widgetWithText(TextButton, '면류'), findsOneWidget);
+    expect(router.state.uri.queryParameters['brand'], '농심');
+    expect(find.text('농심 신라면'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(TextButton, '면류'));
+    await tester.tap(find.widgetWithText(TextButton, '라면/면류'));
     await tester.pumpAndSettle();
 
-    expect(router.state.uri.queryParameters['mid'], isNull);
-    expect(router.state.uri.queryParameters['major'], '면류');
-    expect(find.text('봉지면'), findsOneWidget);
-    expect(find.text('용기면'), findsOneWidget);
+    expect(router.state.uri.queryParameters['brand'], isNull);
+    expect(router.state.uri.queryParameters['l1'], '라면/면류');
+    expect(find.text('브랜드부터'), findsWidgets);
   });
 }

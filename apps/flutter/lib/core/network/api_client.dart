@@ -163,6 +163,10 @@ class ApiClient {
     String? category,
     String? categoryMajor,
     String? categoryMid,
+    String? l1Tag,
+    String? storage,
+    String? brand,
+    String? menu,
     String? flavor,
     int? volumeMlMin,
     int? volumeMlMax,
@@ -179,6 +183,10 @@ class ApiClient {
             'categoryMajor': categoryMajor,
           if (categoryMid != null && categoryMid.isNotEmpty)
             'categoryMid': categoryMid,
+          if (l1Tag != null && l1Tag.isNotEmpty) 'l1Tag': l1Tag,
+          if (storage != null && storage.isNotEmpty) 'storage': storage,
+          if (brand != null && brand.isNotEmpty) 'brand': brand,
+          if (menu != null && menu.isNotEmpty) 'menu': menu,
           if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
           if (volumeMlMin != null) 'volumeMlMin': volumeMlMin,
           if (volumeMlMax != null) 'volumeMlMax': volumeMlMax,
@@ -197,6 +205,26 @@ class ApiClient {
             .toList(),
         total: total,
       );
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<GuestL1FacetsModel> guestL1Facets({
+    required String l1Tag,
+    String? storage,
+  }) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'catalog-products/guest-l1/facets',
+        queryParameters: {
+          'l1Tag': l1Tag,
+          if (storage != null && storage.isNotEmpty) 'storage': storage,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return GuestL1FacetsModel.fromJson(data);
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }
@@ -861,6 +889,7 @@ class ApiClient {
     required String category,
     String? manufacturer,
     String? title,
+    List<String>? l1Tags,
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -870,6 +899,7 @@ class ApiClient {
           if (manufacturer != null && manufacturer.isNotEmpty)
             'manufacturer': manufacturer,
           if (title != null && title.isNotEmpty) 'title': title,
+          if (l1Tags != null) 'l1Tags': l1Tags,
         },
       );
       final data = response.data;

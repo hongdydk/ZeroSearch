@@ -161,6 +161,9 @@ def import_catalog_csv(db: Session, content: bytes) -> dict[str, int]:
         db,
         [row for row in raw_rows if row.get("category_override_reason")],
     )
+    from app.services.catalog_l1 import backfill_l1_tags
+
+    backfill_l1_tags(db, only_if_empty=True)
     return {
         "source_rows": source_rows,
         "upserted": upserted,
