@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/format/price_format.dart';
 import '../../core/network/api_exception.dart';
@@ -9,6 +10,7 @@ import '../../core/models/models.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/portal_workspace.dart';
+import 'seller_offer_format.dart';
 
 class SellerProductsScreen extends ConsumerStatefulWidget {
   const SellerProductsScreen({super.key});
@@ -229,19 +231,99 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     }
   }
 
+  Future<void> _onQuickAction(ProductModel product, String value) async {
+    switch (value) {
+      case 'edit':
+        await _openDetail(product);
+      case 'hide':
+        await _setHidden(product, hidden: true);
+      case 'unhide':
+        await _setHidden(product, hidden: false);
+      case 'delete':
+        await _confirmDelete(product);
+    }
+  }
+
+  Future<void> _setHidden(ProductModel product, {required bool hidden}) async {
+    final key = hidden ? 'hide:${product.id}' : 'unhide:${product.id}';
+    if (isBusy(key)) return;
+    final nextStatus = hidden ? 'archived' : 'published';
+    await runBusy(key, () async {
+      try {
+        final updated = await ref
+            .read(apiClientProvider)
+            .sellerUpdateProduct(product.id, status: nextStatus);
+        if (!mounted) return;
+        setState(() {
+          _products = [
+            for (final row in _products)
+              if (row.id == updated.id) updated else row,
+          ];
+        });
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
+  }
+
+  Future<void> _confirmDelete(ProductModel product) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('오퍼 삭제'),
+        content: const Text('구매자에게 보이지 않게 숨김으로 옮깁니다. 나중에 숨김 해제로 되돌릴 수 있습니다.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    final key = 'delete:${product.id}';
+    if (isBusy(key)) return;
+    await runBusy(key, () async {
+      try {
+        await ref.read(apiClientProvider).sellerDeleteProduct(product.id);
+        if (!mounted) return;
+        setState(() {
+          _products = [
+            for (final row in _products)
+              if (row.id == product.id)
+                row.copyWith(status: 'archived')
+              else
+                row,
+          ];
+        });
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
+  }
+
+  Future<void> _openDetail(ProductModel product) async {
+    await context.push('/seller/products/${product.id}');
+    if (mounted) await _load(silent: true);
+  }
+
   @override
   Widget build(BuildContext context) {
     final pendingOffers = _products.where((p) => p.status == 'draft').toList();
     final pendingCards = _cardDrafts.where((d) => d.isPending).toList();
-    final filtered = _products.where((product) {
-      return switch (_filter) {
-        'published' => product.status == 'published' && product.stock > 0,
-        'sold_out' => product.stock <= 0,
-        'pending' => product.status == 'draft',
-        'hidden' => product.status != 'published' && product.status != 'draft',
-        _ => true,
-      };
-    }).toList();
+    final filtered = _products
+        .where((product) => sellerOfferMatchesFilter(product, _filter))
+        .toList();
     return PortalWorkspaceScaffold(
       role: PortalWorkspaceRole.seller,
       activePath: '/seller/products',
@@ -293,7 +375,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                 ),
                 _OfferFilterChip(
                   label:
-                      '숨김 ${_products.where((p) => p.status != 'published' && p.status != 'draft').length}',
+                      '숨김 ${_products.where(sellerOfferIsHidden).length}',
                   selected: _filter == 'hidden',
                   onSelected: () => setState(() => _filter = 'hidden'),
                 ),
@@ -353,15 +435,44 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                                   : Icons.inventory_2_outlined,
                             ),
                             title: Text(product.title),
-                            subtitle: Text(
-                              '${product.category} · '
-                              '${formatWon(product.priceCredits)} · 재고 ${product.stock}',
-                            ),
-                            trailing: PortalStatusBadge(
-                              label: _offerStatusLabel(product),
-                              attention:
-                                  product.stock <= 0 ||
-                                  product.status == 'draft',
+                            subtitle: Text(_offerRowSubtitle(product)),
+                            onTap: () => _openDetail(product),
+                            trailing: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                PortalStatusBadge(
+                                  label: sellerOfferStatusLabel(product),
+                                  attention:
+                                      product.stock <= 0 ||
+                                      product.status == 'draft' ||
+                                      sellerOfferIsHidden(product),
+                                ),
+                                PopupMenuButton<String>(
+                                  tooltip: '관리',
+                                  onSelected: (value) =>
+                                      _onQuickAction(product, value),
+                                  itemBuilder: (context) => [
+                                    const PopupMenuItem(
+                                      value: 'edit',
+                                      child: Text('수정'),
+                                    ),
+                                    PopupMenuItem(
+                                      value: sellerOfferIsHidden(product)
+                                          ? 'unhide'
+                                          : 'hide',
+                                      child: Text(
+                                        sellerOfferIsHidden(product)
+                                            ? '숨김 해제'
+                                            : '숨김',
+                                      ),
+                                    ),
+                                    const PopupMenuItem(
+                                      value: 'delete',
+                                      child: Text('삭제'),
+                                    ),
+                                  ],
+                                ),
+                              ],
                             ),
                           ),
                       ],
@@ -379,13 +490,13 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
   }
 }
 
-String _offerStatusLabel(ProductModel product) {
-  if (product.stock <= 0) return '품절';
-  return switch (product.status) {
-    'published' => '공개',
-    'draft' => '검수 대기',
-    _ => '숨김',
-  };
+String _offerRowSubtitle(ProductModel product) {
+  final option = sellerOfferOptionLabel(product);
+  return [
+    if (option.isNotEmpty) option,
+    formatWon(product.priceCredits),
+    '재고 ${product.stock}',
+  ].join(' · ');
 }
 
 class _OfferFilterChip extends StatelessWidget {

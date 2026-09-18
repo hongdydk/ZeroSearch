@@ -30,6 +30,10 @@ class ProductModel {
     this.description,
     this.imageUrl,
     this.status = 'published',
+    this.catalogProductId,
+    this.optionLabel,
+    this.volumeMl,
+    this.flavor,
   });
 
   final String id;
@@ -41,8 +45,44 @@ class ProductModel {
   final String? description;
   final String? imageUrl;
   final String status;
+  final String? catalogProductId;
+  final String? optionLabel;
+  final int? volumeMl;
+  final String? flavor;
 
   bool get isOfficial => seller.sellerType == 'platform';
+
+  ProductModel copyWith({
+    String? id,
+    String? title,
+    int? priceCredits,
+    int? stock,
+    String? category,
+    SellerSummaryModel? seller,
+    String? description,
+    String? imageUrl,
+    String? status,
+    String? catalogProductId,
+    String? optionLabel,
+    int? volumeMl,
+    String? flavor,
+  }) {
+    return ProductModel(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      priceCredits: priceCredits ?? this.priceCredits,
+      stock: stock ?? this.stock,
+      category: category ?? this.category,
+      seller: seller ?? this.seller,
+      description: description ?? this.description,
+      imageUrl: imageUrl ?? this.imageUrl,
+      status: status ?? this.status,
+      catalogProductId: catalogProductId ?? this.catalogProductId,
+      optionLabel: optionLabel ?? this.optionLabel,
+      volumeMl: volumeMl ?? this.volumeMl,
+      flavor: flavor ?? this.flavor,
+    );
+  }
 }
 
 class SellerSummaryModel {

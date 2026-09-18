@@ -1,0 +1,198 @@
+import uuid
+from datetime import UTC, datetime
+from unittest.mock import MagicMock, patch
+
+import pytest
+from fastapi import HTTPException
+
+from app.deps import require_active_seller
+from app.models import Product, Seller
+from app.schemas.seller import SellerProductUpdateRequest
+from app.services.products import (
+    archive_seller_product,
+    list_seller_products,
+    product_to_response,
+    update_seller_product,
+)
+from tests.factories import make_user, override_current_user, override_db
+
+
+def _seller(**kwargs) -> Seller:
+    seller = Seller(
+        id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        shop_name="입점마트",
+        slug="merchant-shop",
+        status="active",
+        seller_type="merchant",
+    )
+    seller.created_at = datetime.now(UTC)
+    for key, value in kwargs.items():
+        setattr(seller, key, value)
+    return seller
+
+
+def _product(seller: Seller, **kwargs) -> Product:
+    product = Product(
+        id=uuid.uuid4(),
+        seller_id=seller.id,
+        catalog_product_id=uuid.uuid4(),
+        title="백산수",
+        option_label="500ml × 20",
+        flavor="레몬",
+        volume_ml=10000,
+        price_credits=12000,
+        stock=40,
+        category="생수",
+        image_url="https://img.example/water.jpg",
+        status="published",
+    )
+    product.created_at = datetime.now(UTC)
+    product.seller = seller
+    for key, value in kwargs.items():
+        setattr(product, key, value)
+    return product
+
+
+def test_product_to_response_keeps_option_fields():
+    product = _product(_seller())
+    body = product_to_response(product).model_dump(by_alias=True)
+    assert body["optionLabel"] == "500ml × 20"
+    assert body["flavor"] == "레몬"
+    assert body["volumeMl"] == 10000
+    assert body["catalogProductId"] == str(product.catalog_product_id)
+
+
+def test_list_seller_products_includes_archived():
+    seen: dict[str, object] = {}
+    db = MagicMock()
+
+    def _scalars(stmt):
+        seen["stmt"] = stmt
+        result = MagicMock()
+        result.all.return_value = []
+        return result
+
+    db.scalars.side_effect = _scalars
+    list_seller_products(db, _seller())
+    sql = str(seen["stmt"])
+    assert "archived" not in sql.lower()
+
+
+def test_patch_price_and_stock():
+    seller = _seller()
+    product = _product(seller)
+    with patch("app.services.products.get_seller_product", return_value=product):
+        updated = update_seller_product(
+            MagicMock(),
+            seller,
+            product.id,
+            SellerProductUpdateRequest(priceCredits=9900, stock=7),
+        )
+    assert updated.price_credits == 9900
+    assert updated.stock == 7
+    assert updated.status == "published"
+
+
+def test_patch_hide_archives_published_offer():
+    seller = _seller()
+    product = _product(seller, status="published")
+    with patch("app.services.products.get_seller_product", return_value=product):
+        updated = update_seller_product(
+            MagicMock(),
+            seller,
+            product.id,
+            SellerProductUpdateRequest(status="archived"),
+        )
+    assert updated.status == "archived"
+
+
+def test_patch_unhide_restores_published_from_archived():
+    seller = _seller()
+    product = _product(seller, status="archived")
+    with patch("app.services.products.get_seller_product", return_value=product):
+        updated = update_seller_product(
+            MagicMock(),
+            seller,
+            product.id,
+            SellerProductUpdateRequest(status="published"),
+        )
+    assert updated.status == "published"
+
+
+def test_patch_still_blocks_self_publish_from_draft():
+    seller = _seller()
+    product = _product(seller, status="draft")
+    with patch("app.services.products.get_seller_product", return_value=product):
+        with pytest.raises(HTTPException) as exc:
+            update_seller_product(
+                MagicMock(),
+                seller,
+                product.id,
+                SellerProductUpdateRequest(status="published"),
+            )
+    assert exc.value.status_code == 400
+    assert "검수" in exc.value.detail
+    assert product.status == "draft"
+
+
+def test_delete_soft_archives_offer():
+    seller = _seller()
+    product = _product(seller, status="published")
+    with patch("app.services.products.get_seller_product", return_value=product):
+        archive_seller_product(MagicMock(), seller, product.id)
+    assert product.status == "archived"
+
+
+def test_seller_list_route_returns_hidden_option_fields(client):
+    user = make_user()
+    seller = _seller(user_id=user.id)
+    hidden = _product(seller, status="archived", option_label="2L × 6", flavor="자몽")
+    override_current_user(user)
+    override_db(MagicMock())
+    from main import app
+
+    app.dependency_overrides[require_active_seller] = lambda: seller
+    try:
+        with patch("app.routers.seller.list_seller_products", return_value=[hidden]):
+            response = client.get("/seller/products", headers={"Authorization": "Bearer fake"})
+    finally:
+        app.dependency_overrides.pop(require_active_seller, None)
+
+    assert response.status_code == 200
+    row = response.json()[0]
+    assert row["status"] == "archived"
+    assert row["optionLabel"] == "2L × 6"
+    assert row["flavor"] == "자몽"
+
+
+def test_seller_patch_route_hide_price_stock(client):
+    user = make_user()
+    seller = _seller(user_id=user.id)
+    product = _product(seller, price_credits=8800, stock=5, status="archived")
+    override_current_user(user)
+    override_db(MagicMock())
+    from main import app
+
+    app.dependency_overrides[require_active_seller] = lambda: seller
+    try:
+        with patch("app.routers.seller.update_seller_product", return_value=product) as mock_update:
+            response = client.patch(
+                f"/seller/products/{product.id}",
+                json={"priceCredits": 8800, "stock": 5, "status": "archived"},
+                headers={"Authorization": "Bearer fake"},
+            )
+    finally:
+        app.dependency_overrides.pop(require_active_seller, None)
+
+    assert response.status_code == 200
+    mock_update.assert_called_once()
+    payload = mock_update.call_args.args[3]
+    assert payload.price_credits == 8800
+    assert payload.stock == 5
+    assert payload.status == "archived"
+    body = response.json()
+    assert body["priceCredits"] == 8800
+    assert body["stock"] == 5
+    assert body["status"] == "archived"
+    assert body["optionLabel"] == "500ml × 20"

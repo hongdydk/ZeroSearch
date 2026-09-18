@@ -156,7 +156,9 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
     final published = _products
         .where((item) => item.status == 'published')
         .length;
-    final soldOut = _products.where((item) => item.stock <= 0).length;
+    final soldOut = _products
+        .where((item) => item.status == 'published' && item.stock <= 0)
+        .length;
     final needsAction = _orders
         .where((item) => item.fulfillmentStatus == 'paid')
         .length;

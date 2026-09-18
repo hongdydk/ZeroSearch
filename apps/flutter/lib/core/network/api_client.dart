@@ -877,6 +877,37 @@ class ApiClient {
     return productModelFromGenerated(data);
   }
 
+  Future<ProductModel> sellerUpdateProduct(
+    String productId, {
+    int? priceCredits,
+    int? stock,
+    String? imageUrl,
+    String? status,
+  }) async {
+    final data = await _generatedCall(
+      () => _generated.getSellerApi().sellerUpdateProductSellerProductsProductIdPatch(
+        productId: productId,
+        sellerProductUpdateRequest: gen.SellerProductUpdateRequest((b) {
+          if (priceCredits != null) b.priceCredits = priceCredits;
+          if (stock != null) b.stock = stock;
+          if (imageUrl != null) b.imageUrl = imageUrl;
+          if (status != null) {
+            b.status = gen.SellerProductUpdateRequestStatusEnum.valueOf(status);
+          }
+        }),
+      ),
+    );
+    return productModelFromGenerated(data);
+  }
+
+  Future<void> sellerDeleteProduct(String productId) async {
+    try {
+      await _dio.delete<void>('seller/products/$productId');
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<List<IntakeDraftModel>> sellerCardDrafts() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
