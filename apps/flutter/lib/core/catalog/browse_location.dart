@@ -15,9 +15,10 @@ bool showsMallBuyerSearch(String location) {
   return false;
 }
 
-/// Browse URL SSOT: `/`, `/?l1=`, `/?l1=&axis=brand|menu|seller`, `/?q=`. 레거시 `major`/`mid`도 읽는다.
+/// Browse URL SSOT: `/`, `/?l1=`, `/?l1=&l2=`, `/?l1=&l2=&axis=brand|menu|seller`, `/?q=`. 레거시 `major`/`mid`도 읽는다.
 String browseLocation({
   String? l1,
+  String? l2,
   String? axis,
   String? brand,
   String? menu,
@@ -50,22 +51,26 @@ String browseLocation({
   }
   if (l1 != null && l1.isNotEmpty) {
     params['l1'] = l1;
-    final resolvedAxis = (axis != null && axis.isNotEmpty)
-        ? normalizeBrowseAxis(axis, fallback: guestL1DefaultAxis(l1))
-        : guestL1DefaultAxis(l1);
-    params['axis'] = resolvedAxis;
-    if (storage != null && storage.isNotEmpty) params['storage'] = storage;
-    if (all) {
-      params['all'] = '1';
-    } else if (!isSellerBrowseAxis(resolvedAxis) &&
-        resolvedAxis == kBrowseAxisMenu &&
-        menu != null &&
-        menu.isNotEmpty) {
-      params['menu'] = menu;
-    } else if (!isSellerBrowseAxis(resolvedAxis) &&
-        brand != null &&
-        brand.isNotEmpty) {
-      params['brand'] = brand;
+    final resolvedL2 = normalizeGuestL2(l1, l2);
+    if (resolvedL2 != null) {
+      params['l2'] = resolvedL2;
+      final resolvedAxis = (axis != null && axis.isNotEmpty)
+          ? normalizeBrowseAxis(axis, fallback: guestL1DefaultAxis(l1))
+          : guestL1DefaultAxis(l1);
+      params['axis'] = resolvedAxis;
+      if (storage != null && storage.isNotEmpty) params['storage'] = storage;
+      if (all) {
+        params['all'] = '1';
+      } else if (!isSellerBrowseAxis(resolvedAxis) &&
+          resolvedAxis == kBrowseAxisMenu &&
+          menu != null &&
+          menu.isNotEmpty) {
+        params['menu'] = menu;
+      } else if (!isSellerBrowseAxis(resolvedAxis) &&
+          brand != null &&
+          brand.isNotEmpty) {
+        params['brand'] = brand;
+      }
     }
   } else {
     if (major != null && major.isNotEmpty) params['major'] = major;
@@ -108,6 +113,7 @@ String browseStepDown(Uri uri) {
   final l1 = uri.queryParameters['l1']?.trim() ?? '';
   if (l1.isNotEmpty) {
     final axis = uri.queryParameters['axis']?.trim() ?? '';
+    final l2 = uri.queryParameters['l2']?.trim() ?? '';
     final brand = uri.queryParameters['brand']?.trim() ?? '';
     final menu = uri.queryParameters['menu']?.trim() ?? '';
     final storage = uri.queryParameters['storage']?.trim() ?? '';
@@ -115,9 +121,13 @@ String browseStepDown(Uri uri) {
     if (brand.isNotEmpty || menu.isNotEmpty || all) {
       return browseLocation(
         l1: l1,
+        l2: l2.isEmpty ? null : l2,
         axis: axis.isEmpty ? null : axis,
         storage: storage.isEmpty ? null : storage,
       );
+    }
+    if (l2.isNotEmpty) {
+      return browseLocation(l1: l1);
     }
     return '/';
   }
@@ -183,6 +193,7 @@ void clearCatalogBrowse(WidgetRef ref) {
   ref.read(catalogSearchProvider.notifier).state = '';
   ref.read(catalogDebouncedSearchProvider.notifier).state = '';
   ref.read(catalogL1Provider.notifier).state = null;
+  ref.read(catalogL2Provider.notifier).state = null;
   ref.read(catalogL1AxisProvider.notifier).state = null;
   ref.read(catalogL1BrandProvider.notifier).state = null;
   ref.read(catalogL1MenuProvider.notifier).state = null;

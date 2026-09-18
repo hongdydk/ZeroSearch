@@ -630,6 +630,7 @@ class CatalogProductModel {
     this.medianPriceCredits,
     this.volumeOptions = const [],
     this.l1Tags = const [],
+    this.l2Tags = const [],
     this.storage,
   });
 
@@ -652,6 +653,9 @@ class CatalogProductModel {
       l1Tags: (json['l1Tags'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
+      l2Tags: (json['l2Tags'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
       storage: json['storage'] as String?,
     );
   }
@@ -669,6 +673,7 @@ class CatalogProductModel {
   final int? medianPriceCredits;
   final List<String> volumeOptions;
   final List<String> l1Tags;
+  final List<String> l2Tags;
   final String? storage;
 
   String get cardTitle {
@@ -698,6 +703,8 @@ class GuestL1FacetItem {
 class GuestL1FacetsModel {
   const GuestL1FacetsModel({
     required this.l1Tag,
+    this.l2Tag = '',
+    this.l2s = const [],
     required this.defaultAxis,
     this.brands = const [],
     this.menus = const [],
@@ -714,6 +721,11 @@ class GuestL1FacetsModel {
 
     return GuestL1FacetsModel(
       l1Tag: json['l1Tag'] as String? ?? '',
+      l2Tag: json['l2Tag'] as String? ?? '',
+      l2s: (json['l2s'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .where((e) => e.isNotEmpty)
+          .toList(),
       defaultAxis: json['defaultAxis'] as String? ?? 'brand',
       brands: parse('brands'),
       menus: parse('menus'),
@@ -721,6 +733,8 @@ class GuestL1FacetsModel {
   }
 
   final String l1Tag;
+  final String l2Tag;
+  final List<String> l2s;
   final String defaultAxis;
   final List<GuestL1FacetItem> brands;
   final List<GuestL1FacetItem> menus;

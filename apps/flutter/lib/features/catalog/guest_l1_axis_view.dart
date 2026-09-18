@@ -19,6 +19,7 @@ class GuestL1AxisView extends ConsumerWidget {
     required this.storage,
     required this.padding,
     required this.onBack,
+    this.backLabel = '홈',
     required this.onAxis,
     required this.onStorage,
     required this.onPickBrand,
@@ -33,6 +34,7 @@ class GuestL1AxisView extends ConsumerWidget {
   final String? storage;
   final EdgeInsets padding;
   final VoidCallback onBack;
+  final String backLabel;
   final ValueChanged<String> onAxis;
   final ValueChanged<String?> onStorage;
   final ValueChanged<String> onPickBrand;
@@ -52,7 +54,7 @@ class GuestL1AxisView extends ConsumerWidget {
             TextButton.icon(
               onPressed: onBack,
               icon: const Icon(Icons.arrow_back, size: 18),
-              label: const Text('홈'),
+              label: Text(backLabel),
             ),
             Expanded(
               child: Text(

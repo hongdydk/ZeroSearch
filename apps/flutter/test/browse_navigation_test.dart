@@ -25,6 +25,7 @@ class _Api extends ApiClient {
     String? categoryMajor,
     String? categoryMid,
     String? l1Tag,
+    String? l2Tag,
     String? storage,
     String? brand,
     String? menu,
@@ -34,7 +35,7 @@ class _Api extends ApiClient {
     int offset = 0,
     int limit = 50,
   }) async {
-    if (l1Tag == '라면/면류' && (brand == '농심' || menu == '신라면')) {
+    if (l1Tag == '라면/면류' && l2Tag == '봉지라면' && (brand == '농심' || menu == '신라면')) {
       return CatalogProductPageModel(
         items: [
           CatalogProductModel(
@@ -74,12 +75,23 @@ class _Api extends ApiClient {
   @override
   Future<GuestL1FacetsModel> guestL1Facets({
     String? l1Tag,
+    String? l2Tag,
     String? q,
     String? storage,
   }) async {
     if (l1Tag == '생수/음료') {
       return GuestL1FacetsModel(
         l1Tag: l1Tag ?? '',
+        l2Tag: l2Tag ?? '',
+        defaultAxis: 'brand',
+        brands: const [],
+        menus: const [],
+      );
+    }
+    if (l2Tag != '봉지라면') {
+      return GuestL1FacetsModel(
+        l1Tag: l1Tag ?? '',
+        l2Tag: l2Tag ?? '',
         defaultAxis: 'brand',
         brands: const [],
         menus: const [],
@@ -87,6 +99,7 @@ class _Api extends ApiClient {
     }
     return GuestL1FacetsModel(
       l1Tag: l1Tag ?? '',
+      l2Tag: l2Tag ?? '',
       defaultAxis: 'brand',
       brands: const [
         GuestL1FacetItem(name: '농심', count: 2),
@@ -106,6 +119,7 @@ class _Api extends ApiClient {
     String? categoryMajor,
     String? categoryMid,
     String? l1Tag,
+    String? l2Tag,
     String? storage,
     String? brand,
     String? menu,
@@ -115,7 +129,7 @@ class _Api extends ApiClient {
     int offset = 0,
     int limit = 50,
   }) async {
-    if (l1Tag == '라면/면류') {
+    if (l1Tag == '라면/면류' && l2Tag == '봉지라면') {
       return CatalogOfferBrowsePageModel(
         items: [
           CatalogOfferBrowseModel(
@@ -199,7 +213,7 @@ Future<GoRouter> _pumpMall(WidgetTester tester) async {
 }
 
 void main() {
-  testWidgets('guest L1 tap opens brand/menu axis without confirm', (
+  testWidgets('guest L1 tap opens L2 picker before axis', (
     tester,
   ) async {
     await tester.binding.setSurfaceSize(const Size(1280, 900));
@@ -212,6 +226,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(router.state.uri.queryParameters['l1'], '라면/면류');
+    expect(router.state.uri.queryParameters['l2'], isNull);
+    expect(find.text('봉지라면'), findsOneWidget);
+    expect(find.text('컵·용기면'), findsOneWidget);
+    expect(find.text('브랜드부터'), findsNothing);
+    expect(find.text('농심'), findsNothing);
+
+    await tester.tap(find.text('봉지라면'));
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.queryParameters['l2'], '봉지라면');
     expect(find.text('브랜드부터'), findsWidgets);
     expect(find.text('메뉴부터'), findsWidgets);
     expect(find.text('판매자 오퍼'), findsWidgets);
@@ -235,17 +259,21 @@ void main() {
     final router = await _pumpMall(tester);
     await tester.tap(find.text('라면/면류').first);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('봉지라면'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('농심'));
     await tester.pumpAndSettle();
 
     expect(router.state.uri.queryParameters['brand'], '농심');
+    expect(router.state.uri.queryParameters['l2'], '봉지라면');
     expect(find.text('농심 신라면'), findsOneWidget);
 
-    await tester.tap(find.widgetWithText(TextButton, '라면/면류'));
+    await tester.tap(find.widgetWithText(TextButton, '봉지라면'));
     await tester.pumpAndSettle();
 
     expect(router.state.uri.queryParameters['brand'], isNull);
     expect(router.state.uri.queryParameters['l1'], '라면/면류');
+    expect(router.state.uri.queryParameters['l2'], '봉지라면');
     expect(find.text('브랜드부터'), findsWidgets);
   });
 
@@ -256,10 +284,11 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final router = await _pumpMall(tester);
-    router.go('/?l1=생수/음료&axis=brand&brand=그린에이드');
+    router.go('/?l1=생수/음료&l2=생수&axis=brand&brand=그린에이드');
     await tester.pumpAndSettle();
 
     expect(router.state.uri.queryParameters['l1'], '생수/음료');
+    expect(router.state.uri.queryParameters['l2'], '생수');
     expect(router.state.uri.queryParameters['brand'], '그린에이드');
     expect(find.text('커피필터'), findsNothing);
     expect(find.textContaining('조건에 맞는 상품이 없습니다'), findsOneWidget);
@@ -274,10 +303,13 @@ void main() {
     final router = await _pumpMall(tester);
     await tester.tap(find.text('라면/면류').first);
     await tester.pumpAndSettle();
+    await tester.tap(find.text('봉지라면'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('판매자 오퍼').first);
     await tester.pumpAndSettle();
 
     expect(router.state.uri.queryParameters['l1'], '라면/면류');
+    expect(router.state.uri.queryParameters['l2'], '봉지라면');
     expect(router.state.uri.queryParameters['axis'], 'seller');
     expect(find.text('공식 스토어'), findsOneWidget);
     expect(find.text('면사랑마트'), findsOneWidget);
@@ -291,10 +323,11 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
 
     final router = await _pumpMall(tester);
-    router.go('/?l1=생수/음료&axis=seller');
+    router.go('/?l1=생수/음료&l2=생수&axis=seller');
     await tester.pumpAndSettle();
 
     expect(router.state.uri.queryParameters['l1'], '생수/음료');
+    expect(router.state.uri.queryParameters['l2'], '생수');
     expect(router.state.uri.queryParameters['axis'], 'seller');
     expect(find.text('커피필터'), findsNothing);
     expect(find.textContaining('공개 오퍼가 없습니다'), findsOneWidget);

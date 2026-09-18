@@ -126,6 +126,43 @@ GuestL1Category? guestL1ByName(String name) {
 String guestL1DefaultAxis(String name) =>
     guestL1ByName(name)?.defaultAxis ?? 'brand';
 
+/// 손님 L2. SSOT: docs/guest-l1.md — 등록 대·중·소가 아님. 겹침 허용.
+const Map<String, List<String>> kGuestL2ByL1 = {
+  '생수/음료': [
+    '생수',
+    '탄산·이온·스포츠',
+    '주스·과채',
+    '전통음료',
+    '병·캔 커피·차',
+    '기타음료',
+  ],
+  '커피/원두/차': ['원두·캡슐', '커피믹스', '티백·잎차', 'RTD 커피·차', '코코아·기타'],
+  '과자/초콜릿/시리얼': ['스낵·과자', '초콜릿·캔디', '시리얼·바', '안주·육포'],
+  '라면/면류': ['봉지라면', '컵·용기면', '국수·당면·파스타', '냉면·기타면'],
+  '통조림/캔': ['참치·수산캔', '햄·고기캔', '농산·과일캔', '기타캔'],
+  '반찬/간편식/대용식': ['즉석반찬', '간편식·도시락', '대용식·선식', '기타'],
+  '국/탕/찌개': ['국', '탕', '찌개', '분말·즉석국'],
+  '즉석밥/볶음밥': ['흰밥·잡곡밥', '볶음밥·컵밥', '주먹밥·기타'],
+  '죽/스프': ['죽', '스프', '미음·기타'],
+  '분식/만두/피자': ['만두·교자', '떡볶이·어묵', '피자·핫도그', '기타분식'],
+  '짜장/카레/돈까스': ['짜장', '카레', '돈까스·커틀릿', '너겟·강정'],
+  '냉장/냉동/간편요리': ['냉장HMR', '냉동HMR', '냉동만두·분식', '기타냉동'],
+  '가루/조미료/오일': ['가루·분말', '조미료', '식용유·참기름', '기타'],
+  '장류/소스': ['고추장·된장·쌈장', '간장', '소스·드레싱', '식초·맛술'],
+  '유제품/아이스크림': ['우유', '요거트·치즈·버터', '아이스크림·빙과'],
+};
+
+List<String> guestL2For(String l1) =>
+    List<String>.unmodifiable(kGuestL2ByL1[l1] ?? const <String>[]);
+
+bool isGuestL2(String l1, String l2) => guestL2For(l1).contains(l2);
+
+String? normalizeGuestL2(String? l1, String? raw) {
+  final name = raw?.trim() ?? '';
+  if (l1 == null || l1.isEmpty || name.isEmpty) return null;
+  return isGuestL2(l1, name) ? name : null;
+}
+
 const kBrowseAxisBrand = 'brand';
 const kBrowseAxisMenu = 'menu';
 const kBrowseAxisSeller = 'seller';

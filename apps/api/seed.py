@@ -344,6 +344,7 @@ def _ensure_catalog(db: Session, data: dict) -> CatalogProduct:
             price_unit=data.get("price_unit", "each"),
             storage=data.get("storage"),
             l1_tags=[],
+            l2_tags=[],
         )
         db.add(catalog)
         db.flush()
