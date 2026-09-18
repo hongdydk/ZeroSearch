@@ -141,7 +141,7 @@ def test_list_users_includes_seller_status(client):
     admin = make_user(is_admin=True)
     buyer = make_user(email="buyer@mall.local", is_admin=False)
     seller_user = make_user(email="shop@mall.local", is_admin=False)
-    seller_user.seller = MagicMock(status="active")
+    seller_user.seller = MagicMock(status="active", shop_name="청정마트", seller_type="merchant")
     override_current_user(admin)
     override_db(_users_db(buyer, seller_user))
 
@@ -150,8 +150,13 @@ def test_list_users_includes_seller_status(client):
     assert response.status_code == 200
     by_email = {item["email"]: item for item in response.json()["items"]}
     assert by_email["buyer@mall.local"]["isAdmin"] is False
+    assert by_email["buyer@mall.local"]["isBuyer"] is True
+    assert by_email["buyer@mall.local"]["isSeller"] is False
     assert by_email["buyer@mall.local"]["sellerStatus"] is None
+    assert by_email["buyer@mall.local"]["sellerName"] is None
     assert by_email["shop@mall.local"]["sellerStatus"] == "active"
+    assert by_email["shop@mall.local"]["sellerName"] == "청정마트"
+    assert by_email["shop@mall.local"]["isSeller"] is True
 
 
 def test_list_users_search_q(client):
@@ -224,3 +229,191 @@ def test_delete_user_rejects_self(client):
 
     assert response.status_code == 400
     assert "자기 자신" in response.json()["detail"]
+
+
+def test_update_user_names_and_roles(client):
+    admin = make_user(is_admin=True)
+    target = make_user(email="shop@mall.local", display_name="옛구매", is_admin=False)
+    override_current_user(admin)
+    mock_db = MagicMock()
+    mock_db.get.return_value = target
+    mock_db.scalar.return_value = None
+    override_db(mock_db)
+
+    response = client.patch(
+        f"/admin/users/{target.id}",
+        json={
+            "displayName": "  구매자이름  ",
+            "sellerName": "청정마트",
+            "isBuyer": True,
+            "isSeller": True,
+            "isAdmin": False,
+        },
+        headers={"Authorization": "Bearer fake"},
+    )
+
+    assert response.status_code == 200
+    body = response.json()
+    assert target.display_name == "구매자이름"
+    assert body["displayName"] == "구매자이름"
+    assert body["sellerName"] == "청정마트"
+    assert body["isBuyer"] is True
+    assert body["isSeller"] is True
+    assert body["isAdmin"] is False
+    assert body["sellerStatus"] == "active"
+
+
+def test_update_user_revokes_seller_soft(client):
+    admin = make_user(is_admin=True)
+    target = make_user(email="shop@mall.local")
+    seller = MagicMock()
+    seller.id = uuid.uuid4()
+    seller.status = "active"
+    seller.shop_name = "청정마트"
+    seller.seller_type = "merchant"
+    target.seller = seller
+    override_current_user(admin)
+    mock_db = MagicMock()
+    mock_db.get.return_value = target
+    override_db(mock_db)
+
+    with patch("app.services.admin_users.remove_seller") as mock_remove:
+        def _remove(_db, _seller_id, _admin, _reason):
+            seller.status = "removed"
+            return seller
+
+        mock_remove.side_effect = _remove
+        response = client.patch(
+            f"/admin/users/{target.id}",
+            json={"isSeller": False},
+            headers={"Authorization": "Bearer fake"},
+        )
+
+    assert response.status_code == 200
+    mock_remove.assert_called_once()
+    assert response.json()["isSeller"] is False
+    assert response.json()["sellerStatus"] == "removed"
+    assert response.json()["sellerName"] == "청정마트"
+
+
+def test_update_user_restores_removed_seller(client):
+    admin = make_user(is_admin=True)
+    target = make_user(email="shop@mall.local")
+    seller = MagicMock()
+    seller.id = uuid.uuid4()
+    seller.status = "removed"
+    seller.shop_name = "청정마트"
+    seller.seller_type = "merchant"
+    target.seller = seller
+    override_current_user(admin)
+    mock_db = MagicMock()
+    mock_db.get.return_value = target
+    override_db(mock_db)
+
+    with patch("app.services.admin_users.restore_seller") as mock_restore:
+        def _restore(_db, _seller_id, _admin, _reason):
+            seller.status = "active"
+            return seller
+
+        mock_restore.side_effect = _restore
+        response = client.patch(
+            f"/admin/users/{target.id}",
+            json={"isSeller": True},
+            headers={"Authorization": "Bearer fake"},
+        )
+
+    assert response.status_code == 200
+    mock_restore.assert_called_once()
+    assert response.json()["isSeller"] is True
+    assert response.json()["sellerStatus"] == "active"
+
+
+def test_update_user_rejects_self_admin_strip(client):
+    admin = make_user(is_admin=True)
+    override_current_user(admin)
+    mock_db = MagicMock()
+    mock_db.get.return_value = admin
+    override_db(mock_db)
+
+    response = client.patch(
+        f"/admin/users/{admin.id}",
+        json={"isAdmin": False},
+        headers={"Authorization": "Bearer fake"},
+    )
+
+    assert response.status_code == 400
+    assert "자기 자신" in response.json()["detail"]
+    assert admin.is_admin is True
+
+
+def test_update_user_rejects_last_admin_demotion(client):
+    admin = make_user(is_admin=True)
+    target = make_user(email="other-admin@mall.local", is_admin=True)
+    override_current_user(admin)
+    mock_db = MagicMock()
+    mock_db.get.return_value = target
+    override_db(mock_db)
+
+    with patch("app.services.admin_users.count_admins", return_value=1):
+        response = client.patch(
+            f"/admin/users/{target.id}",
+            json={"isAdmin": False},
+            headers={"Authorization": "Bearer fake"},
+        )
+
+    assert response.status_code == 400
+    assert "마지막 관리자" in response.json()["detail"]
+    assert target.is_admin is True
+
+
+def test_update_user_rejects_platform_seller_revoke(client):
+    admin = make_user(is_admin=True)
+    target = make_user(email="official@mall.local")
+    seller = MagicMock()
+    seller.id = uuid.uuid4()
+    seller.status = "active"
+    seller.shop_name = "Shopping Mall 공식"
+    seller.seller_type = "platform"
+    target.seller = seller
+    override_current_user(admin)
+    mock_db = MagicMock()
+    mock_db.get.return_value = target
+    override_db(mock_db)
+
+    response = client.patch(
+        f"/admin/users/{target.id}",
+        json={"isSeller": False},
+        headers={"Authorization": "Bearer fake"},
+    )
+
+    assert response.status_code == 400
+    assert "공식 스토어" in response.json()["detail"]
+    assert seller.status == "active"
+
+
+def test_update_user_revokes_buyer(client):
+    admin = make_user(is_admin=True)
+    target = make_user(email="buyer@mall.local", is_buyer=True)
+    override_current_user(admin)
+    mock_db = MagicMock()
+    mock_db.get.return_value = target
+    override_db(mock_db)
+
+    response = client.patch(
+        f"/admin/users/{target.id}",
+        json={"isBuyer": False},
+        headers={"Authorization": "Bearer fake"},
+    )
+
+    assert response.status_code == 200
+    assert target.is_buyer is False
+    assert response.json()["isBuyer"] is False
+
+
+def test_assert_buyer_rejects_revoked_buyer():
+    from app.deps import assert_buyer
+
+    with pytest.raises(HTTPException) as exc_info:
+        assert_buyer(make_user(is_buyer=False))
+    assert exc_info.value.status_code == 403
+    assert "구매자 권한" in exc_info.value.detail

@@ -22,15 +22,23 @@ class AdminUserItem(BaseModel):
     id: str
     email: str
     display_name: str | None = Field(default=None, alias="displayName")
+    seller_name: str | None = Field(default=None, alias="sellerName")
+    is_buyer: bool = Field(alias="isBuyer")
+    is_seller: bool = Field(alias="isSeller")
     is_admin: bool = Field(alias="isAdmin")
     seller_status: str | None = Field(default=None, alias="sellerStatus")
+    seller_type: str | None = Field(default=None, alias="sellerType")
     created_at: datetime = Field(alias="createdAt")
 
     model_config = {"populate_by_name": True, "from_attributes": True, "ser_json_by_alias": True}
 
 
 class AdminUserUpdate(BaseModel):
-    is_admin: bool = Field(alias="isAdmin")
+    is_admin: bool | None = Field(default=None, alias="isAdmin")
+    is_buyer: bool | None = Field(default=None, alias="isBuyer")
+    is_seller: bool | None = Field(default=None, alias="isSeller")
+    display_name: str | None = Field(default=None, alias="displayName", max_length=100)
+    seller_name: str | None = Field(default=None, alias="sellerName", max_length=100)
 
     model_config = {"populate_by_name": True}
 

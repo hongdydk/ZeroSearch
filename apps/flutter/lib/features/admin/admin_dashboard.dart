@@ -10,6 +10,51 @@ import '../../core/providers/app_providers.dart';
 
 enum AdminSection { home, stats, sellers, orders, catalog, users, tools }
 
+class AdminUserRowDraft {
+  const AdminUserRowDraft({
+    this.buyerName = '',
+    this.sellerName = '',
+    this.isBuyer = true,
+    this.isSeller = false,
+    this.isAdmin = false,
+  });
+
+  final String buyerName;
+  final String sellerName;
+  final bool isBuyer;
+  final bool isSeller;
+  final bool isAdmin;
+
+  AdminUserRowDraft copyWith({
+    String? buyerName,
+    String? sellerName,
+    bool? isBuyer,
+    bool? isSeller,
+    bool? isAdmin,
+  }) {
+    return AdminUserRowDraft(
+      buyerName: buyerName ?? this.buyerName,
+      sellerName: sellerName ?? this.sellerName,
+      isBuyer: isBuyer ?? this.isBuyer,
+      isSeller: isSeller ?? this.isSeller,
+      isAdmin: isAdmin ?? this.isAdmin,
+    );
+  }
+}
+
+AdminUserRowDraft adminUserDraftFromMap(Map<String, dynamic> user) {
+  final status = user['sellerStatus'] as String?;
+  final isSeller =
+      user['isSeller'] == true || (status != null && status != 'removed');
+  return AdminUserRowDraft(
+    buyerName: user['displayName'] as String? ?? '',
+    sellerName: user['sellerName'] as String? ?? '',
+    isBuyer: user['isBuyer'] != false,
+    isSeller: isSeller,
+    isAdmin: user['isAdmin'] == true,
+  );
+}
+
 class AdminDashboardState {
   const AdminDashboardState({
     this.stats,
@@ -32,7 +77,7 @@ class AdminDashboardState {
     this.draftsLoaded = false,
     this.catalogItemsLoaded = false,
     this.userQuery = '',
-    this.adminDraft = const {},
+    this.userDrafts = const {},
   });
 
   final Map<String, dynamic>? stats;
@@ -55,7 +100,7 @@ class AdminDashboardState {
   final bool draftsLoaded;
   final bool catalogItemsLoaded;
   final String userQuery;
-  final Map<String, bool> adminDraft;
+  final Map<String, AdminUserRowDraft> userDrafts;
 
   AdminDashboardState copyWith({
     Map<String, dynamic>? stats,
@@ -78,7 +123,7 @@ class AdminDashboardState {
     bool? draftsLoaded,
     bool? catalogItemsLoaded,
     String? userQuery,
-    Map<String, bool>? adminDraft,
+    Map<String, AdminUserRowDraft>? userDrafts,
     bool clearStats = false,
   }) {
     return AdminDashboardState(
@@ -102,7 +147,7 @@ class AdminDashboardState {
       draftsLoaded: draftsLoaded ?? this.draftsLoaded,
       catalogItemsLoaded: catalogItemsLoaded ?? this.catalogItemsLoaded,
       userQuery: userQuery ?? this.userQuery,
-      adminDraft: adminDraft ?? this.adminDraft,
+      userDrafts: userDrafts ?? this.userDrafts,
     );
   }
 }
@@ -241,10 +286,12 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
         users: items,
         usersLoading: false,
         usersLoaded: true,
-        adminDraft: {
+        userDrafts: {
           for (final user in items)
             if (user is Map)
-              user['id'] as String: user['isAdmin'] == true,
+              user['id'] as String: adminUserDraftFromMap(
+                Map<String, dynamic>.from(user),
+              ),
         },
       );
     } catch (_) {
@@ -259,9 +306,9 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
     });
   }
 
-  void setAdminDraft(String userId, bool isAdmin) {
+  void setUserDraft(String userId, AdminUserRowDraft draft) {
     state = state.copyWith(
-      adminDraft: {...state.adminDraft, userId: isAdmin},
+      userDrafts: {...state.userDrafts, userId: draft},
     );
   }
 
@@ -422,13 +469,27 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
   }
 
   Future<void> saveUser(String userId) async {
-    final isAdmin = state.adminDraft[userId] ?? false;
-    await _api.adminUpdateUser(userId, isAdmin: isAdmin);
+    final draft = state.userDrafts[userId] ?? const AdminUserRowDraft();
+    await _api.adminUpdateUser(
+      userId,
+      isAdmin: draft.isAdmin,
+      isBuyer: draft.isBuyer,
+      isSeller: draft.isSeller,
+      displayName: draft.buyerName,
+      sellerName: draft.sellerName,
+    );
     state = state.copyWith(
       users: [
         for (final user in state.users)
           if (user is Map && user['id'] == userId)
-            {...Map<String, dynamic>.from(user), 'isAdmin': isAdmin}
+            {
+              ...Map<String, dynamic>.from(user),
+              'displayName': draft.buyerName,
+              'sellerName': draft.sellerName,
+              'isBuyer': draft.isBuyer,
+              'isSeller': draft.isSeller,
+              'isAdmin': draft.isAdmin,
+            }
           else
             user,
       ],
@@ -437,13 +498,13 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
 
   Future<void> deleteUser(String userId) async {
     final previousUsers = state.users;
-    final previousDraft = state.adminDraft;
+    final previousDraft = state.userDrafts;
     state = state.copyWith(
       users: [
         for (final user in previousUsers)
           if (user is! Map || user['id'] != userId) user,
       ],
-      adminDraft: {
+      userDrafts: {
         for (final entry in previousDraft.entries)
           if (entry.key != userId) entry.key: entry.value,
       },
@@ -451,7 +512,7 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
     try {
       await _api.adminDeleteUser(userId);
     } catch (_) {
-      state = state.copyWith(users: previousUsers, adminDraft: previousDraft);
+      state = state.copyWith(users: previousUsers, userDrafts: previousDraft);
       rethrow;
     }
   }

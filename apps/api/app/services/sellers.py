@@ -210,6 +210,16 @@ def remove_seller(db: Session, seller_id: UUID, admin: User, reason: str) -> Sel
     return seller
 
 
+def restore_seller(db: Session, seller_id: UUID, admin: User, reason: str) -> Seller:
+    seller = _get_merchant(db, seller_id)
+    if seller.status != "removed":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="해제 상태가 아닙니다.")
+    _record_moderation(db, seller, admin, "restore", _require_reason(reason))
+    seller.status = "active"
+    db.flush()
+    return seller
+
+
 def list_moderation_events(db: Session, seller_id: UUID) -> list[SellerModerationEvent]:
     seller = db.get(Seller, seller_id)
     if seller is None:

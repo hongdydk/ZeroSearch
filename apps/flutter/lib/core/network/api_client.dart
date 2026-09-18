@@ -626,11 +626,24 @@ class ApiClient {
     }
   }
 
-  Future<void> adminUpdateUser(String userId, {required bool isAdmin}) async {
+  Future<void> adminUpdateUser(
+    String userId, {
+    required bool isAdmin,
+    bool? isBuyer,
+    bool? isSeller,
+    String? displayName,
+    String? sellerName,
+  }) async {
     try {
       await _dio.patch<Map<String, dynamic>>(
         'admin/users/$userId',
-        data: {'isAdmin': isAdmin},
+        data: {
+          'isAdmin': isAdmin,
+          if (isBuyer != null) 'isBuyer': isBuyer,
+          if (isSeller != null) 'isSeller': isSeller,
+          if (displayName != null) 'displayName': displayName,
+          if (sellerName != null) 'sellerName': sellerName,
+        },
       );
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);

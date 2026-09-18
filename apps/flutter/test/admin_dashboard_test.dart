@@ -39,6 +39,9 @@ class _AdminApi extends ApiClient {
           'id': 'u1',
           'email': 'buyer@mall.local',
           'displayName': '구매자',
+          'sellerName': null,
+          'isBuyer': true,
+          'isSeller': false,
           'isAdmin': false,
         },
       ],
@@ -86,6 +89,27 @@ class _AdminApi extends ApiClient {
   Future<void> adminApproveSeller(String sellerId) async {
     approveCalls += 1;
     if (approveBlock != null) await approveBlock!.future;
+  }
+
+  Map<String, dynamic>? lastUserUpdate;
+
+  @override
+  Future<void> adminUpdateUser(
+    String userId, {
+    required bool isAdmin,
+    bool? isBuyer,
+    bool? isSeller,
+    String? displayName,
+    String? sellerName,
+  }) async {
+    lastUserUpdate = {
+      'id': userId,
+      'isAdmin': isAdmin,
+      'isBuyer': isBuyer,
+      'isSeller': isSeller,
+      'displayName': displayName,
+      'sellerName': sellerName,
+    };
   }
 }
 
@@ -180,5 +204,36 @@ void main() {
     expect(api.draftsCalls, 1);
     expect(api.catalogItemCalls, 1);
     expect(api.sellersCalls, 0);
+  });
+
+  test('admin saveUser sends split names and all roles', () async {
+    final api = _AdminApi();
+    final container = ProviderContainer(
+      overrides: [apiClientProvider.overrideWithValue(api)],
+    );
+    addTearDown(container.dispose);
+    final dash = container.read(adminDashboardProvider.notifier);
+
+    await dash.ensureSection(AdminSection.users);
+    dash.setUserDraft(
+      'u1',
+      const AdminUserRowDraft(
+        buyerName: '구매이름',
+        sellerName: '청정마트',
+        isBuyer: true,
+        isSeller: true,
+        isAdmin: true,
+      ),
+    );
+    await dash.saveUser('u1');
+
+    expect(api.lastUserUpdate, {
+      'id': 'u1',
+      'isAdmin': true,
+      'isBuyer': true,
+      'isSeller': true,
+      'displayName': '구매이름',
+      'sellerName': '청정마트',
+    });
   });
 }

@@ -84,6 +84,11 @@ def require_admin(current_user: Annotated[User, Depends(get_current_user)]) -> U
     return current_user
 
 
+def assert_buyer(user: User) -> None:
+    if getattr(user, "is_buyer", True) is False:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="구매자 권한이 없습니다.")
+
+
 def get_current_seller(
     current_user: Annotated[User, Depends(get_current_user)],
     db: Annotated[Session, Depends(get_db)],

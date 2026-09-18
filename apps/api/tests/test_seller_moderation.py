@@ -8,6 +8,7 @@ from fastapi import HTTPException
 from app.models import Seller, SellerModerationEvent
 from app.services.sellers import (
     remove_seller,
+    restore_seller,
     suspend_seller,
     unsuspend_seller,
     warn_seller,
@@ -121,6 +122,28 @@ def test_remove_from_active_allowed():
     db.get.return_value = seller
     result = remove_seller(db, seller.id, make_user(is_admin=True), "장기 미운영")
     assert result.status == "removed"
+
+
+def test_restore_from_removed_sets_active():
+    seller = _seller(status="removed")
+    admin = make_user(is_admin=True)
+    db = MagicMock()
+    db.get.return_value = seller
+
+    result = restore_seller(db, seller.id, admin, "관리자가 판매자 역할을 부여함")
+
+    assert result.status == "active"
+    assert db.add.call_args.args[0].action == "restore"
+
+
+def test_restore_not_from_active():
+    seller = _seller(status="active")
+    db = MagicMock()
+    db.get.return_value = seller
+    with pytest.raises(HTTPException) as exc:
+        restore_seller(db, seller.id, make_user(is_admin=True), "복구")
+    assert exc.value.status_code == 409
+    assert seller.status == "active"
 
 
 def test_remove_platform_forbidden():

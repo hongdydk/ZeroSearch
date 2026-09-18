@@ -220,7 +220,12 @@ Map<String, dynamic> adminUsersToMap(gen.AdminUserListResponse response) => {
               'id': user.id,
               'email': user.email,
               'displayName': user.displayName,
+              'sellerName': user.sellerName,
+              'isBuyer': user.isBuyer,
+              'isSeller': user.isSeller,
               'isAdmin': user.isAdmin,
+              'sellerStatus': user.sellerStatus,
+              'sellerType': user.sellerType,
               'createdAt': user.createdAt.toIso8601String(),
             },
           )
