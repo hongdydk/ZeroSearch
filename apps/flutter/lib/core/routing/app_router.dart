@@ -22,6 +22,7 @@ import '../../features/payment/toss_pay_exit_screen.dart';
 import '../../features/product_detail/catalog_detail_screen.dart';
 import '../../features/product_detail/product_detail_screen.dart';
 import '../../features/seller/seller_orders_screen.dart';
+import '../../features/seller/seller_product_detail_screen.dart';
 import '../../features/seller/seller_products_screen.dart';
 import '../../features/seller/seller_screen.dart';
 import '../../features/settings/settings_screen.dart';
@@ -179,6 +180,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.seller,
               child: SellerProductsScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/products/:id',
+            builder: (_, state) => PortalAuthGate(
+              portal: LoginPortal.seller,
+              child: SellerProductDetailScreen(
+                productId: state.pathParameters['id']!,
+              ),
             ),
           ),
           GoRoute(

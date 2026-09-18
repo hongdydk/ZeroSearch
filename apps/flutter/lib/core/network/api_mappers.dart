@@ -25,6 +25,10 @@ ProductModel productModelFromGenerated(gen.ProductResponse product) => ProductMo
             specifiedType: const FullType(gen.ProductResponseStatusEnum),
           ) as String? ??
           'published',
+      catalogProductId: product.catalogProductId,
+      optionLabel: product.optionLabel,
+      volumeMl: product.volumeMl,
+      flavor: product.flavor,
     );
 
 SellerSummaryModel sellerSummaryFromGenerated(gen.SellerSummary seller) => SellerSummaryModel(

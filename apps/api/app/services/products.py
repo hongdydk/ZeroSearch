@@ -76,7 +76,7 @@ def list_seller_products(db: Session, seller: Seller) -> list[Product]:
     return list(
         db.scalars(
             select(Product)
-            .where(Product.seller_id == seller.id, Product.status != "archived")
+            .where(Product.seller_id == seller.id)
             .options(joinedload(Product.seller))
             .order_by(Product.created_at.desc())
         ).all()
@@ -160,7 +160,7 @@ def update_seller_product(
     if payload.image_url is not None:
         product.image_url = payload.image_url
     if payload.status is not None:
-        if payload.status == "published" and product.status != "published":
+        if payload.status == "published" and product.status == "draft":
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="검수 전에는 공개할 수 없습니다.",
