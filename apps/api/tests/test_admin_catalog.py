@@ -5,9 +5,14 @@ from unittest.mock import MagicMock, patch
 import pytest
 from fastapi import HTTPException
 
-from app.models import CatalogProduct, Seller
-from app.schemas.admin import AdminCatalogCreateRequest
-from app.services.admin_catalog import create_admin_catalog_product, retire_catalog_product
+from app.models import CatalogProduct, Product, Seller
+from app.schemas.admin import AdminCatalogCreateRequest, AdminCatalogProductItem
+from app.services.admin_catalog import (
+    create_admin_catalog_product,
+    list_admin_catalog_products,
+    offer_stats_for_admin,
+    retire_catalog_product,
+)
 from app.services.catalog_products import get_catalog_product
 from tests.factories import make_user, override_current_user, override_db
 
@@ -170,3 +175,139 @@ def test_admin_delete_catalog_endpoint(client):
         )
     assert response.status_code == 200
     assert response.json()["status"] == "retired"
+
+
+def _seller(*, slug: str = "official", status: str = "active") -> Seller:
+    seller = Seller(
+        id=uuid.uuid4(),
+        user_id=uuid.uuid4(),
+        shop_name=slug,
+        slug=slug,
+        status=status,
+        seller_type="merchant",
+    )
+    seller.created_at = datetime.now(UTC)
+    return seller
+
+
+def _offer(catalog: CatalogProduct, seller: Seller, *, status: str = "published", price: int = 1000, volume_ml: int | None = 500) -> Product:
+    offer = Product(
+        id=uuid.uuid4(),
+        seller_id=seller.id,
+        catalog_product_id=catalog.id,
+        title=catalog.title,
+        price_credits=price,
+        stock=10,
+        category=catalog.category,
+        status=status,
+        volume_ml=volume_ml,
+    )
+    offer.created_at = datetime.now(UTC)
+    offer.seller = seller
+    return offer
+
+
+def test_offer_stats_count_shops_and_median_price():
+    catalog = _catalog()
+    shop_a = _seller(slug="a")
+    shop_b = _seller(slug="b")
+    suspended = _seller(slug="paused", status="suspended")
+    offers = [
+        _offer(catalog, shop_a, price=1000, volume_ml=500),
+        _offer(catalog, shop_b, price=1500, volume_ml=500),
+        _offer(catalog, shop_a, status="archived", price=800, volume_ml=500),
+        _offer(catalog, suspended, price=900, volume_ml=500),
+    ]
+    total, published, shops, median_unit, median_credits, price_unit, label = offer_stats_for_admin(offers)
+    assert total == 4
+    assert published == 2
+    assert shops == 2
+    assert price_unit == "ml"
+    assert label == "L당"
+    assert median_unit == pytest.approx((1000 / 500 + 1500 / 500) / 2)
+    assert median_credits is None
+
+
+def test_list_admin_catalog_paginates_and_attaches_offer_stats():
+    page = [_catalog(title="백산수"), _catalog(title="삼다수", manufacturer="광동")]
+    shop = _seller()
+    offers = [
+        _offer(page[0], shop, price=1200, volume_ml=2000),
+        _offer(page[0], shop, status="archived", price=900, volume_ml=500),
+    ]
+    db = MagicMock()
+    db.scalar.return_value = 80
+    catalogs_result = MagicMock()
+    catalogs_result.all.return_value = page
+    offers_result = MagicMock()
+    offers_result.unique.return_value.all.return_value = offers
+    db.scalars.side_effect = [catalogs_result, offers_result]
+
+    items, total = list_admin_catalog_products(db, q="수", offset=24, limit=24)
+
+    assert total == 80
+    assert len(items) == 2
+    first = items[0]
+    assert first.title == "백산수"
+    assert first.offer_count == 2
+    assert first.published_offer_count == 1
+    assert first.shop_count == 1
+    assert first.median_unit_price == pytest.approx(1200 / 2000)
+    assert first.display_price_label == "L당"
+    assert items[1].offer_count == 0
+    assert items[1].published_offer_count == 0
+    assert items[1].shop_count == 0
+    list_stmt = db.scalars.call_args_list[0].args[0]
+    compiled = str(list_stmt.compile())
+    assert "OFFSET" in compiled.upper()
+    assert "LIMIT" in compiled.upper()
+
+
+def test_admin_list_catalog_endpoint_forwards_pagination(client):
+    admin = make_user(is_admin=True)
+    override_current_user(admin)
+    catalog = _catalog()
+    item = AdminCatalogProductItem(
+        id=str(catalog.id),
+        title="백산수",
+        manufacturer="농심",
+        category="생수",
+        status="active",
+        offer_count=3,
+        published_offer_count=2,
+        shop_count=2,
+        median_unit_price=0.6,
+        price_unit="ml",
+        display_price_label="L당",
+    )
+    override_db(MagicMock())
+    with patch(
+        "app.routers.admin.list_admin_catalog_products",
+        return_value=([item], 120),
+    ) as mock_list:
+        response = client.get(
+            "/admin/catalog/products",
+            params={
+                "q": "백산",
+                "offset": 48,
+                "limit": 24,
+                "includeRetired": True,
+                "l1Tag": "생수/음료",
+            },
+            headers={"Authorization": "Bearer fake"},
+        )
+    assert response.status_code == 200
+    body = response.json()
+    assert body["total"] == 120
+    assert body["offset"] == 48
+    assert body["limit"] == 24
+    assert body["items"][0]["offerCount"] == 3
+    assert body["items"][0]["publishedOfferCount"] == 2
+    assert body["items"][0]["shopCount"] == 2
+    assert body["items"][0]["medianUnitPrice"] == 0.6
+    _, kwargs = mock_list.call_args
+    assert kwargs["q"] == "백산"
+    assert kwargs["offset"] == 48
+    assert kwargs["limit"] == 24
+    assert kwargs["include_retired"] is True
+    assert kwargs["l1_tag"] == "생수/음료"

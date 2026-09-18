@@ -1120,9 +1120,12 @@ class ApiClient {
     }
   }
 
-  Future<List<AdminCatalogProductModel>> adminCatalogProducts({
+  Future<AdminCatalogProductPageModel> adminCatalogProducts({
     String? q,
     bool includeRetired = false,
+    String? l1Tag,
+    int offset = 0,
+    int limit = 24,
   }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -1130,17 +1133,13 @@ class ApiClient {
         queryParameters: {
           if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
           if (includeRetired) 'includeRetired': true,
+          if (l1Tag != null && l1Tag.trim().isNotEmpty) 'l1Tag': l1Tag.trim(),
+          'offset': offset,
+          'limit': limit,
         },
       );
-      final items = response.data?['items'] as List<dynamic>? ?? [];
-      return items
-          .whereType<Map>()
-          .map(
-            (e) => AdminCatalogProductModel.fromJson(
-              Map<String, dynamic>.from(e),
-            ),
-          )
-          .toList();
+      final data = response.data ?? const <String, dynamic>{};
+      return AdminCatalogProductPageModel.fromJson(data);
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }

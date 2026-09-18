@@ -895,6 +895,11 @@ class AdminCatalogProductModel {
     required this.status,
     required this.offerCount,
     required this.publishedOfferCount,
+    this.shopCount = 0,
+    this.medianUnitPrice,
+    this.medianPriceCredits,
+    this.priceUnit = 'credits',
+    this.displayPriceLabel = '원',
     this.imageUrl,
     this.l1Tags = const [],
   });
@@ -908,6 +913,11 @@ class AdminCatalogProductModel {
       status: json['status'] as String? ?? 'active',
       offerCount: json['offerCount'] as int? ?? 0,
       publishedOfferCount: json['publishedOfferCount'] as int? ?? 0,
+      shopCount: json['shopCount'] as int? ?? 0,
+      medianUnitPrice: (json['medianUnitPrice'] as num?)?.toDouble(),
+      medianPriceCredits: json['medianPriceCredits'] as int?,
+      priceUnit: json['priceUnit'] as String? ?? 'credits',
+      displayPriceLabel: json['displayPriceLabel'] as String? ?? '원',
       imageUrl: json['imageUrl'] as String?,
       l1Tags: (json['l1Tags'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
@@ -922,8 +932,15 @@ class AdminCatalogProductModel {
   final String status;
   final int offerCount;
   final int publishedOfferCount;
+  final int shopCount;
+  final double? medianUnitPrice;
+  final int? medianPriceCredits;
+  final String priceUnit;
+  final String displayPriceLabel;
   final String? imageUrl;
   final List<String> l1Tags;
+
+  bool get isRetired => status == 'retired';
 
   String get cardTitle {
     final maker = manufacturer.trim();
@@ -933,6 +950,35 @@ class AdminCatalogProductModel {
     }
     return '$maker $product';
   }
+}
+
+class AdminCatalogProductPageModel {
+  const AdminCatalogProductPageModel({
+    required this.items,
+    required this.total,
+    this.offset = 0,
+    this.limit = 24,
+  });
+
+  factory AdminCatalogProductPageModel.fromJson(Map<String, dynamic> json) {
+    final items = (json['items'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map(
+          (e) => AdminCatalogProductModel.fromJson(Map<String, dynamic>.from(e)),
+        )
+        .toList();
+    return AdminCatalogProductPageModel(
+      items: items,
+      total: json['total'] as int? ?? items.length,
+      offset: json['offset'] as int? ?? 0,
+      limit: json['limit'] as int? ?? 24,
+    );
+  }
+
+  final List<AdminCatalogProductModel> items;
+  final int total;
+  final int offset;
+  final int limit;
 }
 
 class SellerModerationEventModel {

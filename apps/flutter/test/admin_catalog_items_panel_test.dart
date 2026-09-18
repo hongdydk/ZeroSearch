@@ -30,14 +30,26 @@ void main() {
                   manufacturer: '농심',
                   category: '생수',
                   status: 'active',
-                  offerCount: 2,
-                  publishedOfferCount: 1,
+                  offerCount: 3,
+                  publishedOfferCount: 2,
+                  shopCount: 2,
+                  medianUnitPrice: 0.6,
+                  priceUnit: 'ml',
+                  displayPriceLabel: 'L당',
                 ),
               ],
+              total: 1,
+              offset: 0,
+              limit: 24,
+              l1Tag: '',
+              includeRetired: false,
               pageLocked: false,
               queryController: query,
               isRowBusy: (_) => false,
               onSearch: () => searched = true,
+              onQueryChanged: (_) {},
+              onL1Tag: (_) {},
+              onIncludeRetired: (_) {},
               onAdd: () => added = true,
               onDelete: (item) => deleted = item,
             ),
@@ -48,6 +60,9 @@ void main() {
 
     expect(find.text('대표 카드 1건'), findsOneWidget);
     expect(find.text('농심 백산수'), findsOneWidget);
+    expect(find.text('L당 600원(보통)'), findsOneWidget);
+    expect(find.text('오퍼 2'), findsOneWidget);
+    expect(find.text('가게 2'), findsOneWidget);
     expect(find.text('카드 추가'), findsOneWidget);
 
     await tester.tap(find.text('검색'));
@@ -61,5 +76,72 @@ void main() {
     await tester.tap(find.text('삭제'));
     await tester.pump();
     expect(deleted?.id, 'c1');
+  });
+
+  testWidgets('admin catalog items panel paginates with total count', (tester) async {
+    tester.view.physicalSize = const Size(1400, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final query = TextEditingController();
+    addTearDown(query.dispose);
+    var next = false;
+    var prev = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.web(),
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: AdminCatalogItemsPanel(
+              items: [
+                AdminCatalogProductModel(
+                  id: 'c2',
+                  title: '삼다수',
+                  manufacturer: '광동',
+                  category: '생수',
+                  status: 'active',
+                  offerCount: 1,
+                  publishedOfferCount: 1,
+                  shopCount: 1,
+                  medianPriceCredits: 1200,
+                ),
+              ],
+              total: 80,
+              offset: 24,
+              limit: 24,
+              l1Tag: '생수/음료',
+              includeRetired: false,
+              pageLocked: false,
+              queryController: query,
+              isRowBusy: (_) => false,
+              onSearch: () {},
+              onQueryChanged: (_) {},
+              onL1Tag: (_) {},
+              onIncludeRetired: (_) {},
+              onPrev: () => prev = true,
+              onNext: () => next = true,
+              onAdd: () {},
+              onDelete: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('대표 카드 80건'), findsOneWidget);
+    expect(find.text('25–25 / 80건'), findsOneWidget);
+    expect(find.text('오퍼 1'), findsOneWidget);
+    expect(find.text('가게 1'), findsOneWidget);
+    expect(find.text('1,200원(보통)'), findsOneWidget);
+
+    await tester.tap(find.text('다음'));
+    await tester.pump();
+    expect(next, isTrue);
+
+    await tester.tap(find.text('이전'));
+    await tester.pump();
+    expect(prev, isTrue);
   });
 }

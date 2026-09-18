@@ -444,13 +444,21 @@ def list_admin_catalog(
     db: Annotated[Session, Depends(get_db)],
     q: Annotated[str | None, Query(max_length=100)] = None,
     include_retired: Annotated[bool, Query(alias="includeRetired")] = False,
+    l1_tag: Annotated[str | None, Query(alias="l1Tag", max_length=40)] = None,
     offset: Annotated[int, Query(ge=0)] = 0,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
 ) -> AdminCatalogProductListResponse:
     items, total = list_admin_catalog_products(
-        db, q=q, include_retired=include_retired, offset=offset, limit=limit
+        db,
+        q=q,
+        include_retired=include_retired,
+        l1_tag=l1_tag,
+        offset=offset,
+        limit=limit,
     )
-    return AdminCatalogProductListResponse(items=items, total=total)
+    return AdminCatalogProductListResponse(
+        items=items, total=total, offset=offset, limit=limit
+    )
 
 
 @router.post("/catalog/products", response_model=AdminCatalogProductItem, status_code=status.HTTP_201_CREATED)
