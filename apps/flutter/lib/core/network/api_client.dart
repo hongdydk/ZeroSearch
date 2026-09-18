@@ -841,46 +841,60 @@ class ApiClient {
   }
 
   Future<List<ProductModel>> sellerProducts() async {
-    final data = await _generatedCall(
-      () => _generated.getSellerApi().sellerListProductsSellerProductsGet(),
-    );
-    return productListFromGenerated(data);
+    try {
+      final response = await _dio.get<List<dynamic>>('seller/products');
+      final items = response.data ?? [];
+      return items
+          .whereType<Map>()
+          .map((e) => ProductModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<ProductModel> sellerCreateProduct({
     required String title,
-    required int priceCredits,
-    required int stock,
     required String category,
+    int? priceCredits,
+    int? stock,
     String? description,
     String status = 'draft',
     String? catalogProductId,
     String? optionLabel,
     int? volumeMl,
+    double? unitAmount,
+    String? unit,
+    int? packCount,
     String? flavor,
     String? imageUrl,
   }) async {
-    final data = await _generatedCall(
-      () => _generated.getSellerApi().sellerCreateProductSellerProductsPost(
-        sellerProductCreateRequest: gen.SellerProductCreateRequest(
-          (b) => b
-            ..title = title
-            ..priceCredits = priceCredits
-            ..stock = stock
-            ..category = category
-            ..description = description
-            ..status = gen.SellerProductCreateRequestStatusEnum.valueOf(
-              status == 'published' ? 'published' : 'draft',
-            )
-            ..catalogProductId = catalogProductId
-            ..optionLabel = optionLabel
-            ..volumeMl = volumeMl
-            ..flavor = flavor
-            ..imageUrl = imageUrl,
-        ),
-      ),
-    );
-    return productModelFromGenerated(data);
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'seller/products',
+        data: {
+          'title': title,
+          'category': category,
+          'status': status,
+          if (priceCredits != null) 'priceCredits': priceCredits,
+          if (stock != null) 'stock': stock,
+          if (description != null && description.isNotEmpty) 'description': description,
+          if (catalogProductId != null) 'catalogProductId': catalogProductId,
+          if (optionLabel != null && optionLabel.isNotEmpty) 'optionLabel': optionLabel,
+          if (volumeMl != null) 'volumeMl': volumeMl,
+          if (unitAmount != null) 'unitAmount': unitAmount,
+          if (unit != null && unit.isNotEmpty) 'unit': unit,
+          if (packCount != null) 'packCount': packCount,
+          if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
+          if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return ProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<ProductModel> sellerUpdateProduct(
@@ -889,21 +903,33 @@ class ApiClient {
     int? stock,
     String? imageUrl,
     String? status,
+    String? optionLabel,
+    double? unitAmount,
+    String? unit,
+    int? packCount,
+    String? flavor,
   }) async {
-    final data = await _generatedCall(
-      () => _generated.getSellerApi().sellerUpdateProductSellerProductsProductIdPatch(
-        productId: productId,
-        sellerProductUpdateRequest: gen.SellerProductUpdateRequest((b) {
-          if (priceCredits != null) b.priceCredits = priceCredits;
-          if (stock != null) b.stock = stock;
-          if (imageUrl != null) b.imageUrl = imageUrl;
-          if (status != null) {
-            b.status = gen.SellerProductUpdateRequestStatusEnum.valueOf(status);
-          }
-        }),
-      ),
-    );
-    return productModelFromGenerated(data);
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        'seller/products/$productId',
+        data: {
+          if (priceCredits != null) 'priceCredits': priceCredits,
+          if (stock != null) 'stock': stock,
+          if (imageUrl != null) 'imageUrl': imageUrl,
+          if (status != null) 'status': status,
+          if (optionLabel != null) 'optionLabel': optionLabel,
+          if (unitAmount != null) 'unitAmount': unitAmount,
+          if (unit != null) 'unit': unit,
+          if (packCount != null) 'packCount': packCount,
+          if (flavor != null) 'flavor': flavor,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return ProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<void> sellerDeleteProduct(String productId) async {
@@ -933,12 +959,15 @@ class ApiClient {
     required String manufacturer,
     required String title,
     required String category,
-    required int priceCredits,
-    required int stock,
-    required String optionLabel,
+    String? optionLabel,
+    int? priceCredits,
+    int? stock,
     String? imageUrl,
     String? flavor,
     int? volumeMl,
+    double? unitAmount,
+    String? unit,
+    int? packCount,
     String? description,
   }) async {
     try {
@@ -948,12 +977,15 @@ class ApiClient {
           'manufacturer': manufacturer,
           'title': title,
           'category': category,
-          'priceCredits': priceCredits,
-          'stock': stock,
-          'optionLabel': optionLabel,
+          if (optionLabel != null && optionLabel.isNotEmpty) 'optionLabel': optionLabel,
+          if (priceCredits != null) 'priceCredits': priceCredits,
+          if (stock != null) 'stock': stock,
           if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
           if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
           if (volumeMl != null) 'volumeMl': volumeMl,
+          if (unitAmount != null) 'unitAmount': unitAmount,
+          if (unit != null && unit.isNotEmpty) 'unit': unit,
+          if (packCount != null) 'packCount': packCount,
           if (description != null && description.isNotEmpty)
             'description': description,
         },
@@ -961,6 +993,58 @@ class ApiClient {
       final data = response.data;
       if (data == null) throw ApiException('응답 데이터가 없습니다.');
       return IntakeDraftModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<IntakeDraftModel> sellerUpdateCardDraft(
+    String draftId, {
+    int? priceCredits,
+    int? stock,
+    String? imageUrl,
+    String? flavor,
+    String? optionLabel,
+    double? unitAmount,
+    String? unit,
+    int? packCount,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        'seller/card-drafts/$draftId',
+        data: {
+          if (priceCredits != null) 'priceCredits': priceCredits,
+          if (stock != null) 'stock': stock,
+          if (imageUrl != null) 'imageUrl': imageUrl,
+          if (flavor != null) 'flavor': flavor,
+          if (optionLabel != null) 'optionLabel': optionLabel,
+          if (unitAmount != null) 'unitAmount': unitAmount,
+          if (unit != null) 'unit': unit,
+          if (packCount != null) 'packCount': packCount,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return IntakeDraftModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<String> sellerUploadImage(List<int> bytes, String filename) async {
+    try {
+      final form = FormData.fromMap({
+        'file': MultipartFile.fromBytes(bytes, filename: filename),
+      });
+      final response = await _dio.post<Map<String, dynamic>>(
+        'seller/uploads/image',
+        data: form,
+      );
+      final url = response.data?['imageUrl'] as String?;
+      if (url == null || url.isEmpty) {
+        throw ApiException('사진 주소를 받지 못했습니다.');
+      }
+      return url;
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }

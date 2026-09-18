@@ -11,6 +11,7 @@ from app.schemas.catalog_intake import (
     AdminAttachDraftRequest,
     AdminPromoteDraftRequest,
     SellerCardDraftCreateRequest,
+    SellerCardDraftUpdateRequest,
 )
 from app.schemas.seller import SellerProductCreateRequest, SellerProductUpdateRequest
 from app.services.catalog_intake import (
@@ -18,6 +19,7 @@ from app.services.catalog_intake import (
     card_draft_to_item,
     create_card_draft,
     promote_card_draft,
+    update_card_draft,
 )
 from app.services.catalog_products import _public_offer_filters
 from app.services.products import create_seller_product, update_seller_product
@@ -135,6 +137,81 @@ def test_create_seller_product_forces_draft_not_public():
     assert offer.image_url == "https://img.example/offer.jpg"
 
 
+def test_create_seller_product_without_price_stays_draft():
+    seller = _seller()
+    catalog = _catalog()
+    payload = SellerProductCreateRequest(
+        title="백산수",
+        category="생수",
+        catalogProductId=str(catalog.id),
+        unitAmount=2,
+        unit="L",
+        packCount=12,
+    )
+    added: list[Product] = []
+    db = MagicMock()
+    db.add.side_effect = lambda obj: added.append(obj)
+    created = Product(
+        id=uuid.uuid4(),
+        seller_id=seller.id,
+        catalog_product_id=catalog.id,
+        title=catalog.title,
+        price_credits=0,
+        stock=0,
+        category=catalog.category,
+        status="draft",
+    )
+    created.seller = seller
+    with (
+        patch("app.services.products.resolve_catalog_product", return_value=catalog),
+        patch("app.services.products.get_seller_product", return_value=created),
+    ):
+        create_seller_product(db, seller, payload)
+    offer = added[0]
+    assert offer.status == "draft"
+    assert offer.price_credits == 0
+    assert offer.stock == 0
+    assert offer.option_label == "2L × 12"
+    assert offer.volume_ml == 2000
+    assert offer.pack_count == 12
+    assert offer.unit == "L"
+    assert float(offer.unit_amount) == 2
+
+
+def test_create_seller_product_allows_option_outside_volume_list():
+    seller = _seller()
+    catalog = _catalog(volume_options=["2L"])
+    payload = SellerProductCreateRequest(
+        title="백산수",
+        category="생수",
+        catalogProductId=str(catalog.id),
+        optionLabel="1.5L × 8",
+    )
+    added: list[Product] = []
+    db = MagicMock()
+    db.add.side_effect = lambda obj: added.append(obj)
+    created = Product(
+        id=uuid.uuid4(),
+        seller_id=seller.id,
+        catalog_product_id=catalog.id,
+        title=catalog.title,
+        price_credits=0,
+        stock=0,
+        category=catalog.category,
+        status="draft",
+    )
+    created.seller = seller
+    with (
+        patch("app.services.products.resolve_catalog_product", return_value=catalog),
+        patch("app.services.products.get_seller_product", return_value=created),
+    ):
+        create_seller_product(db, seller, payload)
+    offer = added[0]
+    assert offer.option_label == "1.5L × 8"
+    assert offer.volume_ml == 1500
+    assert offer.pack_count == 8
+
+
 def test_seller_cannot_publish_own_draft():
     seller = _seller()
     product = Product(
@@ -190,14 +267,56 @@ def test_create_card_draft_does_not_insert_catalog_product():
     assert added[0].title == "떡갈비"
 
 
+def test_create_card_draft_without_price_keeps_units():
+    seller = _seller()
+    payload = SellerCardDraftCreateRequest(
+        manufacturer="매일",
+        title="떡갈비",
+        category="축산가공",
+        unitAmount=500,
+        unit="g",
+        packCount=2,
+    )
+    added: list[object] = []
+    db = MagicMock()
+    db.add.side_effect = lambda obj: added.append(obj)
+    created = _draft(seller, price_credits=0, stock=0, option_label="500g × 2")
+    db.scalar.return_value = created
+
+    result = create_card_draft(db, seller, payload)
+
+    assert result is created
+    draft = added[0]
+    assert isinstance(draft, CatalogIntakeDraft)
+    assert draft.price_credits == 0
+    assert draft.stock == 0
+    assert draft.option_label == "500g × 2"
+    assert draft.volume_ml is None
+    assert draft.pack_count == 2
+
+
+def test_update_card_draft_attaches_price():
+    seller = _seller()
+    draft = _draft(seller, price_credits=0, stock=0)
+    db = MagicMock()
+    db.scalar.return_value = draft
+    updated = update_card_draft(
+        db,
+        seller,
+        draft.id,
+        SellerCardDraftUpdateRequest(priceCredits=4800, stock=8),
+    )
+    assert updated.price_credits == 4800
+    assert updated.stock == 8
+    assert updated.status == "pending"
+
+
 def test_create_card_draft_requires_pack():
     seller = _seller()
     payload = SellerCardDraftCreateRequest(
         manufacturer="매일",
         title="떡갈비",
         category="축산가공",
-        priceCredits=4800,
-        stock=8,
     )
     with pytest.raises(HTTPException) as exc:
         create_card_draft(MagicMock(), seller, payload)
@@ -380,14 +499,12 @@ def test_seller_create_card_draft_route(client):
         with patch("app.routers.seller.create_card_draft", return_value=draft):
             response = client.post(
                 "/seller/card-drafts",
-                json={
-                    "manufacturer": "매일",
-                    "title": "떡갈비",
-                    "category": "축산가공",
-                    "optionLabel": "500g",
-                    "priceCredits": 4800,
-                    "stock": 8,
-                },
+            json={
+                "manufacturer": "매일",
+                "title": "떡갈비",
+                "category": "축산가공",
+                "optionLabel": "500g",
+            },
                 headers={"Authorization": "Bearer fake"},
             )
     finally:

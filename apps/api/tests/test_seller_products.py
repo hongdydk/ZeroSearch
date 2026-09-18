@@ -46,6 +46,7 @@ def _product(seller: Seller, **kwargs) -> Product:
         category="생수",
         image_url="https://img.example/water.jpg",
         status="published",
+        pack_count=1,
     )
     product.created_at = datetime.now(UTC)
     product.seller = seller
@@ -196,3 +197,58 @@ def test_seller_patch_route_hide_price_stock(client):
     assert body["stock"] == 5
     assert body["status"] == "archived"
     assert body["optionLabel"] == "500ml × 20"
+    assert body["packCount"] == 1
+
+
+def test_create_without_price_derives_per_unit_volume(client):
+    seller = _seller()
+    catalog_id = uuid.uuid4()
+    product = _product(
+        seller,
+        price_credits=0,
+        stock=0,
+        option_label="2L × 12",
+        volume_ml=2000,
+        status="draft",
+    )
+    product.unit = "L"
+    product.unit_amount = 2
+    product.pack_count = 12
+    user = make_user()
+    override_current_user(user)
+    override_db(MagicMock())
+    from main import app
+
+    app.dependency_overrides[require_active_seller] = lambda: seller
+    try:
+        with patch("app.routers.seller.create_seller_product", return_value=product) as mock_create:
+            response = client.post(
+                "/seller/products",
+                json={
+                    "title": "백산수",
+                    "category": "생수",
+                    "catalogProductId": str(catalog_id),
+                    "unitAmount": 2,
+                    "unit": "L",
+                    "packCount": 12,
+                },
+                headers={"Authorization": "Bearer fake"},
+            )
+    finally:
+        app.dependency_overrides.pop(require_active_seller, None)
+
+    assert response.status_code == 201
+    mock_create.assert_called_once()
+    payload = mock_create.call_args.args[2]
+    assert payload.price_credits is None
+    assert payload.stock is None
+    assert payload.unit_amount == 2
+    assert payload.unit == "L"
+    assert payload.pack_count == 12
+    body = response.json()
+    assert body["priceCredits"] == 0
+    assert body["status"] == "draft"
+    assert body["optionLabel"] == "2L × 12"
+    assert body["volumeMl"] == 2000
+    assert body["packCount"] == 12
+    assert body["unit"] == "L"

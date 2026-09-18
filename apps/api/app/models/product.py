@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -10,7 +10,10 @@ from app.database import Base
 
 class Product(Base):
     __tablename__ = "products"
-    __table_args__ = (CheckConstraint("stock >= 0", name="ck_products_stock_nonnegative"),)
+    __table_args__ = (
+        CheckConstraint("stock >= 0", name="ck_products_stock_nonnegative"),
+        CheckConstraint("pack_count >= 1", name="ck_products_pack_count_positive"),
+    )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     seller_id: Mapped[uuid.UUID] = mapped_column(
@@ -22,6 +25,9 @@ class Product(Base):
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     option_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
     volume_ml: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    unit_amount: Mapped[float | None] = mapped_column(Numeric(12, 3), nullable=True)
+    unit: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    pack_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     flavor: Mapped[str | None] = mapped_column(String(50), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price_credits: Mapped[int] = mapped_column(Integer, nullable=False)

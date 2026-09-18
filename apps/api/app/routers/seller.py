@@ -4,19 +4,25 @@ from uuid import UUID
 
 
 
-from fastapi import APIRouter, Depends, Query, status
+from fastapi import APIRouter, Depends, File, Query, UploadFile, status
 
 from sqlalchemy.orm import Session
 
 
 
+from app.config import get_settings
 from app.database import get_db
 
 from app.deps import get_current_user, require_active_seller
 
 from app.models import Seller, User
 
-from app.schemas.catalog_intake import CatalogIntakeItem, CatalogIntakeListResponse, SellerCardDraftCreateRequest
+from app.schemas.catalog_intake import (
+    CatalogIntakeItem,
+    CatalogIntakeListResponse,
+    SellerCardDraftCreateRequest,
+    SellerCardDraftUpdateRequest,
+)
 from app.schemas.catalog_product import CatalogProductListResponse
 from app.schemas.product import ProductResponse
 
@@ -34,12 +40,20 @@ from app.schemas.seller import (
 
     SellerProductUpdateRequest,
 
+    SellerImageUploadResponse,
+
     SellerResponse,
 
 )
 from app.schemas.admin import SellerModerationEventListResponse
 
-from app.services.catalog_intake import card_draft_to_item, create_card_draft, list_seller_card_drafts
+from app.services.catalog_intake import (
+    card_draft_to_item,
+    create_card_draft,
+    list_seller_card_drafts,
+    update_card_draft,
+)
+from app.services.uploads import save_seller_image
 from app.services.catalog_products import search_seller_catalog_products
 from app.services.products import (
 
@@ -319,5 +333,26 @@ def seller_create_card_draft(
     draft = create_card_draft(db, seller, payload)
     db.commit()
     return card_draft_to_item(draft)
+
+
+@router.patch("/card-drafts/{draft_id}", response_model=CatalogIntakeItem)
+def seller_update_card_draft(
+    draft_id: UUID,
+    payload: SellerCardDraftUpdateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> CatalogIntakeItem:
+    draft = update_card_draft(db, seller, draft_id, payload)
+    db.commit()
+    return card_draft_to_item(draft)
+
+
+@router.post("/uploads/image", response_model=SellerImageUploadResponse, status_code=status.HTTP_201_CREATED)
+def seller_upload_image(
+    seller: Annotated[Seller, Depends(require_active_seller)],
+    file: Annotated[UploadFile, File()],
+) -> SellerImageUploadResponse:
+    image_url = save_seller_image(file, get_settings())
+    return SellerImageUploadResponse(image_url=image_url)
 
 

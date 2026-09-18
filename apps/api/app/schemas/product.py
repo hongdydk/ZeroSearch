@@ -6,6 +6,8 @@ from uuid import UUID
 
 
 
+from decimal import Decimal
+
 from pydantic import BaseModel, Field, field_validator
 
 
@@ -46,6 +48,12 @@ class ProductResponse(BaseModel):
 
     volume_ml: int | None = Field(default=None, alias="volumeMl")
 
+    unit_amount: float | None = Field(default=None, alias="unitAmount")
+
+    unit: str | None = None
+
+    pack_count: int = Field(default=1, alias="packCount")
+
     flavor: str | None = None
 
     seller: SellerSummary
@@ -65,6 +73,20 @@ class ProductResponse(BaseModel):
     def coerce_id(cls, value: UUID | str) -> str:
 
         return str(value)
+
+
+
+    @field_validator("unit_amount", mode="before")
+
+    @classmethod
+
+    def coerce_unit_amount(cls, value: Decimal | float | int | None) -> float | None:
+
+        if value is None:
+
+            return None
+
+        return float(value)
 
 
 

@@ -1,3 +1,4 @@
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -49,8 +50,8 @@ class _SellerProductDetailScreenState
   void _fill(ProductModel product) {
     _product = product;
     _hidden = sellerOfferIsHidden(product);
-    _price.text = product.priceCredits.toString();
-    _stock.text = product.stock.toString();
+    _price.text = product.hasSellablePrice ? product.priceCredits.toString() : '';
+    _stock.text = product.hasSellablePrice ? product.stock.toString() : '';
     _image.text = product.imageUrl ?? '';
   }
 
@@ -86,6 +87,30 @@ class _SellerProductDetailScreenState
       setState(() => _loading = false);
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
+  }
+
+  Future<void> _pickImage() async {
+    if (isBusy('photo')) return;
+    final picked = await FilePicker.platform.pickFiles(
+      type: FileType.image,
+      withData: true,
+    );
+    final file = picked?.files.single;
+    final bytes = file?.bytes;
+    if (file == null || bytes == null) return;
+    await runBusy('photo', () async {
+      try {
+        final url = await ref.read(apiClientProvider).sellerUploadImage(
+          bytes,
+          file.name,
+        );
+        if (!mounted) return;
+        setState(() => _image.text = url);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
   }
 
   void _goList() {
@@ -238,7 +263,9 @@ class _SellerProductDetailScreenState
                 if (product.status == 'draft') ...[
                   const SizedBox(height: 8),
                   Text(
-                    'MD 검수가 끝나기 전에는 구매자에게 공개되지 않습니다.',
+                    product.hasSellablePrice
+                        ? 'MD 검수가 끝나기 전에는 구매자에게 공개되지 않습니다.'
+                        : '가격·재고를 붙인 뒤에도 MD 검수가 끝나기 전에는 공개되지 않습니다.',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
@@ -267,7 +294,17 @@ class _SellerProductDetailScreenState
                   controller: _image,
                   decoration: const InputDecoration(
                     labelText: '사진 URL',
-                    hintText: 'https://',
+                    hintText: '파일을 올리거나 주소를 붙여 넣습니다',
+                  ),
+                ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: isBusy('photo') ? null : _pickImage,
+                    icon: isBusy('photo')
+                        ? busyProgress()
+                        : const Icon(Icons.photo_outlined),
+                    label: Text(isBusy('photo') ? '올리는 중…' : '사진 파일 올리기'),
                   ),
                 ),
                 SwitchListTile(

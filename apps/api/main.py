@@ -1,7 +1,10 @@
+from pathlib import Path
+
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.config import get_settings
 from app.database import SessionLocal
@@ -66,6 +69,10 @@ app.include_router(orders.router)
 app.include_router(payments.router)
 app.include_router(membership.router)
 app.include_router(seller.router)
+
+_uploads = Path(_settings.upload_dir)
+_uploads.mkdir(parents=True, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=str(_uploads)), name="uploads")
 
 
 @app.get("/")

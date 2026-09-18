@@ -28,6 +28,8 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_format: str = "text"
     log_file: str | None = None
+    upload_dir: str = "uploads"
+    upload_max_bytes: int = 5 * 1024 * 1024
 
 
 @lru_cache

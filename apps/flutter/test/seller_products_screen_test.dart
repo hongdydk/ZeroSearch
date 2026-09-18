@@ -59,6 +59,11 @@ class _SellerApi extends ApiClient {
     int? stock,
     String? imageUrl,
     String? status,
+    String? optionLabel,
+    double? unitAmount,
+    String? unit,
+    int? packCount,
+    String? flavor,
   }) async {
     patchCalls += 1;
     lastPatch = {
