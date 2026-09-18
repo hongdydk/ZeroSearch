@@ -21,6 +21,7 @@ from app.services.catalog_products import (
     list_catalog_products,
 )
 from app.services.guest_l1 import GUEST_L1_TAGS, default_axis_for
+from app.services.guest_l2 import l2s_for
 
 router = APIRouter(prefix="/catalog-products", tags=["catalog-products"])
 
@@ -49,7 +50,10 @@ OptionalVolumeMlMax = Annotated[
 @router.get("/guest-l1", response_model=GuestL1ListResponse)
 def get_guest_l1_categories() -> GuestL1ListResponse:
     return GuestL1ListResponse(
-        items=[GuestL1Item(name=name, default_axis=default_axis_for(name)) for name in GUEST_L1_TAGS]
+        items=[
+            GuestL1Item(name=name, default_axis=default_axis_for(name), l2s=list(l2s_for(name)))
+            for name in GUEST_L1_TAGS
+        ]
     )
 
 
@@ -57,10 +61,11 @@ def get_guest_l1_categories() -> GuestL1ListResponse:
 def get_guest_l1_facets(
     db: Annotated[Session, Depends(get_db)],
     l1_tag: Annotated[str | None, Query(alias="l1Tag")] = None,
+    l2_tag: Annotated[str | None, Query(alias="l2Tag")] = None,
     q: str | None = None,
     storage: str | None = None,
 ) -> GuestL1FacetsResponse:
-    payload = list_l1_facets(db, l1_tag=l1_tag, q=q, storage=storage)
+    payload = list_l1_facets(db, l1_tag=l1_tag, l2_tag=l2_tag, q=q, storage=storage)
     return GuestL1FacetsResponse.model_validate(payload)
 
 
@@ -72,6 +77,7 @@ def get_catalog_offers(
     category_major: Annotated[str | None, Query(alias="categoryMajor")] = None,
     category_mid: Annotated[str | None, Query(alias="categoryMid")] = None,
     l1_tag: Annotated[str | None, Query(alias="l1Tag")] = None,
+    l2_tag: Annotated[str | None, Query(alias="l2Tag")] = None,
     storage: str | None = None,
     brand: str | None = None,
     menu: str | None = None,
@@ -88,6 +94,7 @@ def get_catalog_offers(
         category_major=category_major,
         category_mid=category_mid,
         l1_tag=l1_tag,
+        l2_tag=l2_tag,
         storage=storage,
         brand=brand,
         menu=menu,
@@ -108,6 +115,7 @@ def get_catalog_products(
     category_major: Annotated[str | None, Query(alias="categoryMajor")] = None,
     category_mid: Annotated[str | None, Query(alias="categoryMid")] = None,
     l1_tag: Annotated[str | None, Query(alias="l1Tag")] = None,
+    l2_tag: Annotated[str | None, Query(alias="l2Tag")] = None,
     storage: str | None = None,
     brand: str | None = None,
     menu: str | None = None,
@@ -124,6 +132,7 @@ def get_catalog_products(
         category_major=category_major,
         category_mid=category_mid,
         l1_tag=l1_tag,
+        l2_tag=l2_tag,
         storage=storage,
         brand=brand,
         menu=menu,

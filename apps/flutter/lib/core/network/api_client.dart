@@ -164,6 +164,7 @@ class ApiClient {
     String? categoryMajor,
     String? categoryMid,
     String? l1Tag,
+    String? l2Tag,
     String? storage,
     String? brand,
     String? menu,
@@ -184,6 +185,7 @@ class ApiClient {
           if (categoryMid != null && categoryMid.isNotEmpty)
             'categoryMid': categoryMid,
           if (l1Tag != null && l1Tag.isNotEmpty) 'l1Tag': l1Tag,
+          if (l2Tag != null && l2Tag.isNotEmpty) 'l2Tag': l2Tag,
           if (storage != null && storage.isNotEmpty) 'storage': storage,
           if (brand != null && brand.isNotEmpty) 'brand': brand,
           if (menu != null && menu.isNotEmpty) 'menu': menu,
@@ -224,6 +226,7 @@ class ApiClient {
     String? categoryMajor,
     String? categoryMid,
     String? l1Tag,
+    String? l2Tag,
     String? storage,
     String? brand,
     String? menu,
@@ -244,6 +247,7 @@ class ApiClient {
           if (categoryMid != null && categoryMid.isNotEmpty)
             'categoryMid': categoryMid,
           if (l1Tag != null && l1Tag.isNotEmpty) 'l1Tag': l1Tag,
+          if (l2Tag != null && l2Tag.isNotEmpty) 'l2Tag': l2Tag,
           if (storage != null && storage.isNotEmpty) 'storage': storage,
           if (brand != null && brand.isNotEmpty) 'brand': brand,
           if (menu != null && menu.isNotEmpty) 'menu': menu,
@@ -273,6 +277,7 @@ class ApiClient {
 
   Future<GuestL1FacetsModel> guestL1Facets({
     String? l1Tag,
+    String? l2Tag,
     String? q,
     String? storage,
   }) async {
@@ -281,6 +286,7 @@ class ApiClient {
         'catalog-products/guest-l1/facets',
         queryParameters: {
           if (l1Tag != null && l1Tag.isNotEmpty) 'l1Tag': l1Tag,
+          if (l2Tag != null && l2Tag.isNotEmpty) 'l2Tag': l2Tag,
           if (q != null && q.isNotEmpty) 'q': q,
           if (storage != null && storage.isNotEmpty) 'storage': storage,
         },

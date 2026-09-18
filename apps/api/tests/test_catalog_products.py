@@ -283,6 +283,17 @@ def test_guest_l1_list_has_fifteen_overlapping_names(client):
     ]
     assert items[3]["defaultAxis"] == "brand"
     assert items[6]["defaultAxis"] == "menu"
+    assert items[0]["l2s"] == [
+        "생수",
+        "탄산·이온·스포츠",
+        "주스·과채",
+        "전통음료",
+        "병·캔 커피·차",
+        "기타음료",
+    ]
+    assert items[3]["l2s"] == ["봉지라면", "컵·용기면", "국수·당면·파스타", "냉면·기타면"]
+    for row in items:
+        assert 3 <= len(row["l2s"]) <= 7
 
 
 def test_list_catalog_products_l1_query(client):
@@ -304,6 +315,25 @@ def test_list_catalog_products_l1_query(client):
     assert kwargs["storage"] == "상온"
 
 
+def test_list_catalog_products_l2_query(client):
+    override_db(MagicMock())
+    with patch(
+        "app.routers.catalog_products.list_catalog_products",
+        return_value=CatalogListResult(
+            items=[], total=0, available_flavors=[], has_volume_min_2000=False
+        ),
+    ) as mock_list:
+        response = client.get(
+            "/catalog-products",
+            params={"l1Tag": "라면/면류", "l2Tag": "봉지라면", "brand": "농심"},
+        )
+    assert response.status_code == 200
+    _, kwargs = mock_list.call_args
+    assert kwargs["l1_tag"] == "라면/면류"
+    assert kwargs["l2_tag"] == "봉지라면"
+    assert kwargs["brand"] == "농심"
+
+
 def test_guest_l1_facets(client):
     override_db(MagicMock())
     payload = {
@@ -319,6 +349,30 @@ def test_guest_l1_facets(client):
     assert body["l1Tag"] == "라면/면류"
     assert body["brands"][0]["name"] == "농심"
     assert body["menus"][0]["name"] == "신라면"
+
+
+def test_guest_l1_facets_passes_l2_query(client):
+    override_db(MagicMock())
+    payload = {
+        "l1_tag": "라면/면류",
+        "l2_tag": "봉지라면",
+        "l2s": ["봉지라면", "컵·용기면", "국수·당면·파스타", "냉면·기타면"],
+        "default_axis": "brand",
+        "brands": [{"name": "농심", "count": 2}],
+        "menus": [{"name": "신라면", "count": 1}],
+    }
+    with patch(
+        "app.routers.catalog_products.list_l1_facets", return_value=payload
+    ) as mock_facets:
+        response = client.get(
+            "/catalog-products/guest-l1/facets",
+            params={"l1Tag": "라면/면류", "l2Tag": "봉지라면"},
+        )
+    assert response.status_code == 200
+    _, kwargs = mock_facets.call_args
+    assert kwargs["l1_tag"] == "라면/면류"
+    assert kwargs["l2_tag"] == "봉지라면"
+    assert response.json()["l2Tag"] == "봉지라면"
 
 
 def test_guest_l1_facets_accepts_search_query(client):
@@ -357,6 +411,22 @@ def test_unknown_l1_filter_is_fail_closed_not_brand_only():
     sql = str(stmt.compile(dialect=postgresql.dialect()))
     assert "false" in sql.lower()
     # 잘린 l1을 무시하면 브랜드 전 카탈로그 매칭이 된다.
+
+
+def test_unknown_l2_filter_is_fail_closed():
+    stmt = select(CatalogProduct).where(
+        *_catalog_search_filter(None, None, l1_tag="라면/면류", l2_tag="생수")
+    )
+    sql = str(stmt.compile(dialect=postgresql.dialect()))
+    assert "false" in sql.lower()
+
+
+def test_l2_without_l1_is_fail_closed():
+    stmt = select(CatalogProduct).where(
+        *_catalog_search_filter(None, None, l2_tag="봉지라면", brand="농심")
+    )
+    sql = str(stmt.compile(dialect=postgresql.dialect()))
+    assert "false" in sql.lower()
 
 
 def test_pick_identity_survivors_collapses_samdasoo_like_duplicates():
