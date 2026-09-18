@@ -12,6 +12,7 @@ import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/async_busy.dart';
+import '../../shared/widgets/catalog_browse_card.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/portal_workspace.dart';
 import 'admin_dashboard.dart';
@@ -801,6 +802,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         const SizedBox(height: 18),
         AdminCatalogItemsPanel(
           items: _dash.catalogItems,
+          total: _dash.catalogTotal,
+          offset: _dash.catalogOffset,
+          limit: _dash.catalogLimit,
+          l1Tag: _dash.catalogL1Tag,
+          includeRetired: _dash.catalogIncludeRetired,
           loading: _dash.catalogItemsLoading && _dash.catalogItems.isEmpty,
           pageLocked: _pageLocked,
           queryController: _catalogSearchCtrl,
@@ -810,9 +816,51 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
               _dashNotifier.loadCatalogItems(
                 force: true,
                 q: _catalogSearchCtrl.text.trim(),
+                offset: 0,
               ),
             );
           },
+          onQueryChanged: _dashNotifier.searchCatalog,
+          onL1Tag: (tag) {
+            unawaited(
+              _dashNotifier.loadCatalogItems(
+                force: true,
+                l1Tag: tag ?? '',
+                offset: 0,
+              ),
+            );
+          },
+          onIncludeRetired: (value) {
+            unawaited(
+              _dashNotifier.loadCatalogItems(
+                force: true,
+                includeRetired: value,
+                offset: 0,
+              ),
+            );
+          },
+          onPrev: _dash.catalogOffset <= 0
+              ? null
+              : () {
+                  final prev = _dash.catalogOffset - _dash.catalogLimit;
+                  unawaited(
+                    _dashNotifier.loadCatalogItems(
+                      force: true,
+                      offset: prev < 0 ? 0 : prev,
+                    ),
+                  );
+                },
+          onNext: _dash.catalogOffset + _dash.catalogItems.length >=
+                  _dash.catalogTotal
+              ? null
+              : () {
+                  unawaited(
+                    _dashNotifier.loadCatalogItems(
+                      force: true,
+                      offset: _dash.catalogOffset + _dash.catalogLimit,
+                    ),
+                  );
+                },
           onAdd: _addCatalogItem,
           onDelete: _deleteCatalogItem,
         ),
@@ -1492,50 +1540,102 @@ class AdminCatalogItemsPanel extends StatelessWidget {
   const AdminCatalogItemsPanel({
     super.key,
     required this.items,
+    required this.total,
+    required this.offset,
+    required this.limit,
+    required this.l1Tag,
+    required this.includeRetired,
     required this.pageLocked,
     required this.queryController,
     required this.isRowBusy,
     required this.onSearch,
+    required this.onQueryChanged,
+    required this.onL1Tag,
+    required this.onIncludeRetired,
     required this.onAdd,
     required this.onDelete,
+    this.onPrev,
+    this.onNext,
     this.loading = false,
   });
 
   final List<AdminCatalogProductModel> items;
+  final int total;
+  final int offset;
+  final int limit;
+  final String l1Tag;
+  final bool includeRetired;
   final bool pageLocked;
   final TextEditingController queryController;
   final bool Function(String id) isRowBusy;
   final VoidCallback onSearch;
+  final ValueChanged<String> onQueryChanged;
+  final ValueChanged<String?> onL1Tag;
+  final ValueChanged<bool> onIncludeRetired;
   final VoidCallback onAdd;
   final void Function(AdminCatalogProductModel item) onDelete;
+  final VoidCallback? onPrev;
+  final VoidCallback? onNext;
   final bool loading;
+
+  String get _rangeLabel {
+    if (total == 0) return '0건';
+    final from = offset + 1;
+    final to = offset + items.length;
+    return '$from–$to / $total건';
+  }
 
   @override
   Widget build(BuildContext context) {
     return PortalSection(
-      title: '대표 카드 ${items.length}건',
+      title: '대표 카드 $total건',
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Row(
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Expanded(
+                SizedBox(
+                  width: 320,
                   child: TextField(
                     controller: queryController,
                     decoration: const InputDecoration(
                       labelText: '회사·품목·종류 검색',
+                      hintText: '백산수, 농심, 생수',
                     ),
+                    onChanged: onQueryChanged,
                     onSubmitted: (_) => onSearch(),
                   ),
                 ),
-                const SizedBox(width: 8),
                 FilledButton.tonal(
                   onPressed: pageLocked ? null : onSearch,
                   child: const Text('검색'),
                 ),
-                const SizedBox(width: 8),
+                DropdownButton<String?>(
+                  value: l1Tag.isEmpty ? null : l1Tag,
+                  hint: const Text('1차 분류'),
+                  onChanged: pageLocked ? null : onL1Tag,
+                  items: [
+                    const DropdownMenuItem<String?>(
+                      value: null,
+                      child: Text('전체 1차'),
+                    ),
+                    for (final category in kGuestL1Categories)
+                      DropdownMenuItem<String?>(
+                        value: category.name,
+                        child: Text(category.name),
+                      ),
+                  ],
+                ),
+                FilterChip(
+                  label: const Text('삭제한 카드'),
+                  selected: includeRetired,
+                  onSelected: pageLocked ? null : onIncludeRetired,
+                ),
                 FilledButton(
                   onPressed: pageLocked ? null : onAdd,
                   child: const Text('카드 추가'),
@@ -1543,6 +1643,24 @@ class AdminCatalogItemsPanel extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 12),
+            Row(
+              children: [
+                Text(
+                  _rangeLabel,
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const Spacer(),
+                TextButton(
+                  onPressed: pageLocked ? null : onPrev,
+                  child: const Text('이전'),
+                ),
+                TextButton(
+                  onPressed: pageLocked ? null : onNext,
+                  child: const Text('다음'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             if (loading)
               const Padding(
                 padding: EdgeInsets.all(18),
@@ -1554,21 +1672,55 @@ class AdminCatalogItemsPanel extends StatelessWidget {
                 child: Text('표시할 카드가 없습니다. 검색하거나 카드를 추가하세요.'),
               )
             else
-              for (final item in items)
-                ListTile(
-                  title: Text(item.cardTitle),
-                  subtitle: Text(
-                    '${item.category} · 오퍼 ${item.publishedOfferCount}/${item.offerCount}',
-                  ),
-                  trailing: TextButton(
-                    onPressed: pageLocked || isRowBusy(item.id)
-                        ? null
-                        : () => onDelete(item),
-                    child: isRowBusy(item.id)
-                        ? busyProgress()
-                        : const Text('삭제'),
-                  ),
-                ),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final width = constraints.maxWidth;
+                  final columns = width >= 980
+                      ? 4
+                      : width >= 720
+                          ? 3
+                          : 2;
+                  return GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: items.length,
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: columns,
+                      childAspectRatio: 0.62,
+                      crossAxisSpacing: 10,
+                      mainAxisSpacing: 10,
+                    ),
+                    itemBuilder: (context, index) {
+                      final item = items[index];
+                      return CatalogBrowseCard(
+                        title: item.title,
+                        cardTitle: item.cardTitle,
+                        offerCount: item.publishedOfferCount,
+                        priceUnit: item.priceUnit,
+                        displayPriceLabel: item.displayPriceLabel,
+                        imageUrl: item.imageUrl,
+                        medianUnitPrice: item.medianUnitPrice,
+                        medianPriceCredits: item.medianPriceCredits,
+                        shopCount: item.shopCount,
+                        statusLabel: item.isRetired ? '삭제됨' : null,
+                        action: Align(
+                          alignment: Alignment.centerLeft,
+                          child: TextButton(
+                            onPressed: pageLocked ||
+                                    isRowBusy(item.id) ||
+                                    item.isRetired
+                                ? null
+                                : () => onDelete(item),
+                            child: isRowBusy(item.id)
+                                ? busyProgress()
+                                : const Text('삭제'),
+                          ),
+                        ),
+                      );
+                    },
+                  );
+                },
+              ),
           ],
         ),
       ),

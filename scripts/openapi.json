@@ -140,6 +140,11 @@
             ],
             "title": "Createdat"
           },
+          "displayPriceLabel": {
+            "default": "원",
+            "title": "Displaypricelabel",
+            "type": "string"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -167,12 +172,48 @@
             "title": "Manufacturer",
             "type": "string"
           },
+          "medianPriceCredits": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medianpricecredits"
+          },
+          "medianUnitPrice": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medianunitprice"
+          },
           "offerCount": {
             "title": "Offercount",
             "type": "integer"
           },
+          "priceUnit": {
+            "default": "credits",
+            "enum": [
+              "ml",
+              "credits"
+            ],
+            "title": "Priceunit",
+            "type": "string"
+          },
           "publishedOfferCount": {
             "title": "Publishedoffercount",
+            "type": "integer"
+          },
+          "shopCount": {
+            "default": 0,
+            "title": "Shopcount",
             "type": "integer"
           },
           "status": {
@@ -203,6 +244,16 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "limit": {
+            "default": 50,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
           },
           "total": {
             "title": "Total",
@@ -3917,6 +3968,23 @@
               "default": false,
               "title": "Includeretired",
               "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "l1Tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 40,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "L1Tag"
             }
           },
           {

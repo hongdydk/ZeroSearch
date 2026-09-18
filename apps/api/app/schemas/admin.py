@@ -4,6 +4,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.catalog_product import PriceUnit
+
 
 class AdminStatsResponse(BaseModel):
     user_count: int = Field(alias="userCount")
@@ -173,6 +175,11 @@ class AdminCatalogProductItem(BaseModel):
     status: str
     offer_count: int = Field(alias="offerCount")
     published_offer_count: int = Field(alias="publishedOfferCount")
+    shop_count: int = Field(default=0, alias="shopCount")
+    median_unit_price: float | None = Field(default=None, alias="medianUnitPrice")
+    median_price_credits: int | None = Field(default=None, alias="medianPriceCredits")
+    price_unit: PriceUnit = Field(default="credits", alias="priceUnit")
+    display_price_label: str = Field(default="원", alias="displayPriceLabel")
     image_url: str | None = Field(default=None, alias="imageUrl")
     l1_tags: list[str] = Field(default_factory=list, alias="l1Tags")
     created_at: datetime | None = Field(default=None, alias="createdAt")
@@ -188,5 +195,7 @@ class AdminCatalogProductItem(BaseModel):
 class AdminCatalogProductListResponse(BaseModel):
     items: list[AdminCatalogProductItem]
     total: int
+    offset: int = 0
+    limit: int = 50
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}

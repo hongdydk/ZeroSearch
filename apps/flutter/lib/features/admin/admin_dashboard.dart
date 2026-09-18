@@ -64,6 +64,12 @@ class AdminDashboardState {
     this.orderItems = const [],
     this.catalogDrafts = const [],
     this.catalogItems = const [],
+    this.catalogTotal = 0,
+    this.catalogOffset = 0,
+    this.catalogLimit = 24,
+    this.catalogQuery = '',
+    this.catalogL1Tag = '',
+    this.catalogIncludeRetired = false,
     this.statsLoading = false,
     this.usersLoading = false,
     this.sellersLoading = false,
@@ -87,6 +93,12 @@ class AdminDashboardState {
   final List<SellerOrderItemModel> orderItems;
   final List<IntakeDraftModel> catalogDrafts;
   final List<AdminCatalogProductModel> catalogItems;
+  final int catalogTotal;
+  final int catalogOffset;
+  final int catalogLimit;
+  final String catalogQuery;
+  final String catalogL1Tag;
+  final bool catalogIncludeRetired;
   final bool statsLoading;
   final bool usersLoading;
   final bool sellersLoading;
@@ -110,6 +122,12 @@ class AdminDashboardState {
     List<SellerOrderItemModel>? orderItems,
     List<IntakeDraftModel>? catalogDrafts,
     List<AdminCatalogProductModel>? catalogItems,
+    int? catalogTotal,
+    int? catalogOffset,
+    int? catalogLimit,
+    String? catalogQuery,
+    String? catalogL1Tag,
+    bool? catalogIncludeRetired,
     bool? statsLoading,
     bool? usersLoading,
     bool? sellersLoading,
@@ -134,6 +152,13 @@ class AdminDashboardState {
       orderItems: orderItems ?? this.orderItems,
       catalogDrafts: catalogDrafts ?? this.catalogDrafts,
       catalogItems: catalogItems ?? this.catalogItems,
+      catalogTotal: catalogTotal ?? this.catalogTotal,
+      catalogOffset: catalogOffset ?? this.catalogOffset,
+      catalogLimit: catalogLimit ?? this.catalogLimit,
+      catalogQuery: catalogQuery ?? this.catalogQuery,
+      catalogL1Tag: catalogL1Tag ?? this.catalogL1Tag,
+      catalogIncludeRetired:
+          catalogIncludeRetired ?? this.catalogIncludeRetired,
       statsLoading: statsLoading ?? this.statsLoading,
       usersLoading: usersLoading ?? this.usersLoading,
       sellersLoading: sellersLoading ?? this.sellersLoading,
@@ -155,12 +180,16 @@ class AdminDashboardState {
 class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
   final _orderInFlight = <String>{};
   Timer? _userSearchTimer;
+  Timer? _catalogSearchTimer;
 
   ApiClient get _api => ref.read(apiClientProvider);
 
   @override
   AdminDashboardState build() {
-    ref.onDispose(() => _userSearchTimer?.cancel());
+    ref.onDispose(() {
+      _userSearchTimer?.cancel();
+      _catalogSearchTimer?.cancel();
+    });
     return const AdminDashboardState();
   }
 
@@ -254,13 +283,47 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
     }
   }
 
-  Future<void> loadCatalogItems({bool force = false, String? q}) async {
-    if (state.catalogItemsLoaded && !force && q == null) return;
-    state = state.copyWith(catalogItemsLoading: !state.catalogItemsLoaded);
+  Future<void> loadCatalogItems({
+    bool force = false,
+    String? q,
+    int? offset,
+    bool? includeRetired,
+    String? l1Tag,
+  }) async {
+    final nextQuery = q ?? state.catalogQuery;
+    final nextRetired = includeRetired ?? state.catalogIncludeRetired;
+    final nextTag = l1Tag ?? state.catalogL1Tag;
+    final filtersChanged = nextQuery != state.catalogQuery ||
+        nextRetired != state.catalogIncludeRetired ||
+        nextTag != state.catalogL1Tag;
+    final nextOffset = offset ?? (filtersChanged ? 0 : state.catalogOffset);
+    if (state.catalogItemsLoaded &&
+        !force &&
+        !filtersChanged &&
+        nextOffset == state.catalogOffset) {
+      return;
+    }
+    state = state.copyWith(
+      catalogItemsLoading: !state.catalogItemsLoaded || force,
+      catalogQuery: nextQuery,
+      catalogIncludeRetired: nextRetired,
+      catalogL1Tag: nextTag,
+      catalogOffset: nextOffset,
+      catalogItems: filtersChanged ? const [] : state.catalogItems,
+    );
     try {
-      final items = await _api.adminCatalogProducts(q: q);
+      final page = await _api.adminCatalogProducts(
+        q: nextQuery,
+        includeRetired: nextRetired,
+        l1Tag: nextTag,
+        offset: nextOffset,
+        limit: state.catalogLimit,
+      );
       state = state.copyWith(
-        catalogItems: items,
+        catalogItems: page.items,
+        catalogTotal: page.total,
+        catalogOffset: page.offset,
+        catalogLimit: page.limit,
         catalogItemsLoading: false,
         catalogItemsLoaded: true,
       );
@@ -270,6 +333,13 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
         catalogItemsLoaded: true,
       );
     }
+  }
+
+  void searchCatalog(String query) {
+    _catalogSearchTimer?.cancel();
+    _catalogSearchTimer = Timer(const Duration(milliseconds: 300), () {
+      unawaited(loadCatalogItems(force: true, q: query.trim(), offset: 0));
+    });
   }
 
   Future<void> loadUsers({bool force = false, String? q}) async {
@@ -401,27 +471,39 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
     required String category,
     String? description,
   }) async {
-    final created = await _api.adminCreateCatalogProduct(
+    await _api.adminCreateCatalogProduct(
       manufacturer: manufacturer,
       title: title,
       category: category,
       description: description,
     );
-    state = state.copyWith(catalogItems: [created, ...state.catalogItems]);
+    await loadCatalogItems(force: true, offset: 0);
   }
 
   Future<void> deleteCatalogItem(String id) async {
     final previous = state.catalogItems;
+    final previousTotal = state.catalogTotal;
     state = state.copyWith(
       catalogItems: [
         for (final item in previous)
           if (item.id != id) item,
       ],
+      catalogTotal: previousTotal > 0 ? previousTotal - 1 : 0,
     );
     try {
       await _api.adminDeleteCatalogProduct(id);
+      if (state.catalogItems.isEmpty && state.catalogOffset > 0) {
+        final prevOffset = state.catalogOffset - state.catalogLimit;
+        await loadCatalogItems(
+          force: true,
+          offset: prevOffset < 0 ? 0 : prevOffset,
+        );
+      }
     } catch (_) {
-      state = state.copyWith(catalogItems: previous);
+      state = state.copyWith(
+        catalogItems: previous,
+        catalogTotal: previousTotal,
+      );
       rethrow;
     }
   }

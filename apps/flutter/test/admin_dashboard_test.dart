@@ -75,14 +75,32 @@ class _AdminApi extends ApiClient {
   }
 
   int catalogItemCalls = 0;
+  int lastCatalogOffset = 0;
+  String? lastCatalogQuery;
+  String? lastCatalogL1Tag;
+  bool lastIncludeRetired = false;
+  List<AdminCatalogProductModel> catalogItems = const [];
+  int catalogTotal = 0;
 
   @override
-  Future<List<AdminCatalogProductModel>> adminCatalogProducts({
+  Future<AdminCatalogProductPageModel> adminCatalogProducts({
     String? q,
     bool includeRetired = false,
+    String? l1Tag,
+    int offset = 0,
+    int limit = 24,
   }) async {
     catalogItemCalls += 1;
-    return const [];
+    lastCatalogOffset = offset;
+    lastCatalogQuery = q;
+    lastCatalogL1Tag = l1Tag;
+    lastIncludeRetired = includeRetired;
+    return AdminCatalogProductPageModel(
+      items: catalogItems,
+      total: catalogTotal,
+      offset: offset,
+      limit: limit,
+    );
   }
 
   @override
@@ -235,5 +253,38 @@ void main() {
       'displayName': '구매이름',
       'sellerName': '청정마트',
     });
+  });
+
+  test('admin catalog pagination requests next offset and keeps query', () async {
+    final api = _AdminApi();
+    api.catalogTotal = 80;
+    api.catalogItems = [
+      AdminCatalogProductModel(
+        id: 'c1',
+        title: '백산수',
+        manufacturer: '농심',
+        category: '생수',
+        status: 'active',
+        offerCount: 2,
+        publishedOfferCount: 2,
+        shopCount: 2,
+      ),
+    ];
+    final container = ProviderContainer(
+      overrides: [apiClientProvider.overrideWithValue(api)],
+    );
+    addTearDown(container.dispose);
+    final dash = container.read(adminDashboardProvider.notifier);
+
+    await dash.ensureSection(AdminSection.catalog);
+    expect(api.catalogItemCalls, 1);
+    expect(api.lastCatalogOffset, 0);
+    expect(container.read(adminDashboardProvider).catalogTotal, 80);
+
+    await dash.loadCatalogItems(force: true, q: '백산', offset: 24);
+    expect(api.catalogItemCalls, 2);
+    expect(api.lastCatalogOffset, 24);
+    expect(api.lastCatalogQuery, '백산');
+    expect(container.read(adminDashboardProvider).catalogOffset, 24);
   });
 }

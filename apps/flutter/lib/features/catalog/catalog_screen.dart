@@ -5,7 +5,6 @@ import 'package:go_router/go_router.dart';
 import '../../core/catalog/browse_location.dart';
 import '../../core/catalog/guest_l1.dart';
 import '../../core/catalog/table_taxonomy.dart';
-import '../../core/format/price_format.dart';
 import '../../core/layout/ui_platform.dart';
 import '../../core/models/models.dart';
 import '../../core/providers/app_providers.dart';
@@ -13,7 +12,7 @@ import '../../core/routing/app_back_navigation.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/theme/mall_tokens.dart';
 import '../../shared/widgets/mall_info_banner.dart';
-import '../../shared/widgets/product_image.dart';
+import '../../shared/widgets/catalog_browse_card.dart';
 import 'guest_l1_axis_view.dart';
 
 class CatalogScreen extends ConsumerStatefulWidget {
@@ -646,7 +645,20 @@ class _CatalogProductGridState extends State<_CatalogProductGrid> {
               mainAxisSpacing: 10,
             ),
             delegate: SliverChildBuilderDelegate(
-              (context, index) => _CatalogCard(item: widget.items[index]),
+              (context, index) {
+                final item = widget.items[index];
+                return CatalogBrowseCard(
+                  title: item.title,
+                  cardTitle: item.cardTitle,
+                  offerCount: item.offerCount,
+                  priceUnit: item.priceUnit,
+                  displayPriceLabel: item.displayPriceLabel,
+                  imageUrl: item.imageUrl,
+                  medianUnitPrice: item.medianUnitPrice,
+                  medianPriceCredits: item.medianPriceCredits,
+                  onTap: () => openDetailRoute(context, '/catalog/${item.id}'),
+                );
+              },
               childCount: widget.items.length,
             ),
           ),
@@ -1935,100 +1947,3 @@ class _FilterChips extends StatelessWidget {
   }
 }
 
-class _CatalogCard extends StatelessWidget {
-  const _CatalogCard({required this.item});
-
-  final CatalogProductModel item;
-
-  @override
-  Widget build(BuildContext context) {
-    final hasPrice =
-        item.medianUnitPrice != null || item.medianPriceCredits != null;
-    final priceLabel = formatCatalogRepresentativePrice(
-      priceUnit: item.priceUnit,
-      displayPriceLabel: item.displayPriceLabel,
-      medianUnitPrice: item.medianUnitPrice,
-      medianPriceCredits: item.medianPriceCredits,
-    );
-
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: () => openDetailRoute(context, '/catalog/${item.id}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Expanded(child: _CardThumb(item: item)),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Text(
-                    item.cardTitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    priceLabel,
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          fontWeight: hasPrice ? FontWeight.w700 : FontWeight.w500,
-                          color: hasPrice
-                              ? AppTheme.priceBurgundy
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    item.offerCount > 0 ? '오퍼 ${item.offerCount}' : '오퍼 없음',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _CardThumb extends StatelessWidget {
-  const _CardThumb({required this.item});
-
-  final CatalogProductModel item;
-
-  @override
-  Widget build(BuildContext context) {
-    if (item.imageUrl != null && item.imageUrl!.isNotEmpty) {
-      return ProductImage(imageUrl: item.imageUrl, title: item.title);
-    }
-
-    return DecoratedBox(
-      decoration: const BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-          colors: [Color(0xFFD5E2E0), Color(0xFFEFF5F5)],
-        ),
-      ),
-      child: Center(
-        child: Text(
-          item.title.isNotEmpty ? item.title.substring(0, 1) : '?',
-          style: const TextStyle(
-            fontSize: 36,
-            fontWeight: FontWeight.w600,
-            color: AppTheme.brandTeal,
-          ),
-        ),
-      ),
-    );
-  }
-}
