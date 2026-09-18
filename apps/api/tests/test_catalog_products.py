@@ -392,6 +392,73 @@ def test_pick_identity_survivors_collapses_samdasoo_like_duplicates():
     assert survivors == [offered, other_maker]
 
 
+def test_pick_identity_collapses_gamtul_near_duplicate_titles():
+    short = uuid.uuid4()
+    repeated = uuid.uuid4()
+    other_line = uuid.uuid4()
+    survivors = pick_identity_survivor_ids(
+        [
+            CatalogIdentityRow(
+                id=short,
+                manufacturer="롯데칠성음료",
+                title="롯데제주사랑감귤",
+                offer_count=0,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=repeated,
+                manufacturer="롯데칠성음료",
+                title="롯데제주사랑감귤사랑",
+                offer_count=0,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=other_line,
+                manufacturer="롯데칠성음료",
+                title="롯데쌕쌕제주감귤캔",
+                offer_count=0,
+                created_at=None,
+            ),
+        ]
+    )
+    assert len(survivors) == 2
+    assert other_line in survivors
+    assert {short, repeated} & set(survivors)
+    assert not {short, repeated} <= set(survivors)
+
+
+def test_pick_identity_collapses_equivalent_volume_spellings():
+    liter = uuid.uuid4()
+    milli = uuid.uuid4()
+    other = uuid.uuid4()
+    survivors = pick_identity_survivor_ids(
+        [
+            CatalogIdentityRow(
+                id=liter,
+                manufacturer="제주특별자치도개발공사",
+                title="제주삼다수1리터",
+                offer_count=0,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=milli,
+                manufacturer="제주특별자치도개발공사",
+                title="제주삼다수1000ml",
+                offer_count=1,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=other,
+                manufacturer="농심",
+                title="제주삼다수1L",
+                offer_count=0,
+                created_at=None,
+            ),
+        ]
+    )
+    assert survivors == [milli, other]
+
+
 def test_pick_identity_keeps_unique_zero_offer_card():
     only = uuid.uuid4()
     assert pick_identity_survivor_ids(

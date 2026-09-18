@@ -60,6 +60,15 @@ def test_csv_full_dry_run_canonical_reduces_cards():
     pringles = [g for g in groups if "프링글스" in g.canonical_title or any("프링글스" in m.raw_title for m in g.members)]
     if pringles:
         assert any(len(g.members) >= 2 or len(g.reference_variants) >= 2 for g in pringles)
+    gamtul = [
+        g
+        for g in groups
+        if g.manufacturer == "롯데칠성음료"
+        and any("롯데제주사랑감귤" in m.raw_title for m in g.members)
+    ]
+    assert len(gamtul) == 1
+    assert len(gamtul[0].members) >= 4
+    assert gamtul[0].canonical_title == "롯데제주사랑감귤"
 
 
 def test_resolve_catalog_product_via_alias():
