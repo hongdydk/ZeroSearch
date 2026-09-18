@@ -218,15 +218,70 @@ class ApiClient {
     }
   }
 
+  Future<CatalogOfferBrowsePageModel> catalogOffers({
+    String? q,
+    String? category,
+    String? categoryMajor,
+    String? categoryMid,
+    String? l1Tag,
+    String? storage,
+    String? brand,
+    String? menu,
+    String? flavor,
+    int? volumeMlMin,
+    int? volumeMlMax,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'catalog-products/offers',
+        queryParameters: {
+          if (q != null && q.isNotEmpty) 'q': q,
+          if (category != null && category.isNotEmpty) 'category': category,
+          if (categoryMajor != null && categoryMajor.isNotEmpty)
+            'categoryMajor': categoryMajor,
+          if (categoryMid != null && categoryMid.isNotEmpty)
+            'categoryMid': categoryMid,
+          if (l1Tag != null && l1Tag.isNotEmpty) 'l1Tag': l1Tag,
+          if (storage != null && storage.isNotEmpty) 'storage': storage,
+          if (brand != null && brand.isNotEmpty) 'brand': brand,
+          if (menu != null && menu.isNotEmpty) 'menu': menu,
+          if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
+          if (volumeMlMin != null) 'volumeMlMin': volumeMlMin,
+          if (volumeMlMax != null) 'volumeMlMax': volumeMlMax,
+          'offset': offset,
+          'limit': limit,
+        },
+      );
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      final total = response.data?['total'] as int? ?? items.length;
+      return CatalogOfferBrowsePageModel(
+        items: items
+            .whereType<Map>()
+            .map(
+              (e) =>
+                  CatalogOfferBrowseModel.fromJson(Map<String, dynamic>.from(e)),
+            )
+            .toList(),
+        total: total,
+      );
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<GuestL1FacetsModel> guestL1Facets({
-    required String l1Tag,
+    String? l1Tag,
+    String? q,
     String? storage,
   }) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
         'catalog-products/guest-l1/facets',
         queryParameters: {
-          'l1Tag': l1Tag,
+          if (l1Tag != null && l1Tag.isNotEmpty) 'l1Tag': l1Tag,
+          if (q != null && q.isNotEmpty) 'q': q,
           if (storage != null && storage.isNotEmpty) 'storage': storage,
         },
       );

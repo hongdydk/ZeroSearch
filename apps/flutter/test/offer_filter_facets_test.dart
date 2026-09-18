@@ -27,4 +27,16 @@ void main() {
       isFalse,
     );
   });
+
+  test('browseLocation keeps axis=seller without collapsing to brand', () {
+    final l1Uri = Uri.parse(browseLocation(l1: '라면/면류', axis: 'seller'));
+    expect(l1Uri.queryParameters['l1'], '라면/면류');
+    expect(l1Uri.queryParameters['axis'], 'seller');
+    expect(l1Uri.queryParameters.containsKey('brand'), isFalse);
+    expect(l1Uri.queryParameters.containsKey('menu'), isFalse);
+
+    final searchUri = Uri.parse(browseLocation(q: '신라면', axis: 'seller'));
+    expect(searchUri.queryParameters['q'], '신라면');
+    expect(searchUri.queryParameters['axis'], 'seller');
+  });
 }

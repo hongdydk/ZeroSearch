@@ -10,9 +10,9 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 
-from app.models import CatalogProduct
+from app.models import CatalogProduct, Product, Seller, User
 from app.services.catalog_l1 import apply_auto_l1_tags, list_l1_facets
-from app.services.catalog_products import list_catalog_products
+from app.services.catalog_products import list_catalog_offers, list_catalog_products
 from app.services.guest_l1 import TAG_WATER
 
 
@@ -110,6 +110,89 @@ def test_pg_l1_facets_omit_brand_with_no_tagged_cards():
         menu_empty = list_catalog_products(db, l1_tag=TAG_WATER, menu=menu)
         assert menu_empty.items == []
         assert menu_empty.total == 0
+    finally:
+        db.rollback()
+        db.close()
+        engine.dispose()
+
+
+def _pg_user_seller(db: Session, *, shop_name: str, seller_type: str = "merchant") -> Seller:
+    user = User(
+        id=uuid.uuid4(),
+        email=f"offer-axis-{uuid.uuid4().hex[:10]}@example.com",
+        password_hash="x",
+        display_name=shop_name,
+    )
+    db.add(user)
+    db.flush()
+    seller = Seller(
+        id=uuid.uuid4(),
+        user_id=user.id,
+        shop_name=shop_name,
+        slug=f"offer-axis-{uuid.uuid4().hex[:10]}",
+        status="active",
+        seller_type=seller_type,
+    )
+    db.add(seller)
+    db.flush()
+    return seller
+
+
+def _pg_offer(catalog: CatalogProduct, seller: Seller, *, price_credits: int) -> Product:
+    offer = Product(
+        id=uuid.uuid4(),
+        seller_id=seller.id,
+        catalog_product_id=catalog.id,
+        title=catalog.title,
+        price_credits=price_credits,
+        stock=8,
+        category=catalog.category,
+        status="published",
+    )
+    offer.created_at = datetime.now(UTC)
+    return offer
+
+
+def test_pg_seller_axis_lists_one_card_per_offer_and_stays_l1_scoped():
+    db, engine = _pg_session()
+    try:
+        stamp = uuid.uuid4().hex[:8]
+        drink = _catalog(
+            title=f"레몬에이드-{stamp}",
+            l1_tags=[TAG_WATER],
+            category="에이드음료",
+        )
+        housewares = _catalog(title=f"커피필터-{stamp}", l1_tags=[], category="필터")
+        official = _pg_user_seller(db, shop_name=f"공식-{stamp}", seller_type="platform")
+        mart = _pg_user_seller(db, shop_name=f"청정마트-{stamp}")
+        house_seller = _pg_user_seller(db, shop_name=f"생활용품-{stamp}")
+        db.add_all([drink, housewares])
+        db.flush()
+        drink_a = _pg_offer(drink, official, price_credits=1500)
+        drink_b = _pg_offer(drink, mart, price_credits=1800)
+        house_offer = _pg_offer(housewares, house_seller, price_credits=9900)
+        db.add_all([drink_a, drink_b, house_offer])
+        db.flush()
+
+        collapsed = list_catalog_products(db, l1_tag=TAG_WATER)
+        collapsed_ids = {item.id for item in collapsed.items}
+        assert str(drink.id) in collapsed_ids
+        assert str(housewares.id) not in collapsed_ids
+
+        offers = list_catalog_offers(db, l1_tag=TAG_WATER)
+        offer_ids = {item.id for item in offers.items}
+        assert str(drink_a.id) in offer_ids
+        assert str(drink_b.id) in offer_ids
+        assert str(house_offer.id) not in offer_ids
+        assert offers.total >= 2
+        drink_rows = [item for item in offers.items if item.catalog_product_id == str(drink.id)]
+        assert len(drink_rows) == 2
+        assert {item.seller.shop_name for item in drink_rows} == {official.shop_name, mart.shop_name}
+        assert {item.price_credits for item in drink_rows} == {1500, 1800}
+
+        truncated = list_catalog_offers(db, l1_tag="생수")
+        assert truncated.items == []
+        assert truncated.total == 0
     finally:
         db.rollback()
         db.close()

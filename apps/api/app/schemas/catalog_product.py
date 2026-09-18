@@ -126,10 +126,40 @@ class GuestL1FacetItem(BaseModel):
 
 
 class GuestL1FacetsResponse(BaseModel):
-    l1_tag: str = Field(alias="l1Tag")
+    l1_tag: str = Field(default="", alias="l1Tag")
     default_axis: Literal["brand", "menu"] = Field(alias="defaultAxis")
     brands: list[GuestL1FacetItem]
     menus: list[GuestL1FacetItem]
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class CatalogOfferBrowseItem(BaseModel):
+    """공개 오퍼 한 장 — identity collapse 없음 (axis=seller)."""
+
+    id: str
+    catalog_product_id: str = Field(alias="catalogProductId")
+    title: str
+    manufacturer: str = ""
+    option_label: str | None = Field(default=None, alias="optionLabel")
+    flavor: str | None = None
+    volume_ml: int | None = Field(default=None, alias="volumeMl")
+    price_credits: int = Field(alias="priceCredits")
+    stock: int
+    image_url: str | None = Field(default=None, alias="imageUrl")
+    seller: SellerSummary
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+    @field_validator("id", "catalog_product_id", mode="before")
+    @classmethod
+    def coerce_ids(cls, value: UUID | str) -> str:
+        return str(value)
+
+
+class CatalogOfferBrowseListResponse(BaseModel):
+    items: list[CatalogOfferBrowseItem]
+    total: int
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

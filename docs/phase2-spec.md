@@ -96,7 +96,7 @@
 
 | Path | 화면 |
 |------|------|
-| `/` | **대표 상품** 카탈로그. 손님 입구는 게스트 1차 15개([guest-l1.md](./guest-l1.md)). Browse 쿼리: `/`, `/?l1=…`, `/?l1=…&axis=brand|menu`, `/?l1=…&brand=` / `&menu=`, `/?q=` |
+| `/` | **대표 상품** 카탈로그. 손님 입구는 게스트 1차 15개([guest-l1.md](./guest-l1.md)). Browse 쿼리: `/`, `/?l1=…`, `/?l1=…&axis=brand|menu|seller`, `/?l1=…&brand=` / `&menu=`, `/?q=` |
 | `/catalog/:id` | 상세 — **오퍼 한 줄 비교**, 더보기 |
 | `/products/:id` | (과도기) 단일 오퍼 — 장바구니 |
 | `/cart` | 장바구니 (가게별 묶음) |

@@ -34,7 +34,7 @@ final catalogCategoryProvider = StateProvider<String?>((ref) => null);
 /// 게스트 1차 태그 (손님 브라우즈 입구).
 final catalogL1Provider = StateProvider<String?>((ref) => null);
 
-/// `brand` | `menu`
+/// `brand` | `menu` | `seller`
 final catalogL1AxisProvider = StateProvider<String?>((ref) => null);
 
 final catalogL1BrandProvider = StateProvider<String?>((ref) => null);
@@ -622,12 +622,100 @@ final catalogProductsProvider =
   CatalogProductsNotifier.new,
 );
 
+class CatalogOfferListState {
+  const CatalogOfferListState({
+    required this.items,
+    required this.total,
+    this.loadingMore = false,
+  });
+
+  final List<CatalogOfferBrowseModel> items;
+  final int total;
+  final bool loadingMore;
+
+  bool get hasMore => items.length < total;
+}
+
+class CatalogOffersNotifier extends AutoDisposeAsyncNotifier<CatalogOfferListState> {
+  @override
+  Future<CatalogOfferListState> build() async {
+    if (ref.watch(catalogL1AxisProvider) != 'seller') {
+      return const CatalogOfferListState(items: [], total: 0);
+    }
+    final q = ref.watch(catalogDebouncedSearchProvider).trim();
+    final l1 = ref.watch(catalogL1Provider);
+    final brand = ref.watch(catalogL1BrandProvider);
+    final menu = ref.watch(catalogL1MenuProvider);
+    final storage = ref.watch(catalogStorageFilterProvider);
+    final allInL1 = ref.watch(catalogL1AllProvider);
+    final page = await ref.watch(apiClientProvider).catalogOffers(
+          q: q.isEmpty ? null : q,
+          l1Tag: l1,
+          storage: storage,
+          brand: allInL1 ? null : brand,
+          menu: allInL1 ? null : menu,
+          offset: 0,
+          limit: 50,
+        );
+    return CatalogOfferListState(items: page.items, total: page.total);
+  }
+
+  Future<void> loadMore() async {
+    final current = state.valueOrNull;
+    if (current == null || current.loadingMore || !current.hasMore) return;
+    state = AsyncData(
+      CatalogOfferListState(
+        items: current.items,
+        total: current.total,
+        loadingMore: true,
+      ),
+    );
+    try {
+      final q = ref.read(catalogDebouncedSearchProvider).trim();
+      final page = await ref.read(apiClientProvider).catalogOffers(
+            q: q.isEmpty ? null : q,
+            l1Tag: ref.read(catalogL1Provider),
+            storage: ref.read(catalogStorageFilterProvider),
+            brand: ref.read(catalogL1AllProvider)
+                ? null
+                : ref.read(catalogL1BrandProvider),
+            menu: ref.read(catalogL1AllProvider)
+                ? null
+                : ref.read(catalogL1MenuProvider),
+            offset: current.items.length,
+            limit: 50,
+          );
+      state = AsyncData(
+        CatalogOfferListState(
+          items: [...current.items, ...page.items],
+          total: page.total,
+        ),
+      );
+    } catch (_) {
+      state = AsyncData(
+        CatalogOfferListState(items: current.items, total: current.total),
+      );
+      rethrow;
+    }
+  }
+}
+
+final catalogOffersProvider =
+    AsyncNotifierProvider.autoDispose<CatalogOffersNotifier, CatalogOfferListState>(
+  CatalogOffersNotifier.new,
+);
+
 final guestL1FacetsProvider =
     FutureProvider.autoDispose<GuestL1FacetsModel?>((ref) async {
   final l1 = ref.watch(catalogL1Provider);
-  if (l1 == null || l1.isEmpty) return null;
-  final storage = ref.watch(catalogStorageFilterProvider);
-  return ref.watch(apiClientProvider).guestL1Facets(l1Tag: l1, storage: storage);
+  final q = ref.watch(catalogDebouncedSearchProvider).trim();
+  if ((l1 == null || l1.isEmpty) && q.isEmpty) return null;
+  final storage = l1 == null ? null : ref.watch(catalogStorageFilterProvider);
+  return ref.watch(apiClientProvider).guestL1Facets(
+        l1Tag: l1,
+        q: q.isEmpty ? null : q,
+        storage: storage,
+      );
 });
 
 final catalogProductDetailProvider =

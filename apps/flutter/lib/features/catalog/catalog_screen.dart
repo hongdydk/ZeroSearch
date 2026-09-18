@@ -69,7 +69,10 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     final l1 = (l1Raw == null || l1Raw.isEmpty) ? null : l1Raw;
     final axis = (axisRaw == null || axisRaw.isEmpty)
         ? (l1 == null ? null : guestL1DefaultAxis(l1))
-        : axisRaw;
+        : normalizeBrowseAxis(
+            axisRaw,
+            fallback: l1 == null ? kBrowseAxisBrand : guestL1DefaultAxis(l1),
+          );
     final brand = (brandRaw == null || brandRaw.isEmpty) ? null : brandRaw;
     final menu = (menuRaw == null || menuRaw.isEmpty) ? null : menuRaw;
     final storage =
@@ -87,20 +90,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       if (ref.read(catalogL1Provider) != null) {
         ref.read(catalogL1Provider.notifier).state = null;
       }
-      if (ref.read(catalogL1AxisProvider) != null) {
-        ref.read(catalogL1AxisProvider.notifier).state = null;
-      }
-      if (ref.read(catalogL1BrandProvider) != null) {
-        ref.read(catalogL1BrandProvider.notifier).state = null;
-      }
-      if (ref.read(catalogL1MenuProvider) != null) {
-        ref.read(catalogL1MenuProvider.notifier).state = null;
-      }
       if (ref.read(catalogStorageFilterProvider) != null) {
         ref.read(catalogStorageFilterProvider.notifier).state = null;
-      }
-      if (ref.read(catalogL1AllProvider)) {
-        ref.read(catalogL1AllProvider.notifier).state = false;
       }
       if (ref.read(catalogMajorProvider) != null) {
         ref.read(catalogMajorProvider.notifier).state = null;
@@ -110,6 +101,19 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       }
       if (ref.read(catalogCategoryProvider) != null) {
         ref.read(catalogCategoryProvider.notifier).state = null;
+      }
+      final searchAxis = normalizeBrowseAxis(axisRaw);
+      if (ref.read(catalogL1AxisProvider) != searchAxis) {
+        ref.read(catalogL1AxisProvider.notifier).state = searchAxis;
+      }
+      if (ref.read(catalogL1BrandProvider) != brand) {
+        ref.read(catalogL1BrandProvider.notifier).state = brand;
+      }
+      if (ref.read(catalogL1MenuProvider) != menu) {
+        ref.read(catalogL1MenuProvider.notifier).state = menu;
+      }
+      if (ref.read(catalogL1AllProvider) != all) {
+        ref.read(catalogL1AllProvider.notifier).state = all;
       }
       ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
       return;
@@ -168,7 +172,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
   void _applyL1Axis(String axis) {
     final l1 = ref.read(catalogL1Provider);
-    if (l1 == null) return;
+    final q = ref.read(catalogSearchProvider).trim();
+    if (l1 == null && q.isEmpty) return;
     ref.read(catalogL1AxisScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogL1BrandProvider.notifier).state = null;
     ref.read(catalogL1MenuProvider.notifier).state = null;
@@ -176,9 +181,10 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     ref.read(catalogL1AxisProvider.notifier).state = axis;
     context.go(
       browseLocation(
+        q: q.isEmpty ? null : q,
         l1: l1,
         axis: axis,
-        storage: ref.read(catalogStorageFilterProvider),
+        storage: l1 == null ? null : ref.read(catalogStorageFilterProvider),
       ),
     );
   }
@@ -201,7 +207,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
   void _applyL1Brand(String name) {
     final l1 = ref.read(catalogL1Provider);
-    if (l1 == null) return;
+    final q = ref.read(catalogSearchProvider).trim();
+    if (l1 == null && q.isEmpty) return;
     ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogL1AllProvider.notifier).state = false;
     ref.read(catalogL1MenuProvider.notifier).state = null;
@@ -210,17 +217,19 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     ref.read(catalogL1BrandProvider.notifier).state = name;
     context.go(
       browseLocation(
+        q: q.isEmpty ? null : q,
         l1: l1,
-        axis: 'brand',
+        axis: kBrowseAxisBrand,
         brand: name,
-        storage: ref.read(catalogStorageFilterProvider),
+        storage: l1 == null ? null : ref.read(catalogStorageFilterProvider),
       ),
     );
   }
 
   void _applyL1Menu(String name) {
     final l1 = ref.read(catalogL1Provider);
-    if (l1 == null) return;
+    final q = ref.read(catalogSearchProvider).trim();
+    if (l1 == null && q.isEmpty) return;
     ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogL1AllProvider.notifier).state = false;
     ref.read(catalogL1BrandProvider.notifier).state = null;
@@ -229,17 +238,19 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     ref.read(catalogL1MenuProvider.notifier).state = name;
     context.go(
       browseLocation(
+        q: q.isEmpty ? null : q,
         l1: l1,
-        axis: 'menu',
+        axis: kBrowseAxisMenu,
         menu: name,
-        storage: ref.read(catalogStorageFilterProvider),
+        storage: l1 == null ? null : ref.read(catalogStorageFilterProvider),
       ),
     );
   }
 
   void _applyL1All() {
     final l1 = ref.read(catalogL1Provider);
-    if (l1 == null) return;
+    final q = ref.read(catalogSearchProvider).trim();
+    if (l1 == null && q.isEmpty) return;
     ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogL1BrandProvider.notifier).state = null;
     ref.read(catalogL1MenuProvider.notifier).state = null;
@@ -248,9 +259,10 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     ref.read(catalogL1AllProvider.notifier).state = true;
     context.go(
       browseLocation(
+        q: q.isEmpty ? null : q,
         l1: l1,
         axis: ref.read(catalogL1AxisProvider),
-        storage: ref.read(catalogStorageFilterProvider),
+        storage: l1 == null ? null : ref.read(catalogStorageFilterProvider),
         all: true,
       ),
     );
@@ -325,8 +337,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         major == null &&
         mid == null &&
         category == null;
-    final isL1Axis = !inSearch &&
-        l1 != null &&
+    final isAxisView = (inSearch || l1 != null) &&
         !urlAll &&
         urlBrand == null &&
         urlMenu == null;
@@ -354,10 +365,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       );
     }
 
-    if (isL1Axis) {
+    if (isAxisView) {
       return GuestL1AxisView(
-        l1: l1,
-        axis: urlAxis ?? guestL1DefaultAxis(l1),
+        title: l1 ?? '“$typedSearch”',
+        axis: urlAxis ??
+            (l1 == null ? kBrowseAxisBrand : guestL1DefaultAxis(l1)),
         storage: urlStorage,
         padding: padding,
         onBack: () => popBrowseOrHome(context),
@@ -366,6 +378,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         onPickBrand: _applyL1Brand,
         onPickMenu: _applyL1Menu,
         onSeeAll: _applyL1All,
+        showStorage: l1 != null,
+        seeAllLabel: l1 != null ? '이 분류 전체 보기' : '카드로 전체 보기',
       );
     }
 

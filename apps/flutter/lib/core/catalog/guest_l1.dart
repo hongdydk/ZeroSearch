@@ -7,7 +7,7 @@ class GuestL1Category {
   });
 
   final String name;
-  /// `brand` | `menu`
+  /// 1차 기본 축. `brand` | `menu` (판매자 오퍼는 기본값이 아님)
   final String defaultAxis;
   final String? imageUrl;
 }
@@ -125,3 +125,18 @@ GuestL1Category? guestL1ByName(String name) {
 
 String guestL1DefaultAxis(String name) =>
     guestL1ByName(name)?.defaultAxis ?? 'brand';
+
+const kBrowseAxisBrand = 'brand';
+const kBrowseAxisMenu = 'menu';
+const kBrowseAxisSeller = 'seller';
+
+String normalizeBrowseAxis(String? raw, {String fallback = kBrowseAxisBrand}) {
+  if (raw == kBrowseAxisMenu ||
+      raw == kBrowseAxisSeller ||
+      raw == kBrowseAxisBrand) {
+    return raw!;
+  }
+  return fallback;
+}
+
+bool isSellerBrowseAxis(String? axis) => axis == kBrowseAxisSeller;

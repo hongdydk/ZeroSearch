@@ -12,8 +12,10 @@ from app.schemas.catalog_product import CatalogProductListItem
 from app.services.catalog_products import (
     CatalogIdentityRow,
     CatalogListResult,
+    CatalogOfferListResult,
     _aggregate_offers,
     _catalog_search_filter,
+    _offer_browse_item,
     get_catalog_product,
     offer_filter_facets,
     pick_identity_survivor_ids,
@@ -319,6 +321,25 @@ def test_guest_l1_facets(client):
     assert body["menus"][0]["name"] == "신라면"
 
 
+def test_guest_l1_facets_accepts_search_query(client):
+    override_db(MagicMock())
+    payload = {
+        "l1_tag": "",
+        "default_axis": "brand",
+        "brands": [{"name": "농심", "count": 1}],
+        "menus": [{"name": "신라면", "count": 1}],
+    }
+    with patch(
+        "app.routers.catalog_products.list_l1_facets", return_value=payload
+    ) as mock_facets:
+        response = client.get("/catalog-products/guest-l1/facets", params={"q": "신라면"})
+    assert response.status_code == 200
+    _, kwargs = mock_facets.call_args
+    assert kwargs["q"] == "신라면"
+    assert kwargs["l1_tag"] is None
+    assert response.json()["menus"][0]["name"] == "신라면"
+
+
 def test_catalog_l1_filter_compiles():
     stmt = select(CatalogProduct).where(
         *_catalog_search_filter(None, None, l1_tag="라면/면류", storage="냉동", brand="농심")
@@ -407,5 +428,65 @@ def test_offer_filter_facets_keep_flavors_present_in_result_set():
     )
     sql = str(stmt.compile(dialect=postgresql.dialect()))
     assert "l1_tags" in sql
-    assert "storage" in sql
+
+
+def test_offer_browse_item_keeps_seller_and_price_not_identity():
+    catalog = _sample_catalog(title="신라면")
+    catalog.manufacturer = "농심"
+    catalog.image_url = "https://img.example/nongshim.png"
+    seller = _sample_seller(seller_type="merchant")
+    seller.shop_name = "면사랑마트"
+    offer = _sample_offer(catalog, seller, price_credits=4200, option_label="120g")
+    offer.catalog_product = catalog
+    item = _offer_browse_item(offer)
+    assert item.id == str(offer.id)
+    assert item.catalog_product_id == str(catalog.id)
+    assert item.title == "신라면"
+    assert item.manufacturer == "농심"
+    assert item.price_credits == 4200
+    assert item.seller.shop_name == "면사랑마트"
+    assert item.image_url == "https://img.example/nongshim.png"
+
+
+def test_list_catalog_offers_router_passes_l1_and_shape(client):
+    catalog = _sample_catalog(title="신라면")
+    catalog.manufacturer = "농심"
+    seller_a = _sample_seller()
+    seller_a.shop_name = "공식 스토어"
+    seller_b = _sample_seller(seller_type="merchant")
+    seller_b.shop_name = "면사랑마트"
+    offer_a = _sample_offer(catalog, seller_a, price_credits=3900)
+    offer_a.catalog_product = catalog
+    offer_b = _sample_offer(catalog, seller_b, price_credits=4200)
+    offer_b.catalog_product = catalog
+    override_db(MagicMock())
+    with patch(
+        "app.routers.catalog_products.list_catalog_offers",
+        return_value=CatalogOfferListResult(
+            items=[_offer_browse_item(offer_a), _offer_browse_item(offer_b)],
+            total=2,
+        ),
+    ) as mock_list:
+        response = client.get(
+            "/catalog-products/offers",
+            params={"l1Tag": "라면/면류", "storage": "상온"},
+        )
+    assert response.status_code == 200
+    _, kwargs = mock_list.call_args
+    assert kwargs["l1_tag"] == "라면/면류"
+    assert kwargs["storage"] == "상온"
+    body = response.json()
+    assert body["total"] == 2
+    assert [row["seller"]["shopName"] for row in body["items"]] == ["공식 스토어", "면사랑마트"]
+    assert [row["priceCredits"] for row in body["items"]] == [3900, 4200]
+    assert body["items"][0]["id"] != body["items"][1]["id"]
+    assert body["items"][0]["catalogProductId"] == body["items"][1]["catalogProductId"]
+
+
+def test_unknown_l1_offer_filter_is_fail_closed():
+    stmt = select(Product).join(CatalogProduct).where(
+        *_catalog_search_filter(None, None, l1_tag="생수", brand="그린에이드")
+    )
+    sql = str(stmt.compile(dialect=postgresql.dialect()))
+    assert "false" in sql.lower()
 
