@@ -3,24 +3,28 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
 from app.deps import require_admin
-from app.models import Seller, User
+from app.models import User
 from app.schemas.admin import (
+    AdminCatalogCreateRequest,
+    AdminCatalogProductItem,
+    AdminCatalogProductListResponse,
     AdminCreditGrantRequest,
     AdminCreditGrantResponse,
     AdminSellerItem,
     AdminSellerListResponse,
+    AdminSellerModerationRequest,
     AdminStatsResponse,
     AdminUserItem,
     AdminUserListResponse,
     AdminUserUpdate,
     DbResetRequest,
     DbResetResponse,
+    SellerModerationEventListResponse,
 )
 from app.schemas.seller import (
     AdminOrderItemListResponse,
@@ -38,6 +42,11 @@ from app.schemas.catalog_product import (
     CatalogImportResponse,
     CatalogImportTextRequest,
 )
+from app.services.admin_catalog import (
+    create_admin_catalog_product,
+    list_admin_catalog_products,
+    retire_catalog_product,
+)
 from app.services.admin_db import RESET_CONFIRM, get_admin_stats, run_db_reset
 from app.services.admin_users import (
     admin_user_item,
@@ -53,7 +62,18 @@ from app.services.seller_orders import (
     list_admin_order_items,
     update_admin_order_item_status,
 )
-from app.services.sellers import approve_seller, suspend_seller
+from app.services.sellers import (
+    admin_seller_item,
+    approve_seller,
+    list_admin_sellers,
+    list_moderation_events,
+    moderation_event_item,
+    _moderation_summaries,
+    remove_seller,
+    suspend_seller,
+    unsuspend_seller,
+    warn_seller,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", tags=["admin"])
@@ -258,24 +278,19 @@ def list_sellers(
     db: Annotated[Session, Depends(get_db)],
     status_filter: Annotated[str | None, Query(alias="status")] = None,
 ) -> AdminSellerListResponse:
-    query = select(Seller).options(joinedload(Seller.user))
-    if status_filter:
-        query = query.where(Seller.status == status_filter)
-    sellers = db.scalars(query.order_by(Seller.created_at.desc())).unique().all()
+    rows = list_admin_sellers(db, status_filter)
+    summaries = _moderation_summaries(db, [seller.id for seller, _ in rows])
     items = [
-        AdminSellerItem(
-            id=str(seller.id),
-            user_id=str(seller.user_id),
-            user_email=seller.user.email,
-            shop_name=seller.shop_name,
-            slug=seller.slug,
-            status=seller.status,  # type: ignore[arg-type]
-            seller_type=seller.seller_type,  # type: ignore[arg-type]
-            created_at=seller.created_at,
-        )
-        for seller in sellers
+        admin_seller_item(seller, user, summaries.get(seller.id))
+        for seller, user in rows
     ]
     return AdminSellerListResponse(items=items, total=len(items))
+
+
+def _seller_item_after_action(db: Session, seller) -> AdminSellerItem:
+    user = db.get(User, seller.user_id)
+    summaries = _moderation_summaries(db, [seller.id])
+    return admin_seller_item(seller, user, summaries.get(seller.id))
 
 
 @router.post("/sellers/{seller_id}/approve", response_model=AdminSellerItem)
@@ -287,41 +302,84 @@ def approve_seller_endpoint(
     seller = approve_seller(db, seller_id)
     db.commit()
     db.refresh(seller)
-    user = db.get(User, seller.user_id)
     logger.warning("Admin %s approved seller %s", admin.email, seller.shop_name)
-    return AdminSellerItem(
-        id=str(seller.id),
-        user_id=str(seller.user_id),
-        user_email=user.email if user else "",
-        shop_name=seller.shop_name,
-        slug=seller.slug,
-        status=seller.status,  # type: ignore[arg-type]
-        seller_type=seller.seller_type,  # type: ignore[arg-type]
-        created_at=seller.created_at,
-    )
+    return _seller_item_after_action(db, seller)
+
+
+@router.post("/sellers/{seller_id}/warn", response_model=AdminSellerItem)
+def warn_seller_endpoint(
+    seller_id: UUID,
+    payload: AdminSellerModerationRequest,
+    admin: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminSellerItem:
+    seller = warn_seller(db, seller_id, admin, payload.reason)
+    db.commit()
+    db.refresh(seller)
+    logger.warning("Admin %s warned seller %s", admin.email, seller.shop_name)
+    return _seller_item_after_action(db, seller)
 
 
 @router.post("/sellers/{seller_id}/suspend", response_model=AdminSellerItem)
 def suspend_seller_endpoint(
     seller_id: UUID,
+    payload: AdminSellerModerationRequest,
     admin: Annotated[User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> AdminSellerItem:
-    seller = suspend_seller(db, seller_id)
+    seller = suspend_seller(db, seller_id, admin, payload.reason)
     db.commit()
     db.refresh(seller)
-    user = db.get(User, seller.user_id)
     logger.warning("Admin %s suspended seller %s", admin.email, seller.shop_name)
-    return AdminSellerItem(
-        id=str(seller.id),
-        user_id=str(seller.user_id),
-        user_email=user.email if user else "",
-        shop_name=seller.shop_name,
-        slug=seller.slug,
-        status=seller.status,  # type: ignore[arg-type]
-        seller_type=seller.seller_type,  # type: ignore[arg-type]
-        created_at=seller.created_at,
-    )
+    return _seller_item_after_action(db, seller)
+
+
+@router.post("/sellers/{seller_id}/unsuspend", response_model=AdminSellerItem)
+def unsuspend_seller_endpoint(
+    seller_id: UUID,
+    payload: AdminSellerModerationRequest,
+    admin: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminSellerItem:
+    seller = unsuspend_seller(db, seller_id, admin, payload.reason)
+    db.commit()
+    db.refresh(seller)
+    logger.warning("Admin %s unsuspended seller %s", admin.email, seller.shop_name)
+    return _seller_item_after_action(db, seller)
+
+
+@router.post("/sellers/{seller_id}/remove", response_model=AdminSellerItem)
+def remove_seller_endpoint(
+    seller_id: UUID,
+    payload: AdminSellerModerationRequest,
+    admin: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminSellerItem:
+    seller = remove_seller(db, seller_id, admin, payload.reason)
+    db.commit()
+    db.refresh(seller)
+    logger.warning("Admin %s removed seller %s", admin.email, seller.shop_name)
+    return _seller_item_after_action(db, seller)
+
+
+@router.get("/sellers/{seller_id}/moderation", response_model=SellerModerationEventListResponse)
+def list_seller_moderation(
+    seller_id: UUID,
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SellerModerationEventListResponse:
+    events = list_moderation_events(db, seller_id)
+    admin_ids = {event.admin_user_id for event in events if event.admin_user_id}
+    emails = {}
+    for admin_id in admin_ids:
+        user = db.get(User, admin_id)
+        if user is not None:
+            emails[admin_id] = user.email
+    items = [
+        moderation_event_item(event, emails.get(event.admin_user_id) if event.admin_user_id else None)
+        for event in events
+    ]
+    return SellerModerationEventListResponse(items=items, total=len(items))
 
 
 def _admin_order_item_response(item) -> AdminOrderItemResponse:
@@ -374,6 +432,45 @@ def promote_catalog_draft(
     item = promote_card_draft(db, draft_id, payload, admin)
     db.commit()
     logger.info("Admin %s promoted catalog draft %s", admin.email, draft_id)
+    return item
+
+
+@router.get("/catalog/products", response_model=AdminCatalogProductListResponse)
+def list_admin_catalog(
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+    q: Annotated[str | None, Query(max_length=100)] = None,
+    include_retired: Annotated[bool, Query(alias="includeRetired")] = False,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+) -> AdminCatalogProductListResponse:
+    items, total = list_admin_catalog_products(
+        db, q=q, include_retired=include_retired, offset=offset, limit=limit
+    )
+    return AdminCatalogProductListResponse(items=items, total=total)
+
+
+@router.post("/catalog/products", response_model=AdminCatalogProductItem, status_code=status.HTTP_201_CREATED)
+def create_admin_catalog(
+    payload: AdminCatalogCreateRequest,
+    admin: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminCatalogProductItem:
+    item = create_admin_catalog_product(db, payload)
+    db.commit()
+    logger.info("Admin %s created catalog %s / %s", admin.email, payload.manufacturer, payload.title)
+    return item
+
+
+@router.delete("/catalog/products/{catalog_id}", response_model=AdminCatalogProductItem)
+def delete_admin_catalog(
+    catalog_id: UUID,
+    admin: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> AdminCatalogProductItem:
+    item = retire_catalog_product(db, catalog_id)
+    db.commit()
+    logger.warning("Admin %s retired catalog %s", admin.email, catalog_id)
     return item
 
 

@@ -27,3 +27,8 @@ class Seller(Base):
     user = relationship("User", back_populates="seller")
     products = relationship("Product", back_populates="seller")
     intake_drafts = relationship("CatalogIntakeDraft", back_populates="seller")
+    moderation_events = relationship(
+        "SellerModerationEvent",
+        back_populates="seller",
+        cascade="all, delete-orphan",
+    )

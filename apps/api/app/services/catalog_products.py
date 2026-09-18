@@ -140,8 +140,11 @@ def _catalog_search_filter(
     storage: str | None = None,
     brand: str | None = None,
     menu: str | None = None,
+    include_retired: bool = False,
 ):
     filters = []
+    if not include_retired:
+        filters.append(CatalogProduct.status == "active")
     if q:
         pattern = f"%{q.strip()}%"
         filters.append(
@@ -458,7 +461,7 @@ def get_catalog_product(
     volume_ml_max: int | None = None,
 ) -> CatalogProductDetailResponse:
     catalog = resolve_catalog_product(db, catalog_id)
-    if catalog is None:
+    if catalog is None or catalog.status != "active":
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 상품을 찾을 수 없습니다.")
 
     offer_filters = _public_offer_filters(

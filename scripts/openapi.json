@@ -29,6 +29,193 @@
         "title": "AdminAttachDraftRequest",
         "type": "object"
       },
+      "AdminCatalogCreateRequest": {
+        "properties": {
+          "category": {
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Category",
+            "type": "string"
+          },
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "l1Tags": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "L1Tags"
+          },
+          "manufacturer": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "priceUnit": {
+            "default": "ml",
+            "enum": [
+              "ml",
+              "credits"
+            ],
+            "title": "Priceunit",
+            "type": "string"
+          },
+          "storage": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storage"
+          },
+          "title": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Title",
+            "type": "string"
+          },
+          "volumeOptions": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Volumeoptions",
+            "type": "array"
+          }
+        },
+        "required": [
+          "manufacturer",
+          "title",
+          "category"
+        ],
+        "title": "AdminCatalogCreateRequest",
+        "type": "object"
+      },
+      "AdminCatalogProductItem": {
+        "properties": {
+          "category": {
+            "title": "Category",
+            "type": "string"
+          },
+          "createdAt": {
+            "anyOf": [
+              {
+                "format": "date-time",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Createdat"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "l1Tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "L1Tags",
+            "type": "array"
+          },
+          "manufacturer": {
+            "default": "",
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "offerCount": {
+            "title": "Offercount",
+            "type": "integer"
+          },
+          "publishedOfferCount": {
+            "title": "Publishedoffercount",
+            "type": "integer"
+          },
+          "status": {
+            "title": "Status",
+            "type": "string"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "title",
+          "category",
+          "status",
+          "offerCount",
+          "publishedOfferCount"
+        ],
+        "title": "AdminCatalogProductItem",
+        "type": "object"
+      },
+      "AdminCatalogProductListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AdminCatalogProductItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "AdminCatalogProductListResponse",
+        "type": "object"
+      },
       "AdminCreditGrantRequest": {
         "properties": {
           "amount": {
@@ -253,6 +440,28 @@
             "title": "Id",
             "type": "string"
           },
+          "lastModerationAction": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastmoderationaction"
+          },
+          "lastModerationReason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lastmoderationreason"
+          },
           "sellerType": {
             "title": "Sellertype",
             "type": "string"
@@ -276,6 +485,11 @@
           "userId": {
             "title": "Userid",
             "type": "string"
+          },
+          "warningCount": {
+            "default": 0,
+            "title": "Warningcount",
+            "type": "integer"
           }
         },
         "required": [
@@ -310,6 +524,21 @@
           "total"
         ],
         "title": "AdminSellerListResponse",
+        "type": "object"
+      },
+      "AdminSellerModerationRequest": {
+        "properties": {
+          "reason": {
+            "maxLength": 1000,
+            "minLength": 1,
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "reason"
+        ],
+        "title": "AdminSellerModerationRequest",
         "type": "object"
       },
       "AdminStatsResponse": {
@@ -2139,6 +2368,67 @@
         "title": "SellerCardDraftCreateRequest",
         "type": "object"
       },
+      "SellerModerationEventItem": {
+        "properties": {
+          "action": {
+            "title": "Action",
+            "type": "string"
+          },
+          "adminEmail": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adminemail"
+          },
+          "createdAt": {
+            "format": "date-time",
+            "title": "Createdat",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "reason": {
+            "title": "Reason",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "action",
+          "reason",
+          "createdAt"
+        ],
+        "title": "SellerModerationEventItem",
+        "type": "object"
+      },
+      "SellerModerationEventListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/SellerModerationEventItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "SellerModerationEventListResponse",
+        "type": "object"
+      },
       "SellerOrderItemListResponse": {
         "properties": {
           "items": {
@@ -2528,7 +2818,8 @@
             "enum": [
               "pending",
               "active",
-              "suspended"
+              "suspended",
+              "removed"
             ],
             "title": "Status",
             "type": "string"
@@ -3515,6 +3806,186 @@
         ]
       }
     },
+    "/admin/catalog/products": {
+      "get": {
+        "operationId": "list_admin_catalog_admin_catalog_products_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "maxLength": 100,
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "includeRetired",
+            "required": false,
+            "schema": {
+              "default": false,
+              "title": "Includeretired",
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCatalogProductListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Admin Catalog",
+        "tags": [
+          "admin"
+        ]
+      },
+      "post": {
+        "operationId": "create_admin_catalog_admin_catalog_products_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminCatalogCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCatalogProductItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Catalog",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/products/{catalog_id}": {
+      "delete": {
+        "operationId": "delete_admin_catalog_admin_catalog_products__catalog_id__delete",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "catalog_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Catalog Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminCatalogProductItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Delete Admin Catalog",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/db/reset": {
       "post": {
         "operationId": "reset_database_admin_db_reset_post",
@@ -3782,6 +4253,112 @@
         ]
       }
     },
+    "/admin/sellers/{seller_id}/moderation": {
+      "get": {
+        "operationId": "list_seller_moderation_admin_sellers__seller_id__moderation_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Seller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerModerationEventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Seller Moderation",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/sellers/{seller_id}/remove": {
+      "post": {
+        "operationId": "remove_seller_endpoint_admin_sellers__seller_id__remove_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Seller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSellerModerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSellerItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Remove Seller Endpoint",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/sellers/{seller_id}/suspend": {
       "post": {
         "operationId": "suspend_seller_endpoint_admin_sellers__seller_id__suspend_post",
@@ -3797,6 +4374,16 @@
             }
           }
         ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSellerModerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
         "responses": {
           "200": {
             "content": {
@@ -3825,6 +4412,122 @@
           }
         ],
         "summary": "Suspend Seller Endpoint",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/sellers/{seller_id}/unsuspend": {
+      "post": {
+        "operationId": "unsuspend_seller_endpoint_admin_sellers__seller_id__unsuspend_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Seller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSellerModerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSellerItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Unsuspend Seller Endpoint",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/sellers/{seller_id}/warn": {
+      "post": {
+        "operationId": "warn_seller_endpoint_admin_sellers__seller_id__warn_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "seller_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Seller Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AdminSellerModerationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdminSellerItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Warn Seller Endpoint",
         "tags": [
           "admin"
         ]
@@ -6091,6 +6794,32 @@
           }
         ],
         "summary": "Seller Me",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/moderation-events": {
+      "get": {
+        "operationId": "seller_moderation_events_seller_moderation_events_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerModerationEventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Moderation Events",
         "tags": [
           "seller"
         ]

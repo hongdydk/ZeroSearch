@@ -684,10 +684,16 @@ class ApiClient {
   }
 
   Future<SellerModel?> sellerMe() async {
-    final data = await _generatedCall(
-      () => _generated.getSellerApi().sellerMeSellerMeGet(),
-    );
-    return sellerModelFromGenerated(data);
+    try {
+      final response = await _dio.get<dynamic>('seller/me');
+      final data = response.data;
+      if (data is! Map) return null;
+      final json = Map<String, dynamic>.from(data);
+      if (json['id'] == null) return null;
+      return SellerModel.fromJson(json);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<SellerModel> sellerApply(String shopName) async {
@@ -998,30 +1004,171 @@ class ApiClient {
   }
 
   Future<List<AdminSellerModel>> adminSellers({String? status}) async {
-    final data = await _generatedCall(
-      () => _generated.getAdminApi().listSellersAdminSellersGet(status: status),
-    );
-    return data.items
-        .map(
-          (s) => AdminSellerModel(
-            id: s.id,
-            shopName: s.shopName,
-            userEmail: s.userEmail,
-            status: s.status,
-            sellerType: s.sellerType,
-          ),
-        )
-        .toList();
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'admin/sellers',
+        queryParameters: {
+          if (status != null && status.isNotEmpty) 'status': status,
+        },
+      );
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map((e) => AdminSellerModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<AdminSellerModel> _adminSellerAction(
+    String path, {
+    String? reason,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        path,
+        data: {if (reason != null) 'reason': reason},
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return AdminSellerModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<void> adminApproveSeller(String sellerId) async {
-    await _generatedCall(
-      () => _generated
-          .getAdminApi()
-          .approveSellerEndpointAdminSellersSellerIdApprovePost(
-            sellerId: sellerId,
-          ),
+    try {
+      await _dio.post<Map<String, dynamic>>(
+        'admin/sellers/$sellerId/approve',
+      );
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<AdminSellerModel> adminWarnSeller(String sellerId, String reason) {
+    return _adminSellerAction('admin/sellers/$sellerId/warn', reason: reason);
+  }
+
+  Future<AdminSellerModel> adminSuspendSeller(String sellerId, String reason) {
+    return _adminSellerAction('admin/sellers/$sellerId/suspend', reason: reason);
+  }
+
+  Future<AdminSellerModel> adminUnsuspendSeller(String sellerId, String reason) {
+    return _adminSellerAction(
+      'admin/sellers/$sellerId/unsuspend',
+      reason: reason,
     );
+  }
+
+  Future<AdminSellerModel> adminRemoveSeller(String sellerId, String reason) {
+    return _adminSellerAction('admin/sellers/$sellerId/remove', reason: reason);
+  }
+
+  Future<List<SellerModerationEventModel>> adminSellerModeration(
+    String sellerId,
+  ) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'admin/sellers/$sellerId/moderation',
+      );
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map(
+            (e) => SellerModerationEventModel.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<List<SellerModerationEventModel>> sellerModerationEvents() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'seller/moderation-events',
+      );
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map(
+            (e) => SellerModerationEventModel.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<List<AdminCatalogProductModel>> adminCatalogProducts({
+    String? q,
+    bool includeRetired = false,
+  }) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'admin/catalog/products',
+        queryParameters: {
+          if (q != null && q.trim().isNotEmpty) 'q': q.trim(),
+          if (includeRetired) 'includeRetired': true,
+        },
+      );
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map(
+            (e) => AdminCatalogProductModel.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<AdminCatalogProductModel> adminCreateCatalogProduct({
+    required String manufacturer,
+    required String title,
+    required String category,
+    String? description,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'admin/catalog/products',
+        data: {
+          'manufacturer': manufacturer,
+          'title': title,
+          'category': category,
+          if (description != null && description.isNotEmpty)
+            'description': description,
+        },
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return AdminCatalogProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<AdminCatalogProductModel> adminDeleteCatalogProduct(String id) async {
+    try {
+      final response = await _dio.delete<Map<String, dynamic>>(
+        'admin/catalog/products/$id',
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return AdminCatalogProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<List<SellerOrderItemModel>> adminOrders() async {

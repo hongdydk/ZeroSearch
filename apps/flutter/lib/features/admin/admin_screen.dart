@@ -43,6 +43,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   String? _importResult;
 
   final _userSearchCtrl = TextEditingController();
+  final _catalogSearchCtrl = TextEditingController();
 
   bool get _resetting => isBusy('reset');
 
@@ -76,6 +77,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   void dispose() {
     _pollTimer?.cancel();
     _userSearchCtrl.dispose();
+    _catalogSearchCtrl.dispose();
     super.dispose();
   }
 
@@ -314,6 +316,114 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(const SnackBar(content: Text('입점을 승인했습니다.')));
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.message)));
+        }
+      }
+    });
+  }
+
+  Future<String?> _askReason(String title) async {
+    final controller = TextEditingController();
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: TextField(
+          controller: controller,
+          maxLines: 3,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: '사유',
+            hintText: '판매자에게 보이는 사유를 적으세요.',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, controller.text.trim()),
+            child: const Text('확인'),
+          ),
+        ],
+      ),
+    );
+    controller.dispose();
+    if (reason == null || reason.isEmpty) return null;
+    return reason;
+  }
+
+  Future<void> _moderateSeller({
+    required String sellerId,
+    required String action,
+    required String title,
+    required String doneMessage,
+    required Future<void> Function(String id, String reason) run,
+  }) async {
+    final reason = await _askReason(title);
+    if (reason == null) return;
+    await runBusy('$action:$sellerId', () async {
+      try {
+        await run(sellerId, reason);
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(doneMessage)));
+      } on ApiException catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(
+            context,
+          ).showSnackBar(SnackBar(content: Text(e.message)));
+        }
+      }
+    });
+  }
+
+  Future<void> _addCatalogItem() async {
+    final created = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => const _AdminCatalogCreateDialog(),
+    );
+    if (created == true && mounted) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('카드를 추가했습니다.')));
+    }
+  }
+
+  Future<void> _deleteCatalogItem(AdminCatalogProductModel item) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('카드를 삭제할까요?'),
+        content: Text(
+          '${item.cardTitle}을(를) 공개 목록에서 내립니다. 주문 기록은 남고, 붙은 오퍼는 숨깁니다.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('삭제'),
+          ),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    await runBusy('catalog:${item.id}', () async {
+      try {
+        await _dashNotifier.deleteCatalogItem(item.id);
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('카드를 삭제했습니다.')));
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -590,38 +700,41 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
   }
 
   Widget _buildSellers() {
-    return PortalSection(
-      title: '승인 대기 판매자',
-      child: _dash.sellersLoading && _dash.pendingSellers.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.all(22),
-              child: Center(child: CircularProgressIndicator()),
-            )
-          : _dash.pendingSellers.isEmpty
-          ? const Padding(
-              padding: EdgeInsets.all(22),
-              child: Text('대기 중인 입점 신청이 없습니다.'),
-            )
-          : Column(
-              children: [
-                for (final seller in _dash.pendingSellers)
-                  ListTile(
-                    leading: const Icon(Icons.storefront_outlined),
-                    title: Text(seller.shopName),
-                    subtitle: Text(
-                      '${seller.userEmail} · ${seller.sellerType}',
-                    ),
-                    trailing: FilledButton(
-                      onPressed: _pageLocked || isBusy('approve:${seller.id}')
-                          ? null
-                          : () => _approveSeller(seller.id),
-                      child: isBusy('approve:${seller.id}')
-                          ? busyProgress()
-                          : const Text('승인'),
-                    ),
-                  ),
-              ],
-            ),
+    return AdminSellersPanel(
+      sellers: _dash.sellers,
+      pendingSellers: _dash.pendingSellers,
+      loading: _dash.sellersLoading && _dash.sellers.isEmpty,
+      pageLocked: _pageLocked,
+      isRowBusy: (key) => isBusy(key),
+      onApprove: _approveSeller,
+      onWarn: (id) => _moderateSeller(
+        sellerId: id,
+        action: 'warn',
+        title: '경고 사유',
+        doneMessage: '경고를 남겼습니다.',
+        run: _dashNotifier.warnSeller,
+      ),
+      onSuspend: (id) => _moderateSeller(
+        sellerId: id,
+        action: 'suspend',
+        title: '정지 사유',
+        doneMessage: '판매자를 정지했습니다.',
+        run: _dashNotifier.suspendSeller,
+      ),
+      onUnsuspend: (id) => _moderateSeller(
+        sellerId: id,
+        action: 'unsuspend',
+        title: '정지 해제 사유',
+        doneMessage: '정지를 해제했습니다.',
+        run: _dashNotifier.unsuspendSeller,
+      ),
+      onRemove: (id) => _moderateSeller(
+        sellerId: id,
+        action: 'remove',
+        title: '판매자 해제 사유',
+        doneMessage: '판매자를 해제했습니다.',
+        run: _dashNotifier.removeSeller,
+      ),
     );
   }
 
@@ -684,6 +797,24 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
           isRowBusy: (id) => isBusy('draft:$id'),
           onAttach: _attachDraft,
           onPromote: _promoteDraft,
+        ),
+        const SizedBox(height: 18),
+        AdminCatalogItemsPanel(
+          items: _dash.catalogItems,
+          loading: _dash.catalogItemsLoading && _dash.catalogItems.isEmpty,
+          pageLocked: _pageLocked,
+          queryController: _catalogSearchCtrl,
+          isRowBusy: (id) => isBusy('catalog:$id'),
+          onSearch: () {
+            unawaited(
+              _dashNotifier.loadCatalogItems(
+                force: true,
+                q: _catalogSearchCtrl.text.trim(),
+              ),
+            );
+          },
+          onAdd: _addCatalogItem,
+          onDelete: _deleteCatalogItem,
         ),
         const SizedBox(height: 18),
         PortalSection(
@@ -1146,6 +1277,393 @@ class AdminCatalogDraftsPanel extends StatelessWidget {
   }
 }
 
+class AdminSellersPanel extends StatelessWidget {
+  const AdminSellersPanel({
+    super.key,
+    required this.sellers,
+    required this.pendingSellers,
+    required this.pageLocked,
+    required this.isRowBusy,
+    required this.onApprove,
+    required this.onWarn,
+    required this.onSuspend,
+    required this.onUnsuspend,
+    required this.onRemove,
+    this.loading = false,
+  });
+
+  final List<AdminSellerModel> sellers;
+  final List<AdminSellerModel> pendingSellers;
+  final bool pageLocked;
+  final bool Function(String key) isRowBusy;
+  final void Function(String id) onApprove;
+  final void Function(String id) onWarn;
+  final void Function(String id) onSuspend;
+  final void Function(String id) onUnsuspend;
+  final void Function(String id) onRemove;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    final active = [
+      for (final seller in sellers)
+        if (seller.status == 'active') seller,
+    ];
+    final suspended = [
+      for (final seller in sellers)
+        if (seller.status == 'suspended') seller,
+    ];
+    final removed = [
+      for (final seller in sellers)
+        if (seller.status == 'removed') seller,
+    ];
+    if (loading) {
+      return const Padding(
+        padding: EdgeInsets.all(22),
+        child: Center(child: CircularProgressIndicator()),
+      );
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        PortalSection(
+          title: '승인 대기 ${pendingSellers.length}건',
+          child: pendingSellers.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Text('대기 중인 입점 신청이 없습니다.'),
+                )
+              : Column(
+                  children: [
+                    for (final seller in pendingSellers)
+                      ListTile(
+                        leading: const Icon(Icons.storefront_outlined),
+                        title: Text(seller.shopName),
+                        subtitle: Text(
+                          '${seller.userEmail} · ${seller.sellerType}',
+                        ),
+                        trailing: FilledButton(
+                          onPressed: pageLocked || isRowBusy('approve:${seller.id}')
+                              ? null
+                              : () => onApprove(seller.id),
+                          child: isRowBusy('approve:${seller.id}')
+                              ? busyProgress()
+                              : const Text('승인'),
+                        ),
+                      ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: 18),
+        PortalSection(
+          title: '운영 중 판매자',
+          child: active.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Text('운영 중인 판매자가 없습니다.'),
+                )
+              : Column(
+                  children: [
+                    for (final seller in active)
+                      _SellerModerationTile(
+                        seller: seller,
+                        pageLocked: pageLocked,
+                        isRowBusy: isRowBusy,
+                        onWarn: onWarn,
+                        onSuspend: onSuspend,
+                        onRemove: onRemove,
+                      ),
+                  ],
+                ),
+        ),
+        const SizedBox(height: 18),
+        PortalSection(
+          title: '정지 · 해제',
+          child: suspended.isEmpty && removed.isEmpty
+              ? const Padding(
+                  padding: EdgeInsets.all(18),
+                  child: Text('정지·해제된 판매자가 없습니다.'),
+                )
+              : Column(
+                  children: [
+                    for (final seller in suspended)
+                      _SellerModerationTile(
+                        seller: seller,
+                        pageLocked: pageLocked,
+                        isRowBusy: isRowBusy,
+                        onUnsuspend: onUnsuspend,
+                        onRemove: onRemove,
+                      ),
+                    for (final seller in removed)
+                      _SellerModerationTile(seller: seller, pageLocked: true),
+                  ],
+                ),
+        ),
+      ],
+    );
+  }
+}
+
+class _SellerModerationTile extends StatelessWidget {
+  const _SellerModerationTile({
+    required this.seller,
+    required this.pageLocked,
+    this.isRowBusy,
+    this.onWarn,
+    this.onSuspend,
+    this.onUnsuspend,
+    this.onRemove,
+  });
+
+  final AdminSellerModel seller;
+  final bool pageLocked;
+  final bool Function(String key)? isRowBusy;
+  final void Function(String id)? onWarn;
+  final void Function(String id)? onSuspend;
+  final void Function(String id)? onUnsuspend;
+  final void Function(String id)? onRemove;
+
+  bool _busy(String action) => isRowBusy?.call('$action:${seller.id}') ?? false;
+
+  @override
+  Widget build(BuildContext context) {
+    final subtitle = StringBuffer(seller.userEmail);
+    if (seller.warningCount > 0) {
+      subtitle.write(' · 경고 ${seller.warningCount}');
+    }
+    if (seller.lastModerationReason != null &&
+        seller.lastModerationReason!.isNotEmpty) {
+      subtitle.write(' · ${seller.lastModerationReason}');
+    }
+    return ListTile(
+      leading: Icon(
+        seller.status == 'removed'
+            ? Icons.store_mall_directory_outlined
+            : Icons.storefront_outlined,
+      ),
+      title: Text(
+        '${seller.shopName}${seller.isPlatform ? ' (공식)' : ''}'
+        '${seller.status == 'suspended' ? ' · 정지' : ''}'
+        '${seller.status == 'removed' ? ' · 해제' : ''}',
+      ),
+      subtitle: Text(subtitle.toString()),
+      trailing: seller.isPlatform
+          ? const PortalStatusBadge(label: '공식')
+          : Wrap(
+              spacing: 6,
+              children: [
+                if (onWarn != null)
+                  TextButton(
+                    onPressed: pageLocked || _busy('warn')
+                        ? null
+                        : () => onWarn!(seller.id),
+                    child: _busy('warn') ? busyProgress() : const Text('경고'),
+                  ),
+                if (onSuspend != null)
+                  TextButton(
+                    onPressed: pageLocked || _busy('suspend')
+                        ? null
+                        : () => onSuspend!(seller.id),
+                    child: _busy('suspend') ? busyProgress() : const Text('정지'),
+                  ),
+                if (onUnsuspend != null)
+                  FilledButton.tonal(
+                    onPressed: pageLocked || _busy('unsuspend')
+                        ? null
+                        : () => onUnsuspend!(seller.id),
+                    child: _busy('unsuspend')
+                        ? busyProgress()
+                        : const Text('정지 해제'),
+                  ),
+                if (onRemove != null)
+                  TextButton(
+                    onPressed: pageLocked || _busy('remove')
+                        ? null
+                        : () => onRemove!(seller.id),
+                    child: _busy('remove') ? busyProgress() : const Text('해제'),
+                  ),
+              ],
+            ),
+    );
+  }
+}
+
+class AdminCatalogItemsPanel extends StatelessWidget {
+  const AdminCatalogItemsPanel({
+    super.key,
+    required this.items,
+    required this.pageLocked,
+    required this.queryController,
+    required this.isRowBusy,
+    required this.onSearch,
+    required this.onAdd,
+    required this.onDelete,
+    this.loading = false,
+  });
+
+  final List<AdminCatalogProductModel> items;
+  final bool pageLocked;
+  final TextEditingController queryController;
+  final bool Function(String id) isRowBusy;
+  final VoidCallback onSearch;
+  final VoidCallback onAdd;
+  final void Function(AdminCatalogProductModel item) onDelete;
+  final bool loading;
+
+  @override
+  Widget build(BuildContext context) {
+    return PortalSection(
+      title: '대표 카드 ${items.length}건',
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: queryController,
+                    decoration: const InputDecoration(
+                      labelText: '회사·품목·종류 검색',
+                    ),
+                    onSubmitted: (_) => onSearch(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                FilledButton.tonal(
+                  onPressed: pageLocked ? null : onSearch,
+                  child: const Text('검색'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: pageLocked ? null : onAdd,
+                  child: const Text('카드 추가'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            if (loading)
+              const Padding(
+                padding: EdgeInsets.all(18),
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (items.isEmpty)
+              const Padding(
+                padding: EdgeInsets.all(12),
+                child: Text('표시할 카드가 없습니다. 검색하거나 카드를 추가하세요.'),
+              )
+            else
+              for (final item in items)
+                ListTile(
+                  title: Text(item.cardTitle),
+                  subtitle: Text(
+                    '${item.category} · 오퍼 ${item.publishedOfferCount}/${item.offerCount}',
+                  ),
+                  trailing: TextButton(
+                    onPressed: pageLocked || isRowBusy(item.id)
+                        ? null
+                        : () => onDelete(item),
+                    child: isRowBusy(item.id)
+                        ? busyProgress()
+                        : const Text('삭제'),
+                  ),
+                ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AdminCatalogCreateDialog extends ConsumerStatefulWidget {
+  const _AdminCatalogCreateDialog();
+
+  @override
+  ConsumerState<_AdminCatalogCreateDialog> createState() =>
+      _AdminCatalogCreateDialogState();
+}
+
+class _AdminCatalogCreateDialogState
+    extends ConsumerState<_AdminCatalogCreateDialog> with AsyncBusyState {
+  final _manufacturer = TextEditingController();
+  final _title = TextEditingController();
+  final _category = TextEditingController();
+  String? _error;
+
+  @override
+  void dispose() {
+    _manufacturer.dispose();
+    _title.dispose();
+    _category.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    final manufacturer = _manufacturer.text.trim();
+    final title = _title.text.trim();
+    final category = _category.text.trim();
+    if (manufacturer.isEmpty || title.isEmpty || category.isEmpty) {
+      setState(() => _error = '회사·품목명·종류를 모두 적으세요.');
+      return;
+    }
+    await runBusy('create', () async {
+      try {
+        await ref.read(adminDashboardProvider.notifier).addCatalogItem(
+              manufacturer: manufacturer,
+              title: title,
+              category: category,
+            );
+        if (mounted) Navigator.pop(context, true);
+      } on ApiException catch (e) {
+        if (mounted) setState(() => _error = e.message);
+      }
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final busy = isBusy('create');
+    return AlertDialog(
+      title: const Text('대표 카드 추가'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _manufacturer,
+              decoration: const InputDecoration(labelText: '회사'),
+            ),
+            TextField(
+              controller: _title,
+              decoration: const InputDecoration(labelText: '품목명'),
+            ),
+            TextField(
+              controller: _category,
+              decoration: const InputDecoration(labelText: '종류(소분류)'),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: busy ? null : () => Navigator.pop(context, false),
+          child: const Text('취소'),
+        ),
+        FilledButton(
+          onPressed: busy ? null : _submit,
+          child: busy ? busyProgress() : const Text('추가'),
+        ),
+      ],
+    );
+  }
+}
+
 class _AdminCatalogPickDialog extends ConsumerStatefulWidget {
   const _AdminCatalogPickDialog();
 
@@ -1401,6 +1919,7 @@ String _sellerStatusLabel(String status) {
     'pending' => ' · 대기',
     'active' => '',
     'suspended' => ' · 정지',
+    'removed' => ' · 해제',
     _ => ' · $status',
   };
 }

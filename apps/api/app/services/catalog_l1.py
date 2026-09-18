@@ -114,6 +114,7 @@ def list_l1_facets(
         filters.append(CatalogProduct.storage == storage)
     if not filters:
         return _empty_facets(tag)
+    filters.append(CatalogProduct.status == "active")
 
     brand_rows = db.execute(
         select(CatalogProduct.manufacturer, func.count())

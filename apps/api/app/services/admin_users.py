@@ -11,6 +11,7 @@ from app.models import (
     PaymentIntent,
     Product,
     Seller,
+    SellerModerationEvent,
     ShippingAddress,
     Subscription,
     User,
@@ -74,6 +75,7 @@ def delete_user_account(db: Session, user: User) -> None:
     db.execute(delete(CartItem).where(CartItem.user_id == user_id))
     if seller is not None:
         product_ids = list(db.scalars(select(Product.id).where(Product.seller_id == seller.id)).all())
+        db.execute(delete(SellerModerationEvent).where(SellerModerationEvent.seller_id == seller.id))
         db.execute(delete(CatalogIntakeDraft).where(CatalogIntakeDraft.seller_id == seller.id))
         if product_ids:
             db.execute(delete(CartItem).where(CartItem.product_id.in_(product_ids)))

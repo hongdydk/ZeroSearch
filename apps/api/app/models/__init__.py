@@ -8,12 +8,14 @@ from app.models.order import Order, OrderItem
 from app.models.payment import PaymentIntent
 from app.models.product import Product
 from app.models.seller import Seller
+from app.models.seller_moderation import SellerModerationEvent
 from app.models.user import User
 
 __all__ = [
     "User",
     "ShippingAddress",
     "Seller",
+    "SellerModerationEvent",
     "CatalogProduct",
     "CatalogProductAlias",
     "CatalogIntakeDraft",
