@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import false, func, or_, select
+from sqlalchemy import Text, cast, false, func, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -73,24 +73,47 @@ def l1_tag_filter(tag: str | None):
     return CatalogProduct.l1_tags.contains([tag])
 
 
+def _empty_facets(l1_tag: str = "") -> dict:
+    return {
+        "l1_tag": l1_tag,
+        "default_axis": "brand",
+        "brands": [],
+        "menus": [],
+    }
+
+
 def list_l1_facets(
     db: Session,
     *,
-    l1_tag: str,
+    l1_tag: str | None = None,
+    q: str | None = None,
     storage: str | None = None,
 ) -> dict:
-    if l1_tag not in GUEST_L1_SET:
-        return {
-            "l1_tag": l1_tag,
-            "default_axis": "brand",
-            "brands": [],
-            "menus": [],
-        }
-    tag_filter = l1_tag_filter(l1_tag)
+    tag = (l1_tag or "").strip()
+    query = (q or "").strip()
+    if tag and tag not in GUEST_L1_SET:
+        return _empty_facets(tag)
 
-    filters = [tag_filter]
+    filters = []
+    if tag:
+        filters.append(l1_tag_filter(tag))
+    if query:
+        pattern = f"%{query}%"
+        filters.append(
+            or_(
+                CatalogProduct.title.ilike(pattern),
+                CatalogProduct.manufacturer.ilike(pattern),
+                CatalogProduct.category.ilike(pattern),
+                CatalogProduct.category_major.ilike(pattern),
+                CatalogProduct.category_mid.ilike(pattern),
+                CatalogProduct.description.ilike(pattern),
+                cast(CatalogProduct.search_keywords, Text).ilike(pattern),
+            )
+        )
     if storage in {"상온", "냉장", "냉동"}:
         filters.append(CatalogProduct.storage == storage)
+    if not filters:
+        return _empty_facets(tag)
 
     brand_rows = db.execute(
         select(CatalogProduct.manufacturer, func.count())
@@ -105,9 +128,9 @@ def list_l1_facets(
         .order_by(func.count().desc(), CatalogProduct.title)
     ).all()
 
-    axis: Axis = default_axis_for(l1_tag)
+    axis: Axis = default_axis_for(tag) if tag else "brand"
     return {
-        "l1_tag": l1_tag,
+        "l1_tag": tag,
         "default_axis": axis,
         "brands": [{"name": name, "count": count} for name, count in brand_rows if name],
         "menus": [{"name": name, "count": count} for name, count in menu_rows if name],

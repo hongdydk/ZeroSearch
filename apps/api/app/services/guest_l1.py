@@ -12,7 +12,9 @@ from typing import Literal
 
 Confidence = Literal["high", "mid", "low"]
 Axis = Literal["brand", "menu"]
+BrowseAxis = Literal["brand", "menu", "seller"]
 Storage = Literal["상온", "냉장", "냉동"]
+BROWSE_AXIS_SELLER = "seller"
 
 GUEST_L1_TAGS: tuple[str, ...] = (
     "생수/음료",

@@ -15,7 +15,7 @@ bool showsMallBuyerSearch(String location) {
   return false;
 }
 
-/// Browse URL SSOT: `/`, `/?l1=`, `/?l1=&axis=`, `/?q=`. 레거시 `major`/`mid`도 읽는다.
+/// Browse URL SSOT: `/`, `/?l1=`, `/?l1=&axis=brand|menu|seller`, `/?q=`. 레거시 `major`/`mid`도 읽는다.
 String browseLocation({
   String? l1,
   String? axis,
@@ -29,22 +29,42 @@ String browseLocation({
   String? q,
 }) {
   final trimmedQ = q?.trim() ?? '';
-  if (trimmedQ.isNotEmpty) {
-    return Uri(path: '/', queryParameters: {'q': trimmedQ}).toString();
-  }
   final params = <String, String>{};
+  if (trimmedQ.isNotEmpty) {
+    params['q'] = trimmedQ;
+    final resolvedAxis = normalizeBrowseAxis(axis);
+    params['axis'] = resolvedAxis;
+    if (all) {
+      params['all'] = '1';
+    } else if (!isSellerBrowseAxis(resolvedAxis) &&
+        resolvedAxis == kBrowseAxisMenu &&
+        menu != null &&
+        menu.isNotEmpty) {
+      params['menu'] = menu;
+    } else if (!isSellerBrowseAxis(resolvedAxis) &&
+        brand != null &&
+        brand.isNotEmpty) {
+      params['brand'] = brand;
+    }
+    return Uri(path: '/', queryParameters: params).toString();
+  }
   if (l1 != null && l1.isNotEmpty) {
     params['l1'] = l1;
     final resolvedAxis = (axis != null && axis.isNotEmpty)
-        ? axis
+        ? normalizeBrowseAxis(axis, fallback: guestL1DefaultAxis(l1))
         : guestL1DefaultAxis(l1);
     params['axis'] = resolvedAxis;
     if (storage != null && storage.isNotEmpty) params['storage'] = storage;
     if (all) {
       params['all'] = '1';
-    } else if (resolvedAxis == 'menu' && menu != null && menu.isNotEmpty) {
+    } else if (!isSellerBrowseAxis(resolvedAxis) &&
+        resolvedAxis == kBrowseAxisMenu &&
+        menu != null &&
+        menu.isNotEmpty) {
       params['menu'] = menu;
-    } else if (brand != null && brand.isNotEmpty) {
+    } else if (!isSellerBrowseAxis(resolvedAxis) &&
+        brand != null &&
+        brand.isNotEmpty) {
       params['brand'] = brand;
     }
   } else {
@@ -72,7 +92,19 @@ bool hasBrowseQuery(Uri uri) {
 /// Deep-link step-down when the stack cannot pop.
 String browseStepDown(Uri uri) {
   final q = uri.queryParameters['q']?.trim() ?? '';
-  if (q.isNotEmpty) return '/';
+  if (q.isNotEmpty) {
+    final axis = uri.queryParameters['axis']?.trim() ?? '';
+    final brand = uri.queryParameters['brand']?.trim() ?? '';
+    final menu = uri.queryParameters['menu']?.trim() ?? '';
+    final all = uri.queryParameters['all'] == '1';
+    if (brand.isNotEmpty || menu.isNotEmpty || all) {
+      return browseLocation(
+        q: q,
+        axis: axis.isEmpty ? kBrowseAxisBrand : axis,
+      );
+    }
+    return '/';
+  }
   final l1 = uri.queryParameters['l1']?.trim() ?? '';
   if (l1.isNotEmpty) {
     final axis = uri.queryParameters['axis']?.trim() ?? '';

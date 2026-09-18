@@ -938,6 +938,114 @@
         "title": "CatalogIntakeListResponse",
         "type": "object"
       },
+      "CatalogOfferBrowseItem": {
+        "description": "공개 오퍼 한 장 — identity collapse 없음 (axis=seller).",
+        "properties": {
+          "catalogProductId": {
+            "title": "Catalogproductid",
+            "type": "string"
+          },
+          "flavor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "manufacturer": {
+            "default": "",
+            "title": "Manufacturer",
+            "type": "string"
+          },
+          "optionLabel": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optionlabel"
+          },
+          "priceCredits": {
+            "title": "Pricecredits",
+            "type": "integer"
+          },
+          "seller": {
+            "$ref": "#/components/schemas/SellerSummary"
+          },
+          "stock": {
+            "title": "Stock",
+            "type": "integer"
+          },
+          "title": {
+            "title": "Title",
+            "type": "string"
+          },
+          "volumeMl": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumeml"
+          }
+        },
+        "required": [
+          "id",
+          "catalogProductId",
+          "title",
+          "priceCredits",
+          "stock",
+          "seller"
+        ],
+        "title": "CatalogOfferBrowseItem",
+        "type": "object"
+      },
+      "CatalogOfferBrowseListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogOfferBrowseItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "CatalogOfferBrowseListResponse",
+        "type": "object"
+      },
       "CatalogOfferItem": {
         "properties": {
           "flavor": {
@@ -1433,6 +1541,7 @@
             "type": "string"
           },
           "l1Tag": {
+            "default": "",
             "title": "L1Tag",
             "type": "string"
           },
@@ -1445,7 +1554,6 @@
           }
         },
         "required": [
-          "l1Tag",
           "defaultAxis",
           "brands",
           "menus"
@@ -4397,10 +4505,33 @@
           {
             "in": "query",
             "name": "l1Tag",
-            "required": true,
+            "required": false,
             "schema": {
-              "title": "L1Tag",
-              "type": "string"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "L1Tag"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
             }
           },
           {
@@ -4443,6 +4574,238 @@
           }
         },
         "summary": "Get Guest L1 Facets",
+        "tags": [
+          "catalog-products"
+        ]
+      }
+    },
+    "/catalog-products/offers": {
+      "get": {
+        "operationId": "get_catalog_offers_catalog_products_offers_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "category",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Category"
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryMajor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Categorymajor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "categoryMid",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Categorymid"
+            }
+          },
+          {
+            "in": "query",
+            "name": "l1Tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "L1Tag"
+            }
+          },
+          {
+            "in": "query",
+            "name": "storage",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Storage"
+            }
+          },
+          {
+            "in": "query",
+            "name": "brand",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Brand"
+            }
+          },
+          {
+            "in": "query",
+            "name": "menu",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Menu"
+            }
+          },
+          {
+            "in": "query",
+            "name": "flavor",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Flavor"
+            }
+          },
+          {
+            "in": "query",
+            "name": "volumeMlMin",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Volumemlmin"
+            }
+          },
+          {
+            "in": "query",
+            "name": "volumeMlMax",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Volumemlmax"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 50,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogOfferBrowseListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Catalog Offers",
         "tags": [
           "catalog-products"
         ]

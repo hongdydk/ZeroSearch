@@ -314,6 +314,91 @@ class CatalogProductPageModel {
   bool get hasMore => items.length < total;
 }
 
+class CatalogOfferBrowseModel {
+  CatalogOfferBrowseModel({
+    required this.id,
+    required this.catalogProductId,
+    required this.title,
+    required this.priceCredits,
+    required this.stock,
+    required this.seller,
+    this.manufacturer = '',
+    this.optionLabel,
+    this.flavor,
+    this.volumeMl,
+    this.imageUrl,
+  });
+
+  factory CatalogOfferBrowseModel.fromJson(Map<String, dynamic> json) {
+    final sellerRaw = json['seller'];
+    return CatalogOfferBrowseModel(
+      id: json['id'] as String? ?? '',
+      catalogProductId: json['catalogProductId'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      manufacturer: json['manufacturer'] as String? ?? '',
+      optionLabel: json['optionLabel'] as String?,
+      flavor: json['flavor'] as String?,
+      volumeMl: json['volumeMl'] as int?,
+      priceCredits: json['priceCredits'] as int? ?? 0,
+      stock: json['stock'] as int? ?? 0,
+      imageUrl: json['imageUrl'] as String?,
+      seller: sellerRaw is Map
+          ? SellerSummaryModel(
+              id: sellerRaw['id'] as String? ?? '',
+              shopName: sellerRaw['shopName'] as String? ?? '',
+              sellerType: sellerRaw['sellerType'] as String? ?? 'merchant',
+            )
+          : SellerSummaryModel(id: '', shopName: '', sellerType: 'merchant'),
+    );
+  }
+
+  final String id;
+  final String catalogProductId;
+  final String title;
+  final String manufacturer;
+  final String? optionLabel;
+  final String? flavor;
+  final int? volumeMl;
+  final int priceCredits;
+  final int stock;
+  final String? imageUrl;
+  final SellerSummaryModel seller;
+
+  bool get isOfficial => seller.sellerType == 'platform';
+
+  String get cardTitle {
+    final maker = manufacturer.trim();
+    final product = title.trim();
+    if (maker.isEmpty || product == maker || product.startsWith('$maker ')) {
+      return product;
+    }
+    return '$maker $product';
+  }
+
+  String get optionLine {
+    final parts = <String>[];
+    if (optionLabel != null && optionLabel!.trim().isNotEmpty) {
+      parts.add(optionLabel!.trim());
+    }
+    if (flavor != null && flavor!.trim().isNotEmpty) {
+      parts.add(flavor!.trim());
+    }
+    if (volumeMl != null && volumeMl! > 0) {
+      parts.add('${volumeMl}ml');
+    }
+    return parts.join(' · ');
+  }
+}
+
+class CatalogOfferBrowsePageModel {
+  CatalogOfferBrowsePageModel({required this.items, required this.total});
+
+  final List<CatalogOfferBrowseModel> items;
+  final int total;
+
+  bool get hasMore => items.length < total;
+}
+
 class OrderItemModel {
   OrderItemModel({
     required this.id,

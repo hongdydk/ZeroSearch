@@ -72,19 +72,20 @@ class _Api extends ApiClient {
 
   @override
   Future<GuestL1FacetsModel> guestL1Facets({
-    required String l1Tag,
+    String? l1Tag,
+    String? q,
     String? storage,
   }) async {
     if (l1Tag == '생수/음료') {
       return GuestL1FacetsModel(
-        l1Tag: l1Tag,
+        l1Tag: l1Tag ?? '',
         defaultAxis: 'brand',
         brands: const [],
         menus: const [],
       );
     }
     return GuestL1FacetsModel(
-      l1Tag: l1Tag,
+      l1Tag: l1Tag ?? '',
       defaultAxis: 'brand',
       brands: const [
         GuestL1FacetItem(name: '농심', count: 2),
@@ -95,6 +96,61 @@ class _Api extends ApiClient {
         GuestL1FacetItem(name: '진라면 매운맛', count: 1),
       ],
     );
+  }
+
+  @override
+  Future<CatalogOfferBrowsePageModel> catalogOffers({
+    String? q,
+    String? category,
+    String? categoryMajor,
+    String? categoryMid,
+    String? l1Tag,
+    String? storage,
+    String? brand,
+    String? menu,
+    String? flavor,
+    int? volumeMlMin,
+    int? volumeMlMax,
+    int offset = 0,
+    int limit = 50,
+  }) async {
+    if (l1Tag == '라면/면류') {
+      return CatalogOfferBrowsePageModel(
+        items: [
+          CatalogOfferBrowseModel(
+            id: 'offer-official',
+            catalogProductId: 'cat-shin',
+            title: '신라면',
+            manufacturer: '농심',
+            priceCredits: 3900,
+            stock: 10,
+            seller: SellerSummaryModel(
+              id: 's-official',
+              shopName: '공식 스토어',
+              sellerType: 'platform',
+            ),
+          ),
+          CatalogOfferBrowseModel(
+            id: 'offer-mart',
+            catalogProductId: 'cat-shin',
+            title: '신라면',
+            manufacturer: '농심',
+            priceCredits: 4200,
+            stock: 4,
+            seller: SellerSummaryModel(
+              id: 's-mart',
+              shopName: '면사랑마트',
+              sellerType: 'merchant',
+            ),
+          ),
+        ],
+        total: 2,
+      );
+    }
+    if (l1Tag == '생수/음료') {
+      return CatalogOfferBrowsePageModel(items: [], total: 0);
+    }
+    return CatalogOfferBrowsePageModel(items: [], total: 0);
   }
 }
 
@@ -157,6 +213,7 @@ void main() {
     expect(router.state.uri.queryParameters['l1'], '라면/면류');
     expect(find.text('브랜드부터'), findsWidgets);
     expect(find.text('메뉴부터'), findsWidgets);
+    expect(find.text('판매자 오퍼'), findsWidgets);
     expect(find.text('농심'), findsOneWidget);
     expect(find.text('오뚜기'), findsOneWidget);
 
@@ -205,5 +262,40 @@ void main() {
     expect(router.state.uri.queryParameters['brand'], '그린에이드');
     expect(find.text('커피필터'), findsNothing);
     expect(find.textContaining('조건에 맞는 상품이 없습니다'), findsOneWidget);
+  });
+
+  testWidgets('L1 seller axis lists one card per offer with seller and price', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final router = await _pumpMall(tester);
+    await tester.tap(find.text('라면/면류').first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('판매자 오퍼').first);
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.queryParameters['l1'], '라면/면류');
+    expect(router.state.uri.queryParameters['axis'], 'seller');
+    expect(find.text('공식 스토어'), findsOneWidget);
+    expect(find.text('면사랑마트'), findsOneWidget);
+    expect(find.text('3,900원'), findsOneWidget);
+    expect(find.text('4,200원'), findsOneWidget);
+    expect(find.text('농심'), findsNothing);
+  });
+
+  testWidgets('L1 seller axis with untagged brand stays empty', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final router = await _pumpMall(tester);
+    router.go('/?l1=생수/음료&axis=seller');
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.queryParameters['l1'], '생수/음료');
+    expect(router.state.uri.queryParameters['axis'], 'seller');
+    expect(find.text('커피필터'), findsNothing);
+    expect(find.textContaining('공개 오퍼가 없습니다'), findsOneWidget);
   });
 }

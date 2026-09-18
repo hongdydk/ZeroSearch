@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.models import CatalogProduct, Product, Seller
 from app.schemas.catalog_product import (
+    CatalogOfferBrowseItem,
     CatalogOfferItem,
     CatalogProductDetailResponse,
     CatalogProductListItem,
@@ -38,6 +39,12 @@ class CatalogListResult:
     total: int
     available_flavors: list[str]
     has_volume_min_2000: bool
+
+
+@dataclass
+class CatalogOfferListResult:
+    items: list[CatalogOfferBrowseItem]
+    total: int
 
 
 def pick_identity_survivor_ids(rows: list[CatalogIdentityRow]) -> list[UUID]:
@@ -202,6 +209,99 @@ def _list_item(catalog: CatalogProduct, offers: list[Product]) -> CatalogProduct
         l1_tags=list(catalog.l1_tags or []),
         storage=catalog.storage,
     )
+
+
+def _offer_browse_item(offer: Product) -> CatalogOfferBrowseItem:
+    catalog = offer.catalog_product
+    seller = offer.seller
+    return CatalogOfferBrowseItem(
+        id=str(offer.id),
+        catalog_product_id=str(offer.catalog_product_id),
+        title=(catalog.title if catalog is not None else offer.title) or offer.title,
+        manufacturer=(catalog.manufacturer if catalog is not None else "") or "",
+        option_label=offer.option_label,
+        flavor=offer.flavor,
+        volume_ml=offer.volume_ml,
+        price_credits=offer.price_credits,
+        stock=offer.stock,
+        image_url=offer.image_url or (catalog.image_url if catalog is not None else None),
+        seller=SellerSummary(
+            id=str(seller.id),
+            shop_name=seller.shop_name,
+            seller_type=seller.seller_type,  # type: ignore[arg-type]
+        ),
+    )
+
+
+def list_catalog_offers(
+    db: Session,
+    *,
+    q: str | None = None,
+    category: str | None = None,
+    category_major: str | None = None,
+    category_mid: str | None = None,
+    flavor: str | None = None,
+    volume_ml_min: int | None = None,
+    volume_ml_max: int | None = None,
+    l1_tag: str | None = None,
+    storage: str | None = None,
+    brand: str | None = None,
+    menu: str | None = None,
+    offset: int = 0,
+    limit: int = 50,
+) -> CatalogOfferListResult:
+    """공개 오퍼를 한 장씩. 회사+품목 collapse 없음. L1은 fail-closed."""
+    catalog_filters = _catalog_search_filter(
+        q,
+        category,
+        category_major=category_major,
+        category_mid=category_mid,
+        l1_tag=l1_tag,
+        storage=storage,
+        brand=brand,
+        menu=menu,
+    )
+    offer_filters = _public_offer_filters(
+        flavor=flavor, volume_ml_min=volume_ml_min, volume_ml_max=volume_ml_max
+    )
+    base = (
+        select(Product.id)
+        .join(Seller, Product.seller_id == Seller.id)
+        .join(CatalogProduct, Product.catalog_product_id == CatalogProduct.id)
+        .where(*offer_filters, *catalog_filters)
+    )
+    total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    if total == 0:
+        return CatalogOfferListResult(items=[], total=0)
+
+    page_ids = list(
+        db.scalars(
+            select(Product.id)
+            .join(Seller, Product.seller_id == Seller.id)
+            .join(CatalogProduct, Product.catalog_product_id == CatalogProduct.id)
+            .where(*offer_filters, *catalog_filters)
+            .order_by(
+                CatalogProduct.manufacturer,
+                CatalogProduct.title,
+                Seller.shop_name,
+                Product.price_credits,
+                Product.id,
+            )
+            .offset(offset)
+            .limit(limit)
+        ).all()
+    )
+    if not page_ids:
+        return CatalogOfferListResult(items=[], total=int(total))
+
+    offers = db.scalars(
+        select(Product)
+        .where(Product.id.in_(page_ids))
+        .options(joinedload(Product.seller), joinedload(Product.catalog_product))
+    ).unique().all()
+    by_id = {offer.id: offer for offer in offers}
+    items = [_offer_browse_item(by_id[oid]) for oid in page_ids if oid in by_id]
+    return CatalogOfferListResult(items=items, total=int(total))
 
 
 def list_catalog_products(
