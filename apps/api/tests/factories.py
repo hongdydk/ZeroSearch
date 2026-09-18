@@ -18,6 +18,7 @@ def make_user(
     email: str = "user@test.local",
     display_name: str = "Test",
     is_admin: bool = False,
+    is_buyer: bool = True,
     password_hash: str = "hash",
 ) -> User:
     user = MagicMock(spec=User)
@@ -25,6 +26,8 @@ def make_user(
     user.email = email
     user.display_name = display_name
     user.is_admin = is_admin
+    user.is_buyer = is_buyer
+    user.seller = None
     user.created_at = datetime.now(UTC)
     user.password_hash = password_hash
     return user

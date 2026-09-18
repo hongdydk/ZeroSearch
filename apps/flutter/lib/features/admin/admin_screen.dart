@@ -441,7 +441,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         if (!mounted) return;
         ScaffoldMessenger.of(
           context,
-        ).showSnackBar(const SnackBar(content: Text('역할을 저장했습니다.')));
+        ).showSnackBar(const SnackBar(content: Text('저장했습니다.')));
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -843,7 +843,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
           if (user is Map) Map<String, dynamic>.from(user),
       ],
       queryController: _userSearchCtrl,
-      adminDraft: _dash.adminDraft,
+      userDrafts: _dash.userDrafts,
       pageLocked: _pageLocked,
       loading: _dash.usersLoading && _dash.users.isEmpty,
       isRowBusy: (id) => isBusy('user:$id'),
@@ -855,7 +855,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
           ),
         );
       },
-      onAdminChanged: (id, value) => _dashNotifier.setAdminDraft(id, value),
+      onDraftChanged: _dashNotifier.setUserDraft,
       onSave: _saveUserRole,
       onDelete: (id) {
         final match = _dash.users.where(
@@ -1761,16 +1761,16 @@ class _AdminCatalogPickDialogState
   }
 }
 
-class AdminUsersPanel extends StatelessWidget {
+class AdminUsersPanel extends StatefulWidget {
   const AdminUsersPanel({
     super.key,
     required this.users,
     required this.queryController,
-    required this.adminDraft,
+    required this.userDrafts,
     required this.pageLocked,
     required this.isRowBusy,
     required this.onSearch,
-    required this.onAdminChanged,
+    required this.onDraftChanged,
     required this.onSave,
     required this.onDelete,
     this.loading = false,
@@ -1778,19 +1778,91 @@ class AdminUsersPanel extends StatelessWidget {
 
   final List<Map<String, dynamic>> users;
   final TextEditingController queryController;
-  final Map<String, bool> adminDraft;
+  final Map<String, AdminUserRowDraft> userDrafts;
   final bool pageLocked;
   final bool Function(String id) isRowBusy;
   final VoidCallback onSearch;
-  final void Function(String id, bool isAdmin) onAdminChanged;
+  final void Function(String id, AdminUserRowDraft draft) onDraftChanged;
   final void Function(String id) onSave;
   final void Function(String id) onDelete;
   final bool loading;
 
   @override
+  State<AdminUsersPanel> createState() => _AdminUsersPanelState();
+}
+
+class _AdminUsersPanelState extends State<AdminUsersPanel> {
+  final _buyerNames = <String, TextEditingController>{};
+  final _sellerNames = <String, TextEditingController>{};
+
+  @override
+  void initState() {
+    super.initState();
+    _syncNameControllers();
+  }
+
+  @override
+  void didUpdateWidget(AdminUsersPanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    _syncNameControllers();
+  }
+
+  @override
+  void dispose() {
+    for (final controller in _buyerNames.values) {
+      controller.dispose();
+    }
+    for (final controller in _sellerNames.values) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  AdminUserRowDraft _draftFor(Map<String, dynamic> user) {
+    final id = user['id'] as String;
+    return widget.userDrafts[id] ?? adminUserDraftFromMap(user);
+  }
+
+  void _syncNameControllers() {
+    final ids = {for (final user in widget.users) user['id'] as String};
+    for (final id in [..._buyerNames.keys]) {
+      if (ids.contains(id)) continue;
+      _buyerNames.remove(id)?.dispose();
+      _sellerNames.remove(id)?.dispose();
+    }
+    for (final user in widget.users) {
+      final id = user['id'] as String;
+      final draft = _draftFor(user);
+      _buyerNames.putIfAbsent(
+        id,
+        () => TextEditingController(text: draft.buyerName),
+      );
+      _sellerNames.putIfAbsent(
+        id,
+        () => TextEditingController(text: draft.sellerName),
+      );
+    }
+  }
+
+  void _pushDraft(String id, AdminUserRowDraft draft) {
+    widget.onDraftChanged(
+      id,
+      draft.copyWith(
+        buyerName: _buyerNames[id]?.text ?? draft.buyerName,
+        sellerName: _sellerNames[id]?.text ?? draft.sellerName,
+      ),
+    );
+  }
+
+  void _saveRow(String id, AdminUserRowDraft draft) {
+    _pushDraft(id, draft);
+    widget.onSave(id);
+  }
+
+  @override
   Widget build(BuildContext context) {
     return PortalSection(
-      title: '사용자 ${users.length}명',
+      title: '사용자 ${widget.users.length}명',
       child: Padding(
         padding: const EdgeInsets.all(12),
         child: Column(
@@ -1800,25 +1872,28 @@ class AdminUsersPanel extends StatelessWidget {
               children: [
                 Expanded(
                   child: TextField(
-                    controller: queryController,
+                    controller: widget.queryController,
                     decoration: const InputDecoration(
                       labelText: '이메일·이름 검색',
                       prefixIcon: Icon(Icons.search),
                     ),
-                    onSubmitted: (_) => onSearch(),
+                    onSubmitted: (_) => widget.onSearch(),
                   ),
                 ),
                 const SizedBox(width: 8),
-                FilledButton(onPressed: onSearch, child: const Text('검색')),
+                FilledButton(
+                  onPressed: widget.onSearch,
+                  child: const Text('검색'),
+                ),
               ],
             ),
             const SizedBox(height: 12),
-            if (loading)
+            if (widget.loading)
               const Padding(
                 padding: EdgeInsets.all(22),
                 child: Center(child: CircularProgressIndicator()),
               )
-            else if (users.isEmpty)
+            else if (widget.users.isEmpty)
               const Padding(
                 padding: EdgeInsets.all(22),
                 child: Text('사용자가 없습니다.'),
@@ -1827,57 +1902,23 @@ class AdminUsersPanel extends StatelessWidget {
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: DataTable(
+                  headingRowHeight: 48,
+                  dataRowMinHeight: 72,
+                  dataRowMaxHeight: 96,
+                  columnSpacing: 20,
                   columns: const [
                     DataColumn(label: Text('이메일')),
-                    DataColumn(label: Text('이름')),
-                    DataColumn(label: Text('역할')),
+                    DataColumn(label: Text('구매자 이름')),
+                    DataColumn(label: Text('판매자 이름')),
+                    DataColumn(label: Text('구매자')),
+                    DataColumn(label: Text('판매자')),
                     DataColumn(label: Text('관리자')),
                     DataColumn(label: Text('저장')),
                     DataColumn(label: Text('삭제')),
                   ],
                   rows: [
-                    for (final user in users)
-                      DataRow(
-                        cells: [
-                          DataCell(Text(user['email'] as String? ?? '')),
-                          DataCell(Text(user['displayName'] as String? ?? '—')),
-                          DataCell(_RoleChips(user: user)),
-                          DataCell(
-                            Checkbox(
-                              value:
-                                  adminDraft[user['id'] as String] ??
-                                  user['isAdmin'] == true,
-                              onChanged:
-                                  pageLocked || isRowBusy(user['id'] as String)
-                                  ? null
-                                  : (value) => onAdminChanged(
-                                      user['id'] as String,
-                                      value ?? false,
-                                    ),
-                            ),
-                          ),
-                          DataCell(
-                            FilledButton(
-                              onPressed:
-                                  pageLocked || isRowBusy(user['id'] as String)
-                                  ? null
-                                  : () => onSave(user['id'] as String),
-                              child: isRowBusy(user['id'] as String)
-                                  ? busyProgress()
-                                  : const Text('저장'),
-                            ),
-                          ),
-                          DataCell(
-                            TextButton(
-                              onPressed:
-                                  pageLocked || isRowBusy(user['id'] as String)
-                                  ? null
-                                  : () => onDelete(user['id'] as String),
-                              child: const Text('삭제'),
-                            ),
-                          ),
-                        ],
-                      ),
+                    for (final user in widget.users)
+                      _userRow(user, _draftFor(user)),
                   ],
                 ),
               ),
@@ -1886,40 +1927,126 @@ class AdminUsersPanel extends StatelessWidget {
       ),
     );
   }
-}
 
-class _RoleChips extends StatelessWidget {
-  const _RoleChips({required this.user});
-
-  final Map<String, dynamic> user;
-
-  @override
-  Widget build(BuildContext context) {
-    final sellerStatus = user['sellerStatus'] as String?;
-    final isAdmin = user['isAdmin'] == true;
-    return Wrap(
-      spacing: 6,
-      runSpacing: 4,
-      children: [
-        const Chip(label: Text('구매자'), visualDensity: VisualDensity.compact),
-        if (sellerStatus != null)
-          Chip(
-            label: Text('판매자${_sellerStatusLabel(sellerStatus)}'),
-            visualDensity: VisualDensity.compact,
+  DataRow _userRow(Map<String, dynamic> user, AdminUserRowDraft draft) {
+    final id = user['id'] as String;
+    final busy = widget.pageLocked || widget.isRowBusy(id);
+    final isPlatform = user['sellerType'] == 'platform';
+    final sellerHint = _sellerStatusHint(user['sellerStatus'] as String?);
+    return DataRow(
+      cells: [
+        DataCell(Text(user['email'] as String? ?? '')),
+        DataCell(
+          SizedBox(
+            width: 160,
+            child: TextField(
+              controller: _buyerNames[id]!,
+              enabled: !busy,
+              decoration: const InputDecoration(
+                isDense: true,
+                hintText: '구매자 표시 이름',
+              ),
+            ),
           ),
-        if (isAdmin)
-          const Chip(label: Text('관리자'), visualDensity: VisualDensity.compact),
+        ),
+        DataCell(
+          SizedBox(
+            width: 160,
+            child: TextField(
+              controller: _sellerNames[id]!,
+              enabled: !busy,
+              decoration: const InputDecoration(
+                isDense: true,
+                hintText: '가게 이름',
+              ),
+            ),
+          ),
+        ),
+        DataCell(
+          _RoleToggle(
+            value: draft.isBuyer,
+            enabled: !busy,
+            onChanged: (value) => _pushDraft(id, draft.copyWith(isBuyer: value)),
+          ),
+        ),
+        DataCell(
+          _RoleToggle(
+            value: draft.isSeller,
+            enabled: !busy && !(isPlatform && draft.isSeller),
+            hint: sellerHint,
+            onChanged: (value) => _pushDraft(id, draft.copyWith(isSeller: value)),
+          ),
+        ),
+        DataCell(
+          _RoleToggle(
+            value: draft.isAdmin,
+            enabled: !busy,
+            onChanged: (value) => _pushDraft(id, draft.copyWith(isAdmin: value)),
+          ),
+        ),
+        DataCell(
+          FilledButton(
+            onPressed: busy ? null : () => _saveRow(id, draft),
+            child: widget.isRowBusy(id) ? busyProgress() : const Text('저장'),
+          ),
+        ),
+        DataCell(
+          TextButton(
+            onPressed: busy ? null : () => widget.onDelete(id),
+            child: const Text('삭제'),
+          ),
+        ),
       ],
     );
   }
 }
 
-String _sellerStatusLabel(String status) {
+class _RoleToggle extends StatelessWidget {
+  const _RoleToggle({
+    required this.value,
+    required this.enabled,
+    required this.onChanged,
+    this.hint,
+  });
+
+  final bool value;
+  final bool enabled;
+  final String? hint;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SizedBox(
+      width: 72,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Checkbox(
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            value: value,
+            onChanged: enabled ? (next) => onChanged(next ?? false) : null,
+          ),
+          if (hint != null && hint!.isNotEmpty)
+            Text(
+              hint!,
+              style: theme.textTheme.labelSmall,
+              textAlign: TextAlign.center,
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+String? _sellerStatusHint(String? status) {
   return switch (status) {
-    'pending' => ' · 대기',
-    'active' => '',
-    'suspended' => ' · 정지',
-    'removed' => ' · 해제',
-    _ => ' · $status',
+    'pending' => '대기',
+    'suspended' => '정지',
+    'removed' => '해제',
+    'active' => null,
+    null => null,
+    _ => status,
   };
 }

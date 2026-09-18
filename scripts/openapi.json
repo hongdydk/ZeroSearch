@@ -619,6 +619,25 @@
             "title": "Isadmin",
             "type": "boolean"
           },
+          "isBuyer": {
+            "title": "Isbuyer",
+            "type": "boolean"
+          },
+          "isSeller": {
+            "title": "Isseller",
+            "type": "boolean"
+          },
+          "sellerName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sellername"
+          },
           "sellerStatus": {
             "anyOf": [
               {
@@ -629,11 +648,24 @@
               }
             ],
             "title": "Sellerstatus"
+          },
+          "sellerType": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sellertype"
           }
         },
         "required": [
           "id",
           "email",
+          "isBuyer",
+          "isSeller",
           "isAdmin",
           "createdAt"
         ],
@@ -673,14 +705,64 @@
       },
       "AdminUserUpdate": {
         "properties": {
+          "displayName": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Displayname"
+          },
           "isAdmin": {
-            "title": "Isadmin",
-            "type": "boolean"
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isadmin"
+          },
+          "isBuyer": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isbuyer"
+          },
+          "isSeller": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Isseller"
+          },
+          "sellerName": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sellername"
           }
         },
-        "required": [
-          "isAdmin"
-        ],
         "title": "AdminUserUpdate",
         "type": "object"
       },

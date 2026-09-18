@@ -53,6 +53,7 @@ from app.services.admin_users import (
     count_admins,
     delete_user_account,
     list_admin_users,
+    update_admin_user,
 )
 from app.services.catalog_import import import_catalog_csv
 from app.services.catalog_import_jobs import get_job, start_import_job
@@ -190,15 +191,17 @@ def update_user(
     user = db.get(User, user_id)
     if user is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="사용자를 찾을 수 없습니다.")
-    if user.is_admin and not payload.is_admin and count_admins(db) <= 1:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="마지막 관리자 권한은 해제할 수 없습니다.",
-        )
-    user.is_admin = payload.is_admin
+    update_admin_user(db, user, admin, payload)
     db.commit()
     db.refresh(user)
-    logger.warning("Admin %s set user %s is_admin=%s", admin.email, user.email, user.is_admin)
+    logger.warning(
+        "Admin %s updated user %s is_admin=%s is_buyer=%s is_seller=%s",
+        admin.email,
+        user.email,
+        user.is_admin,
+        getattr(user, "is_buyer", True),
+        getattr(getattr(user, "seller", None), "status", None),
+    )
     return admin_user_item(user)
 
 

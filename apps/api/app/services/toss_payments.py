@@ -10,6 +10,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import Settings
+from app.deps import assert_buyer
 from app.models import CartItem, Order, OrderItem, PaymentIntent, Product, User
 from app.schemas.order import OrderResponse
 from app.schemas.payment import TossPaymentStatusResponse, TossPrepareResponse
@@ -101,6 +102,7 @@ def prepare_payment(
     idempotency_key: str | None,
     address_id: UUID,
 ) -> TossPrepareResponse:
+    assert_buyer(user)
     if not settings.toss_client_key or not settings.toss_secret_key:
         raise HTTPException(
             status_code=status.HTTP_503_SERVICE_UNAVAILABLE,

@@ -4,6 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.deps import assert_buyer
 from app.models import CartItem, Product, User
 from app.schemas.cart import CartItemResponse, CartResponse, CartIssueCode
 
@@ -71,6 +72,7 @@ def get_cart(db: Session, user: User) -> CartResponse:
 
 
 def add_to_cart(db: Session, user: User, product_id: UUID, qty: int) -> CartResponse:
+    assert_buyer(user)
     product = db.scalar(
         select(Product)
         .where(Product.id == product_id)
