@@ -366,7 +366,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     }
 
     if (isAxisView) {
-      return GuestL1AxisView(
+      Widget axisView = GuestL1AxisView(
         title: l1 ?? '“$typedSearch”',
         axis: urlAxis ??
             (l1 == null ? kBrowseAxisBrand : guestL1DefaultAxis(l1)),
@@ -381,6 +381,22 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         showStorage: l1 != null,
         seeAllLabel: l1 != null ? '이 분류 전체 보기' : '카드로 전체 보기',
       );
+      if (!isWebUi && inSearch) {
+        axisView = Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: padding.copyWith(bottom: 0),
+              child: _SyncedSearchField(
+                value: typedSearch,
+                onChanged: _onSearchTyped,
+              ),
+            ),
+            Expanded(child: axisView),
+          ],
+        );
+      }
+      return axisView;
     }
 
     if (isMidBrowse) {
