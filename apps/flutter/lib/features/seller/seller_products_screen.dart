@@ -83,151 +83,77 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     }
   }
 
-  Future<void> _openRegister() async {
-    if (isBusy('register')) return;
-    final picked = await showDialog<CatalogProductModel>(
-      context: context,
-      builder: (ctx) => const _CatalogSearchDialog(),
-    );
-    if (picked == null || !mounted) return;
-    await runBusy('register', () => _registerOffer(picked));
+  Future<void> _openRegister({bool missing = false}) async {
+    final path = missing ? '/seller/products/new?missing=1' : '/seller/products/new';
+    await context.push(path);
+    if (mounted) await _load(silent: true);
   }
 
-  Future<void> _openCardDraft() async {
-    final draft = await showDialog<IntakeDraftModel>(
-      context: context,
-      builder: (ctx) => const _CardDraftDialog(),
+  Future<void> _attachDraftPrice(IntakeDraftModel draft) async {
+    if (!draft.isPending) return;
+    final price = TextEditingController(
+      text: draft.hasSellablePrice ? draft.priceCredits.toString() : '',
     );
-    if (draft == null || !mounted) return;
-    setState(() => _cardDrafts = [draft, ..._cardDrafts]);
-    unawaited(_load(silent: true));
-  }
-
-  Future<void> _registerOffer(CatalogProductModel catalog) async {
-    final options = catalog.volumeOptions;
-    String? volume = options.isEmpty ? null : options.first;
-    final volumeController = TextEditingController();
-    final priceController = TextEditingController(text: '1000');
-    final stockController = TextEditingController(text: '10');
-    final imageController = TextEditingController();
-    final flavorController = TextEditingController();
-
+    final stock = TextEditingController(
+      text: draft.hasSellablePrice ? draft.stock.toString() : '',
+    );
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setLocal) => AlertDialog(
-          title: Text(catalog.cardTitle),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Text(
-                  '${catalog.category} · MD 검수 후 카드에 붙습니다.',
-                  style: Theme.of(ctx).textTheme.bodySmall,
-                ),
-                const SizedBox(height: 12),
-                if (options.isNotEmpty)
-                  DropdownButtonFormField<String>(
-                    initialValue: volume,
-                    decoration: const InputDecoration(labelText: '용량'),
-                    items: [
-                      for (final option in options)
-                        DropdownMenuItem(value: option, child: Text(option)),
-                    ],
-                    onChanged: (v) => setLocal(() => volume = v),
-                  )
-                else
-                  TextField(
-                    controller: volumeController,
-                    decoration: const InputDecoration(
-                      labelText: '용량·팩',
-                      hintText: '100g',
-                    ),
-                  ),
-                TextField(
-                  controller: flavorController,
-                  decoration: const InputDecoration(labelText: '맛 (선택)'),
-                ),
-                TextField(
-                  controller: priceController,
-                  decoration: const InputDecoration(labelText: '가격(원)'),
-                  keyboardType: TextInputType.number,
-                ),
-                TextField(
-                  controller: stockController,
-                  decoration: const InputDecoration(labelText: '재고'),
-                  keyboardType: TextInputType.number,
-                ),
-                TextField(
-                  controller: imageController,
-                  decoration: const InputDecoration(
-                    labelText: '사진 URL',
-                    hintText: 'https://',
-                  ),
-                ),
-              ],
+      builder: (ctx) => AlertDialog(
+        title: const Text('가격·재고'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(draft.cardTitle),
+            TextField(
+              controller: price,
+              decoration: const InputDecoration(labelText: '가격(원)'),
+              keyboardType: TextInputType.number,
             ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: const Text('취소'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(ctx, true),
-              child: const Text('초안 제출'),
+            TextField(
+              controller: stock,
+              decoration: const InputDecoration(labelText: '재고'),
+              keyboardType: TextInputType.number,
             ),
           ],
         ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('저장'),
+          ),
+        ],
       ),
     );
-
-    if (ok != true) return;
-    final optionLabel = options.isNotEmpty
-        ? volume
-        : volumeController.text.trim();
-    if (optionLabel == null || optionLabel.isEmpty) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('용량을 고르세요.')));
-      }
+    if (ok != true || !mounted) return;
+    final nextPrice = int.tryParse(price.text.trim());
+    final nextStock = int.tryParse(stock.text.trim());
+    if (nextPrice == null || nextPrice <= 0 || nextStock == null || nextStock < 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('가격과 재고를 숫자로 입력하세요.')),
+      );
       return;
     }
-
     try {
-      final created = await ref
-          .read(apiClientProvider)
-          .sellerCreateProduct(
-            title: catalog.title,
-            priceCredits: int.parse(priceController.text),
-            stock: int.parse(stockController.text),
-            category: catalog.category,
-            status: 'draft',
-            catalogProductId: catalog.id,
-            optionLabel: optionLabel,
-            volumeMl: _volumeMlFromOption(optionLabel),
-            flavor: flavorController.text.trim().isEmpty
-                ? null
-                : flavorController.text.trim(),
-            imageUrl: imageController.text.trim().isEmpty
-                ? null
-                : imageController.text.trim(),
-          );
-      if (mounted) {
-        setState(() => _products = [created, ..._products]);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('오퍼 초안을 제출했습니다. MD 검수를 기다립니다.')));
-        unawaited(_load(silent: true));
-      }
+      final updated = await ref.read(apiClientProvider).sellerUpdateCardDraft(
+        draft.id,
+        priceCredits: nextPrice,
+        stock: nextStock,
+      );
+      if (!mounted) return;
+      setState(() {
+        _cardDrafts = [
+          for (final row in _cardDrafts)
+            if (row.id == updated.id) updated else row,
+        ];
+      });
     } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
-      }
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
     }
   }
 
@@ -334,14 +260,14 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
           spacing: 8,
           children: [
             OutlinedButton.icon(
-              onPressed: _openCardDraft,
+              onPressed: () => _openRegister(missing: true),
               icon: const Icon(Icons.playlist_add_outlined),
               label: const Text('없는 품목'),
             ),
             FilledButton.icon(
-              onPressed: isBusy('register') ? null : _openRegister,
-              icon: isBusy('register') ? busyProgress() : const Icon(Icons.add),
-              label: Text(isBusy('register') ? '등록 중…' : '오퍼 초안'),
+              onPressed: () => _openRegister(),
+              icon: const Icon(Icons.add),
+              label: const Text('오퍼 등록'),
             ),
           ],
         ),
@@ -369,7 +295,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                   onSelected: () => setState(() => _filter = 'pending'),
                 ),
                 _OfferFilterChip(
-                  label: '품절 ${_products.where((p) => p.stock <= 0).length}',
+                  label: '품절 ${_products.where((p) => p.stock <= 0 && p.status == 'published').length}',
                   selected: _filter == 'sold_out',
                   onSelected: () => setState(() => _filter = 'sold_out'),
                 ),
@@ -400,10 +326,15 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                             leading: const Icon(Icons.hourglass_empty),
                             title: Text(draft.cardTitle),
                             subtitle: Text(
-                              '${draft.category} · '
-                              '${formatWon(draft.priceCredits)} · '
-                              '${draft.optionLabel ?? ''}',
+                              [
+                                draft.category,
+                                if ((draft.optionLabel ?? '').isNotEmpty) draft.optionLabel,
+                                draft.hasSellablePrice
+                                    ? formatWon(draft.priceCredits)
+                                    : '가격 미입력',
+                              ].join(' · '),
                             ),
+                            onTap: () => _attachDraftPrice(draft),
                             trailing: const PortalStatusBadge(
                               label: '검수 대기',
                               attention: true,
@@ -435,7 +366,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                                   : Icons.inventory_2_outlined,
                             ),
                             title: Text(product.title),
-                            subtitle: Text(_offerRowSubtitle(product)),
+                            subtitle: Text(sellerOfferRowSubtitle(product)),
                             onTap: () => _openDetail(product),
                             trailing: Row(
                               mainAxisSize: MainAxisSize.min,
@@ -490,15 +421,6 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
   }
 }
 
-String _offerRowSubtitle(ProductModel product) {
-  final option = sellerOfferOptionLabel(product);
-  return [
-    if (option.isNotEmpty) option,
-    formatWon(product.priceCredits),
-    '재고 ${product.stock}',
-  ].join(' · ');
-}
-
 class _OfferFilterChip extends StatelessWidget {
   const _OfferFilterChip({
     required this.label,
@@ -516,265 +438,6 @@ class _OfferFilterChip extends StatelessWidget {
       label: Text(label),
       selected: selected,
       onSelected: (_) => onSelected(),
-    );
-  }
-}
-
-int? _volumeMlFromOption(String option) {
-  final ml = RegExp(
-    r'(\d+(?:\.\d+)?)\s*ml',
-    caseSensitive: false,
-  ).firstMatch(option);
-  if (ml != null) return double.parse(ml.group(1)!).round();
-  final liter = RegExp(
-    r'(\d+(?:\.\d+)?)\s*l\b',
-    caseSensitive: false,
-  ).firstMatch(option);
-  if (liter != null) return (double.parse(liter.group(1)!) * 1000).round();
-  return null;
-}
-
-class _CardDraftDialog extends ConsumerStatefulWidget {
-  const _CardDraftDialog();
-
-  @override
-  ConsumerState<_CardDraftDialog> createState() => _CardDraftDialogState();
-}
-
-class _CardDraftDialogState extends ConsumerState<_CardDraftDialog>
-    with AsyncBusyState {
-  final _manufacturer = TextEditingController();
-  final _title = TextEditingController();
-  final _category = TextEditingController();
-  final _image = TextEditingController();
-  final _flavor = TextEditingController();
-  final _option = TextEditingController();
-  final _price = TextEditingController(text: '1000');
-  final _stock = TextEditingController(text: '10');
-
-  @override
-  void dispose() {
-    _manufacturer.dispose();
-    _title.dispose();
-    _category.dispose();
-    _image.dispose();
-    _flavor.dispose();
-    _option.dispose();
-    _price.dispose();
-    _stock.dispose();
-    super.dispose();
-  }
-
-  Future<void> _submit() async {
-    if (isBusy('submit')) return;
-    final manufacturer = _manufacturer.text.trim();
-    final title = _title.text.trim();
-    final category = _category.text.trim();
-    final option = _option.text.trim();
-    if (manufacturer.isEmpty ||
-        title.isEmpty ||
-        category.isEmpty ||
-        option.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('회사·품목명·종류·용량을 모두 적어 주세요.')),
-      );
-      return;
-    }
-    await runBusy('submit', () async {
-      try {
-        final created = await ref.read(apiClientProvider).sellerCreateCardDraft(
-          manufacturer: manufacturer,
-          title: title,
-          category: category,
-          optionLabel: option,
-          priceCredits: int.parse(_price.text),
-          stock: int.parse(_stock.text),
-          imageUrl: _image.text.trim().isEmpty ? null : _image.text.trim(),
-          flavor: _flavor.text.trim().isEmpty ? null : _flavor.text.trim(),
-          volumeMl: _volumeMlFromOption(option),
-        );
-        if (!mounted) return;
-        Navigator.pop(context, created);
-      } on ApiException catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(SnackBar(content: Text(e.message)));
-        }
-      }
-    });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('없는 품목 카드 초안'),
-      content: SizedBox(
-        width: 480,
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                '공개 목록에 바로 올라가지 않습니다. MD가 기존 카드에 붙이거나 새 카드로 승격합니다.',
-                style: Theme.of(context).textTheme.bodySmall,
-              ),
-              TextField(
-                controller: _manufacturer,
-                decoration: const InputDecoration(labelText: '회사'),
-              ),
-              TextField(
-                controller: _title,
-                decoration: const InputDecoration(labelText: '품목명'),
-              ),
-              TextField(
-                controller: _category,
-                decoration: const InputDecoration(
-                  labelText: '종류 (짐작)',
-                  hintText: '생수, 떡갈비',
-                ),
-              ),
-              TextField(
-                controller: _image,
-                decoration: const InputDecoration(labelText: '대표 사진 URL'),
-              ),
-              TextField(
-                controller: _flavor,
-                decoration: const InputDecoration(labelText: '맛 (선택)'),
-              ),
-              TextField(
-                controller: _option,
-                decoration: const InputDecoration(
-                  labelText: '용량·팩',
-                  hintText: '500g, 2L',
-                ),
-              ),
-              TextField(
-                controller: _price,
-                decoration: const InputDecoration(labelText: '가격(원)'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: _stock,
-                decoration: const InputDecoration(labelText: '재고'),
-                keyboardType: TextInputType.number,
-              ),
-            ],
-          ),
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: isBusy('submit') ? null : () => Navigator.pop(context, false),
-          child: const Text('취소'),
-        ),
-        FilledButton(
-          onPressed: isBusy('submit') ? null : _submit,
-          child: isBusy('submit') ? busyProgress() : const Text('초안 제출'),
-        ),
-      ],
-    );
-  }
-}
-
-class _CatalogSearchDialog extends ConsumerStatefulWidget {
-  const _CatalogSearchDialog();
-
-  @override
-  ConsumerState<_CatalogSearchDialog> createState() =>
-      _CatalogSearchDialogState();
-}
-
-class _CatalogSearchDialogState extends ConsumerState<_CatalogSearchDialog> {
-  final _q = TextEditingController();
-  List<CatalogProductModel> _items = [];
-  bool _loading = false;
-
-  @override
-  void dispose() {
-    _q.dispose();
-    super.dispose();
-  }
-
-  Future<void> _search() async {
-    final q = _q.text.trim();
-    if (q.isEmpty || _loading) return;
-    setState(() => _loading = true);
-    try {
-      final items = await ref.read(apiClientProvider).sellerSearchCatalog(q: q);
-      setState(() => _items = items);
-    } on ApiException catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return AlertDialog(
-      title: const Text('품목 찾기'),
-      content: SizedBox(
-        width: 480,
-        height: 420,
-        child: Column(
-          children: [
-            TextField(
-              controller: _q,
-              decoration: const InputDecoration(
-                labelText: '품목·제조사·분류',
-                hintText: '김치, 만두, 풀무원',
-              ),
-              onSubmitted: _loading ? null : (_) => _search(),
-            ),
-            const SizedBox(height: 8),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(
-                onPressed: _loading ? null : _search,
-                child: Text(_loading ? '검색 중…' : '검색'),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Expanded(
-              child: Column(
-                children: [
-                  if (_loading) const LinearProgressIndicator(minHeight: 2),
-                  Expanded(
-                    child: ListView.builder(
-                      itemCount: _items.length,
-                      itemBuilder: (context, index) {
-                        final item = _items[index];
-                        return ListTile(
-                          title: Text(item.cardTitle),
-                          subtitle: Text(
-                            [
-                              item.category,
-                              if (item.volumeOptions.isNotEmpty)
-                                item.volumeOptions.join(', '),
-                            ].join(' · '),
-                          ),
-                          onTap: () => Navigator.pop(context, item),
-                        );
-                      },
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-      ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('닫기'),
-        ),
-      ],
     );
   }
 }

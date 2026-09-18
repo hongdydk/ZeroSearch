@@ -2,7 +2,11 @@ from datetime import datetime
 from typing import Literal
 from uuid import UUID
 
+from decimal import Decimal
+
 from pydantic import BaseModel, Field, field_validator
+
+from app.schemas.seller import OfferUnit
 
 
 IntakeKind = Literal["offer", "card"]
@@ -17,9 +21,27 @@ class SellerCardDraftCreateRequest(BaseModel):
     flavor: str | None = Field(default=None, max_length=50)
     option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
     volume_ml: int | None = Field(default=None, alias="volumeMl", gt=0)
+    unit_amount: float | None = Field(default=None, alias="unitAmount", gt=0)
+    unit: OfferUnit | None = None
+    pack_count: int | None = Field(default=None, alias="packCount", ge=1)
     description: str | None = None
-    price_credits: int = Field(alias="priceCredits", gt=0)
-    stock: int = Field(ge=0)
+    price_credits: int | None = Field(default=None, alias="priceCredits", ge=0)
+    stock: int | None = Field(default=None, ge=0)
+
+    model_config = {"populate_by_name": True}
+
+
+class SellerCardDraftUpdateRequest(BaseModel):
+    image_url: str | None = Field(default=None, alias="imageUrl", max_length=500)
+    flavor: str | None = Field(default=None, max_length=50)
+    option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
+    volume_ml: int | None = Field(default=None, alias="volumeMl", gt=0)
+    unit_amount: float | None = Field(default=None, alias="unitAmount", gt=0)
+    unit: OfferUnit | None = None
+    pack_count: int | None = Field(default=None, alias="packCount", ge=1)
+    description: str | None = None
+    price_credits: int | None = Field(default=None, alias="priceCredits", gt=0)
+    stock: int | None = Field(default=None, ge=0)
 
     model_config = {"populate_by_name": True}
 
@@ -38,6 +60,9 @@ class CatalogIntakeItem(BaseModel):
     flavor: str | None = None
     option_label: str | None = Field(default=None, alias="optionLabel")
     volume_ml: int | None = Field(default=None, alias="volumeMl")
+    unit_amount: float | None = Field(default=None, alias="unitAmount")
+    unit: str | None = None
+    pack_count: int = Field(default=1, alias="packCount")
     description: str | None = None
     price_credits: int = Field(alias="priceCredits")
     stock: int
@@ -58,6 +83,13 @@ class CatalogIntakeItem(BaseModel):
         if value is None:
             return None
         return str(value)
+
+    @field_validator("unit_amount", mode="before")
+    @classmethod
+    def coerce_unit_amount(cls, value: Decimal | float | int | None) -> float | None:
+        if value is None:
+            return None
+        return float(value)
 
 
 class CatalogIntakeListResponse(BaseModel):

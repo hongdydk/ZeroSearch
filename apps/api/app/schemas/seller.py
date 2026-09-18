@@ -18,6 +18,8 @@ SellerType = Literal["platform", "merchant"]
 
 ProductStatus = Literal["draft", "published", "archived"]
 
+OfferUnit = Literal["ml", "L", "g", "kg", "팩"]
+
 FulfillmentStatus = Literal["paid", "preparing", "shipped", "delivered"]
 
 
@@ -100,9 +102,9 @@ class SellerProductCreateRequest(BaseModel):
 
     description: str | None = None
 
-    price_credits: int = Field(alias="priceCredits", gt=0)
+    price_credits: int | None = Field(default=None, alias="priceCredits", ge=0)
 
-    stock: int = Field(ge=0)
+    stock: int | None = Field(default=None, ge=0)
 
     category: str = Field(min_length=1, max_length=50)
 
@@ -115,6 +117,12 @@ class SellerProductCreateRequest(BaseModel):
     option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
 
     volume_ml: int | None = Field(default=None, alias="volumeMl", gt=0)
+
+    unit_amount: float | None = Field(default=None, alias="unitAmount", gt=0)
+
+    unit: OfferUnit | None = None
+
+    pack_count: int | None = Field(default=None, alias="packCount", ge=1)
 
     flavor: str | None = Field(default=None, max_length=50)
 
@@ -146,11 +154,26 @@ class SellerProductUpdateRequest(BaseModel):
 
     volume_ml: int | None = Field(default=None, alias="volumeMl", gt=0)
 
+    unit_amount: float | None = Field(default=None, alias="unitAmount", gt=0)
+
+    unit: OfferUnit | None = None
+
+    pack_count: int | None = Field(default=None, alias="packCount", ge=1)
+
     flavor: str | None = Field(default=None, max_length=50)
 
 
 
     model_config = {"populate_by_name": True}
+
+
+class SellerImageUploadResponse(BaseModel):
+
+    image_url: str = Field(alias="imageUrl")
+
+
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
 
 

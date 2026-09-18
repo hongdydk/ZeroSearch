@@ -12,10 +12,12 @@ from app.schemas.catalog_intake import (
     AdminPromoteDraftRequest,
     CatalogIntakeItem,
     SellerCardDraftCreateRequest,
+    SellerCardDraftUpdateRequest,
 )
 from app.services.catalog_remerge import resolve_catalog_product
 from app.services.catalog_l1 import apply_auto_l1_tags, set_l1_tags
 from app.services.guest_l1 import infer_l1_tags, suggestions_payload
+from app.services.offer_units import resolve_offer_units
 
 
 def _now() -> datetime:
@@ -59,6 +61,9 @@ def card_draft_to_item(draft: CatalogIntakeDraft) -> CatalogIntakeItem:
         flavor=draft.flavor,
         option_label=draft.option_label,
         volume_ml=draft.volume_ml,
+        unit_amount=float(draft.unit_amount) if draft.unit_amount is not None else None,
+        unit=draft.unit,
+        pack_count=draft.pack_count or 1,
         description=draft.description,
         price_credits=draft.price_credits,
         stock=draft.stock,
@@ -95,6 +100,9 @@ def _offer_item(product: Product) -> CatalogIntakeItem:
         flavor=product.flavor,
         option_label=product.option_label,
         volume_ml=product.volume_ml,
+        unit_amount=float(product.unit_amount) if product.unit_amount is not None else None,
+        unit=product.unit,
+        pack_count=product.pack_count or 1,
         description=product.description,
         price_credits=product.price_credits,
         stock=product.stock,
@@ -107,9 +115,13 @@ def _offer_item(product: Product) -> CatalogIntakeItem:
 def create_card_draft(
     db: Session, seller: Seller, payload: SellerCardDraftCreateRequest
 ) -> CatalogIntakeDraft:
-    option_label = (payload.option_label or "").strip() or None
-    if not option_label:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="용량·팩을 적어 주세요.")
+    units = resolve_offer_units(
+        option_label=payload.option_label,
+        unit_amount=payload.unit_amount,
+        unit=payload.unit,
+        pack_count=payload.pack_count,
+        volume_ml=payload.volume_ml,
+    )
     draft = CatalogIntakeDraft(
         seller_id=seller.id,
         status="pending",
@@ -118,11 +130,14 @@ def create_card_draft(
         category=payload.category.strip(),
         image_url=(payload.image_url or "").strip() or None,
         flavor=(payload.flavor or "").strip() or None,
-        option_label=option_label,
-        volume_ml=payload.volume_ml,
+        option_label=units.option_label,
+        volume_ml=units.volume_ml,
+        unit_amount=units.unit_amount,
+        unit=units.unit,
+        pack_count=units.pack_count,
         description=payload.description,
-        price_credits=payload.price_credits,
-        stock=payload.stock,
+        price_credits=payload.price_credits or 0,
+        stock=payload.stock or 0,
     )
     db.add(draft)
     db.flush()
@@ -132,6 +147,56 @@ def create_card_draft(
         .options(joinedload(CatalogIntakeDraft.seller))
     )
     assert draft is not None
+    return draft
+
+
+def get_seller_card_draft(db: Session, seller: Seller, draft_id: UUID) -> CatalogIntakeDraft:
+    draft = db.scalar(
+        select(CatalogIntakeDraft)
+        .where(CatalogIntakeDraft.id == draft_id, CatalogIntakeDraft.seller_id == seller.id)
+        .options(joinedload(CatalogIntakeDraft.seller))
+    )
+    if draft is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="카드 초안을 찾을 수 없습니다.")
+    return draft
+
+
+def update_card_draft(
+    db: Session, seller: Seller, draft_id: UUID, payload: SellerCardDraftUpdateRequest
+) -> CatalogIntakeDraft:
+    draft = get_seller_card_draft(db, seller, draft_id)
+    if draft.status != "pending":
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="이미 처리된 초안입니다.")
+    if payload.image_url is not None:
+        draft.image_url = payload.image_url.strip() or None
+    if payload.flavor is not None:
+        draft.flavor = payload.flavor.strip() or None
+    if payload.description is not None:
+        draft.description = payload.description
+    if payload.price_credits is not None:
+        draft.price_credits = payload.price_credits
+    if payload.stock is not None:
+        draft.stock = payload.stock
+    unit_touched = any(
+        value is not None
+        for value in (payload.option_label, payload.unit_amount, payload.unit, payload.pack_count, payload.volume_ml)
+    )
+    if unit_touched:
+        units = resolve_offer_units(
+            option_label=payload.option_label if payload.option_label is not None else draft.option_label,
+            unit_amount=payload.unit_amount if payload.unit_amount is not None else (
+                float(draft.unit_amount) if draft.unit_amount is not None else None
+            ),
+            unit=payload.unit if payload.unit is not None else draft.unit,
+            pack_count=payload.pack_count if payload.pack_count is not None else draft.pack_count,
+            volume_ml=payload.volume_ml if payload.volume_ml is not None else draft.volume_ml,
+        )
+        draft.option_label = units.option_label
+        draft.volume_ml = units.volume_ml
+        draft.unit_amount = units.unit_amount
+        draft.unit = units.unit
+        draft.pack_count = units.pack_count
+    db.flush()
     return draft
 
 
@@ -223,6 +288,9 @@ def _publish_offer(
     image_url: str | None,
     option_label: str | None,
     volume_ml: int | None,
+    unit_amount: float | None,
+    unit: str | None,
+    pack_count: int,
     flavor: str | None,
 ) -> Product:
     _append_volume_option(catalog, option_label)
@@ -238,6 +306,9 @@ def _publish_offer(
         status="published",
         option_label=option_label,
         volume_ml=volume_ml,
+        unit_amount=unit_amount,
+        unit=unit,
+        pack_count=pack_count or 1,
         flavor=flavor,
     )
     db.add(product)
@@ -290,6 +361,9 @@ def attach_intake_draft(
         image_url=draft.image_url,
         option_label=draft.option_label,
         volume_ml=draft.volume_ml,
+        unit_amount=float(draft.unit_amount) if draft.unit_amount is not None else None,
+        unit=draft.unit,
+        pack_count=draft.pack_count or 1,
         flavor=draft.flavor,
     )
     draft.status = "attached"
@@ -364,6 +438,9 @@ def promote_card_draft(
         image_url=draft.image_url,
         option_label=draft.option_label,
         volume_ml=draft.volume_ml,
+        unit_amount=float(draft.unit_amount) if draft.unit_amount is not None else None,
+        unit=draft.unit,
+        pack_count=draft.pack_count or 1,
         flavor=draft.flavor,
     )
     draft.status = "promoted"

@@ -58,6 +58,10 @@ data/전국통합식품영양성분정보*.csv
 data/mfds-catalog.csv
 # data/aihub-catalog.csv — 대표 상품 SSOT. main push 시 EC2에서 자동 import.
 
+# Local seller image uploads
+apps/api/uploads/*
+!apps/api/uploads/.gitkeep
+
 # 사람용 기획·목업·논문 (로컬만, 제품 SSOT는 docs/)
 report/
 

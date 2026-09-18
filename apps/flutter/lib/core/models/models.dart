@@ -33,8 +33,35 @@ class ProductModel {
     this.catalogProductId,
     this.optionLabel,
     this.volumeMl,
+    this.unitAmount,
+    this.unit,
+    this.packCount = 1,
     this.flavor,
   });
+
+  factory ProductModel.fromJson(Map<String, dynamic> json) {
+    final sellerJson = json['seller'];
+    return ProductModel(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      priceCredits: json['priceCredits'] as int? ?? 0,
+      stock: json['stock'] as int? ?? 0,
+      category: json['category'] as String? ?? '',
+      seller: sellerJson is Map
+          ? SellerSummaryModel.fromJson(Map<String, dynamic>.from(sellerJson))
+          : SellerSummaryModel(id: '', shopName: '', sellerType: 'merchant'),
+      description: json['description'] as String?,
+      imageUrl: json['imageUrl'] as String?,
+      status: json['status'] as String? ?? 'published',
+      catalogProductId: json['catalogProductId'] as String?,
+      optionLabel: json['optionLabel'] as String?,
+      volumeMl: json['volumeMl'] as int?,
+      unitAmount: (json['unitAmount'] as num?)?.toDouble(),
+      unit: json['unit'] as String?,
+      packCount: json['packCount'] as int? ?? 1,
+      flavor: json['flavor'] as String?,
+    );
+  }
 
   final String id;
   final String title;
@@ -48,9 +75,13 @@ class ProductModel {
   final String? catalogProductId;
   final String? optionLabel;
   final int? volumeMl;
+  final double? unitAmount;
+  final String? unit;
+  final int packCount;
   final String? flavor;
 
   bool get isOfficial => seller.sellerType == 'platform';
+  bool get hasSellablePrice => priceCredits > 0;
 
   ProductModel copyWith({
     String? id,
@@ -65,6 +96,9 @@ class ProductModel {
     String? catalogProductId,
     String? optionLabel,
     int? volumeMl,
+    double? unitAmount,
+    String? unit,
+    int? packCount,
     String? flavor,
   }) {
     return ProductModel(
@@ -80,6 +114,9 @@ class ProductModel {
       catalogProductId: catalogProductId ?? this.catalogProductId,
       optionLabel: optionLabel ?? this.optionLabel,
       volumeMl: volumeMl ?? this.volumeMl,
+      unitAmount: unitAmount ?? this.unitAmount,
+      unit: unit ?? this.unit,
+      packCount: packCount ?? this.packCount,
       flavor: flavor ?? this.flavor,
     );
   }
@@ -91,6 +128,14 @@ class SellerSummaryModel {
     required this.shopName,
     required this.sellerType,
   });
+
+  factory SellerSummaryModel.fromJson(Map<String, dynamic> json) {
+    return SellerSummaryModel(
+      id: json['id'] as String? ?? '',
+      shopName: json['shopName'] as String? ?? '',
+      sellerType: json['sellerType'] as String? ?? 'merchant',
+    );
+  }
 
   final String id;
   final String shopName;
@@ -867,6 +912,9 @@ class IntakeDraftModel {
     this.flavor,
     this.optionLabel,
     this.volumeMl,
+    this.unitAmount,
+    this.unit,
+    this.packCount = 1,
     this.description,
     this.suggestedL1Tags = const [],
     this.l1Tags = const [],
@@ -889,6 +937,9 @@ class IntakeDraftModel {
       flavor: json['flavor'] as String?,
       optionLabel: json['optionLabel'] as String?,
       volumeMl: json['volumeMl'] as int?,
+      unitAmount: (json['unitAmount'] as num?)?.toDouble(),
+      unit: json['unit'] as String?,
+      packCount: json['packCount'] as int? ?? 1,
       description: json['description'] as String?,
       suggestedL1Tags: (json['suggestedL1Tags'] as List<dynamic>? ?? [])
           .whereType<Map>()
@@ -922,6 +973,9 @@ class IntakeDraftModel {
   final String? flavor;
   final String? optionLabel;
   final int? volumeMl;
+  final double? unitAmount;
+  final String? unit;
+  final int packCount;
   final String? description;
   final List<({String tag, String confidence})> suggestedL1Tags;
   final List<String> l1Tags;
@@ -929,6 +983,7 @@ class IntakeDraftModel {
   bool get isCard => kind == 'card';
   bool get isOffer => kind == 'offer';
   bool get isPending => status == 'pending';
+  bool get hasSellablePrice => priceCredits > 0;
 
   String get cardTitle {
     final maker = manufacturer.trim();

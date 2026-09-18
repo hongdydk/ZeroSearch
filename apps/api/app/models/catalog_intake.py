@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String, Text, func
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -18,7 +18,8 @@ class CatalogIntakeDraft(Base):
             "status IN ('pending', 'attached', 'promoted')",
             name="ck_catalog_intake_drafts_status",
         ),
-        CheckConstraint("price_credits > 0", name="ck_catalog_intake_drafts_price_positive"),
+        CheckConstraint("price_credits >= 0", name="ck_catalog_intake_drafts_price_nonnegative"),
+        CheckConstraint("pack_count >= 1", name="ck_catalog_intake_drafts_pack_count_positive"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -33,8 +34,11 @@ class CatalogIntakeDraft(Base):
     flavor: Mapped[str | None] = mapped_column(String(50), nullable=True)
     option_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
     volume_ml: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    unit_amount: Mapped[float | None] = mapped_column(Numeric(12, 3), nullable=True)
+    unit: Mapped[str | None] = mapped_column(String(10), nullable=True)
+    pack_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1, server_default="1")
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    price_credits: Mapped[int] = mapped_column(Integer, nullable=False)
+    price_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     stock: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     catalog_product_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("catalog_products.id"), nullable=True, index=True

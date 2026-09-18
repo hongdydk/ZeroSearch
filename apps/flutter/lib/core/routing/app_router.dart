@@ -21,6 +21,7 @@ import '../../features/payment/payment_result_screen.dart';
 import '../../features/payment/toss_pay_exit_screen.dart';
 import '../../features/product_detail/catalog_detail_screen.dart';
 import '../../features/product_detail/product_detail_screen.dart';
+import '../../features/seller/seller_offer_register_screen.dart';
 import '../../features/seller/seller_orders_screen.dart';
 import '../../features/seller/seller_product_detail_screen.dart';
 import '../../features/seller/seller_products_screen.dart';
@@ -180,6 +181,15 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.seller,
               child: SellerProductsScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/products/new',
+            builder: (_, state) => PortalAuthGate(
+              portal: LoginPortal.seller,
+              child: SellerOfferRegisterScreen(
+                missingItem: state.uri.queryParameters['missing'] == '1',
+              ),
             ),
           ),
           GoRoute(

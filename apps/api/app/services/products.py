@@ -8,6 +8,7 @@ from app.models import CatalogProduct, Product, Seller
 from app.schemas.product import ProductResponse
 from app.schemas.seller import SellerProductCreateRequest, SellerProductUpdateRequest, SellerSummary
 from app.services.catalog_remerge import resolve_catalog_product
+from app.services.offer_units import resolve_offer_units
 
 
 def _product_response(product: Product) -> ProductResponse:
@@ -23,6 +24,9 @@ def _product_response(product: Product) -> ProductResponse:
         catalog_product_id=str(product.catalog_product_id),
         option_label=product.option_label,
         volume_ml=product.volume_ml,
+        unit_amount=float(product.unit_amount) if product.unit_amount is not None else None,
+        unit=product.unit,
+        pack_count=product.pack_count or 1,
         flavor=product.flavor,
         seller=SellerSummary(
             id=str(product.seller.id),
@@ -110,31 +114,28 @@ def _resolve_catalog_product(
 
 def create_seller_product(db: Session, seller: Seller, payload: SellerProductCreateRequest) -> Product:
     catalog = _resolve_catalog_product(db, payload)
-    options = list(catalog.volume_options or [])
-    option_label = payload.option_label
-    if options:
-        if not option_label:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="용량 선택지에서 고르세요.",
-            )
-        if option_label not in options:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="해당 품목의 용량이 아닙니다.",
-            )
+    units = resolve_offer_units(
+        option_label=payload.option_label,
+        unit_amount=payload.unit_amount,
+        unit=payload.unit,
+        pack_count=payload.pack_count,
+        volume_ml=payload.volume_ml,
+    )
     product = Product(
         seller_id=seller.id,
         catalog_product_id=catalog.id,
         title=catalog.title,
         description=payload.description,
-        price_credits=payload.price_credits,
-        stock=payload.stock,
+        price_credits=payload.price_credits or 0,
+        stock=payload.stock or 0,
         category=catalog.category,
         image_url=payload.image_url or catalog.image_url,
         status="draft",
-        option_label=option_label,
-        volume_ml=payload.volume_ml,
+        option_label=units.option_label,
+        volume_ml=units.volume_ml,
+        unit_amount=units.unit_amount,
+        unit=units.unit,
+        pack_count=units.pack_count,
         flavor=payload.flavor,
     )
     db.add(product)
@@ -166,12 +167,27 @@ def update_seller_product(
                 detail="검수 전에는 공개할 수 없습니다.",
             )
         product.status = payload.status
-    if payload.option_label is not None:
-        product.option_label = payload.option_label
-    if payload.volume_ml is not None:
-        product.volume_ml = payload.volume_ml
     if payload.flavor is not None:
         product.flavor = payload.flavor
+    unit_touched = any(
+        value is not None
+        for value in (payload.option_label, payload.unit_amount, payload.unit, payload.pack_count, payload.volume_ml)
+    )
+    if unit_touched:
+        units = resolve_offer_units(
+            option_label=payload.option_label if payload.option_label is not None else product.option_label,
+            unit_amount=payload.unit_amount if payload.unit_amount is not None else (
+                float(product.unit_amount) if product.unit_amount is not None else None
+            ),
+            unit=payload.unit if payload.unit is not None else product.unit,
+            pack_count=payload.pack_count if payload.pack_count is not None else product.pack_count,
+            volume_ml=payload.volume_ml if payload.volume_ml is not None else product.volume_ml,
+        )
+        product.option_label = units.option_label
+        product.volume_ml = units.volume_ml
+        product.unit_amount = units.unit_amount
+        product.unit = units.unit
+        product.pack_count = units.pack_count
     db.flush()
     return product
 

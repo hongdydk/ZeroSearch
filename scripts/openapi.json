@@ -831,6 +831,20 @@
         "title": "Body_import_catalog_admin_catalog_import_post",
         "type": "object"
       },
+      "Body_seller_upload_image_seller_uploads_image_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_seller_upload_image_seller_uploads_image_post",
+        "type": "object"
+      },
       "CartAddRequest": {
         "properties": {
           "productId": {
@@ -1216,6 +1230,11 @@
             ],
             "title": "Optionlabel"
           },
+          "packCount": {
+            "default": 1,
+            "title": "Packcount",
+            "type": "integer"
+          },
           "priceCredits": {
             "title": "Pricecredits",
             "type": "integer"
@@ -1252,6 +1271,28 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "unitAmount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unitamount"
           },
           "volumeMl": {
             "anyOf": [
@@ -2338,6 +2379,11 @@
             ],
             "title": "Optionlabel"
           },
+          "packCount": {
+            "default": 1,
+            "title": "Packcount",
+            "type": "integer"
+          },
           "priceCredits": {
             "title": "Pricecredits",
             "type": "integer"
@@ -2362,6 +2408,28 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "unitAmount": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unitamount"
           },
           "volumeMl": {
             "anyOf": [
@@ -2495,21 +2563,77 @@
             ],
             "title": "Optionlabel"
           },
+          "packCount": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packcount"
+          },
           "priceCredits": {
-            "exclusiveMinimum": 0.0,
-            "title": "Pricecredits",
-            "type": "integer"
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricecredits"
           },
           "stock": {
-            "minimum": 0.0,
-            "title": "Stock",
-            "type": "integer"
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock"
           },
           "title": {
             "maxLength": 200,
             "minLength": 1,
             "title": "Title",
             "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "팩"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "unitAmount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unitamount"
           },
           "volumeMl": {
             "anyOf": [
@@ -2527,11 +2651,153 @@
         "required": [
           "manufacturer",
           "title",
-          "category",
-          "priceCredits",
-          "stock"
+          "category"
         ],
         "title": "SellerCardDraftCreateRequest",
+        "type": "object"
+      },
+      "SellerCardDraftUpdateRequest": {
+        "properties": {
+          "description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Description"
+          },
+          "flavor": {
+            "anyOf": [
+              {
+                "maxLength": 50,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flavor"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "optionLabel": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Optionlabel"
+          },
+          "packCount": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packcount"
+          },
+          "priceCredits": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricecredits"
+          },
+          "stock": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "팩"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "unitAmount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unitamount"
+          },
+          "volumeMl": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Volumeml"
+          }
+        },
+        "title": "SellerCardDraftUpdateRequest",
+        "type": "object"
+      },
+      "SellerImageUploadResponse": {
+        "properties": {
+          "imageUrl": {
+            "title": "Imageurl",
+            "type": "string"
+          }
+        },
+        "required": [
+          "imageUrl"
+        ],
+        "title": "SellerImageUploadResponse",
         "type": "object"
       },
       "SellerModerationEventItem": {
@@ -2767,10 +3033,29 @@
             ],
             "title": "Optionlabel"
           },
+          "packCount": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packcount"
+          },
           "priceCredits": {
-            "exclusiveMinimum": 0.0,
-            "title": "Pricecredits",
-            "type": "integer"
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricecredits"
           },
           "status": {
             "default": "draft",
@@ -2783,15 +3068,52 @@
             "type": "string"
           },
           "stock": {
-            "minimum": 0.0,
-            "title": "Stock",
-            "type": "integer"
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock"
           },
           "title": {
             "maxLength": 200,
             "minLength": 1,
             "title": "Title",
             "type": "string"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "팩"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "unitAmount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unitamount"
           },
           "volumeMl": {
             "anyOf": [
@@ -2808,8 +3130,6 @@
         },
         "required": [
           "title",
-          "priceCredits",
-          "stock",
           "category"
         ],
         "title": "SellerProductCreateRequest",
@@ -2877,6 +3197,18 @@
             ],
             "title": "Optionlabel"
           },
+          "packCount": {
+            "anyOf": [
+              {
+                "minimum": 1.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Packcount"
+          },
           "priceCredits": {
             "anyOf": [
               {
@@ -2929,6 +3261,36 @@
               }
             ],
             "title": "Title"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "enum": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "팩"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "unitAmount": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unitamount"
           },
           "volumeMl": {
             "anyOf": [
@@ -6903,6 +7265,64 @@
         ]
       }
     },
+    "/seller/card-drafts/{draft_id}": {
+      "patch": {
+        "operationId": "seller_update_card_draft_seller_card_drafts__draft_id__patch",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "draft_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Draft Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerCardDraftUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogIntakeItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Update Card Draft",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
     "/seller/catalog-products": {
       "get": {
         "operationId": "seller_search_catalog_products_seller_catalog_products_get",
@@ -7341,6 +7761,52 @@
           }
         ],
         "summary": "Seller Update Product",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/uploads/image": {
+      "post": {
+        "operationId": "seller_upload_image_seller_uploads_image_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_seller_upload_image_seller_uploads_image_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerImageUploadResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Upload Image",
         "tags": [
           "seller"
         ]
