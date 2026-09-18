@@ -275,6 +275,9 @@ def test_parse_collapses_consecutive_repeated_name():
         title="신라면신라면120G",
     )
     assert parsed.canonical_title == "신라면"
+
+
+def test_card_identity_key_collapses_gamtul_near_duplicates():
     maker = "롯데칠성음료"
     assert card_identity_key(maker, "롯데제주사랑감귤") == card_identity_key(
         maker, "롯데제주사랑감귤사랑"
@@ -283,3 +286,99 @@ def test_parse_collapses_consecutive_repeated_name():
         "웅진식품", "롯데제주사랑감귤"
     )
     assert card_identity_key(maker, "사랑감귤") != card_identity_key(maker, "사랑감귤주스")
+
+
+def test_parse_unifies_equivalent_volume_spellings():
+    titles = [
+        "제주삼다수1L",
+        "제주삼다수1리터",
+        "제주삼다수1ℓ",
+        "제주삼다수1000ml",
+        "제주삼다수1000mL",
+        "제주삼다수1000밀리리터",
+        "제주삼다수1 liter",
+    ]
+    parsed = [
+        parse_catalog_title(
+            manufacturer="제주특별자치도개발공사",
+            category="일반생수",
+            title=title,
+        )
+        for title in titles
+    ]
+    assert {item.canonical_title for item in parsed} == {"제주삼다수"}
+    assert {item.volumes for item in parsed} == {("1L",)}
+
+
+def test_parse_unifies_ml_below_liter_and_mass_equivalents():
+    half = parse_catalog_title(
+        manufacturer="제주특별자치도개발공사",
+        category="일반생수",
+        title="제주삼다수0.5L",
+    )
+    five_hundred = parse_catalog_title(
+        manufacturer="제주특별자치도개발공사",
+        category="일반생수",
+        title="제주삼다수500ml",
+    )
+    assert half.canonical_title == five_hundred.canonical_title == "제주삼다수"
+    assert half.volumes == five_hundred.volumes == ("500ML",)
+
+    grams = parse_catalog_title(manufacturer="농심", category="스낵", title="감자깡500그램")
+    kilo = parse_catalog_title(manufacturer="농심", category="스낵", title="감자깡0.5kg")
+    assert grams.canonical_title == kilo.canonical_title == "감자깡"
+    assert grams.volumes == kilo.volumes == ("500G",)
+    kilo_full = parse_catalog_title(manufacturer="농심", category="스낵", title="감자깡1000g")
+    assert kilo_full.volumes == ("1KG",)
+
+
+def test_cluster_merges_same_item_across_volume_spellings():
+    items = [
+        parse_catalog_title(
+            manufacturer="제주특별자치도개발공사",
+            category="일반생수",
+            title="제주삼다수1리터",
+        ),
+        parse_catalog_title(
+            manufacturer="제주특별자치도개발공사",
+            category="일반생수",
+            title="제주삼다수1000mL",
+        ),
+        parse_catalog_title(
+            manufacturer="제주특별자치도개발공사",
+            category="커피음료",
+            title="제주삼다수1ℓ",
+        ),
+    ]
+    groups, _ = cluster_parsed_titles(items)
+    assert len(groups) == 1
+    assert groups[0].canonical_title == "제주삼다수"
+    assert groups[0].volume_options == ["1L"]
+
+
+def test_cluster_keeps_flavors_and_other_products_apart_when_volumes_match():
+    items = [
+        parse_catalog_title(manufacturer="롯데칠성음료", category="과일음료", title="사랑감귤1L"),
+        parse_catalog_title(manufacturer="롯데칠성음료", category="과일음료", title="사랑감귤주스1리터"),
+        parse_catalog_title(manufacturer="롯데칠성음료", category="과일음료", title="쌕쌕제주감귤캔1000ml"),
+    ]
+    groups, _ = cluster_parsed_titles(items)
+    titles = {g.canonical_title for g in groups}
+    assert titles == {"사랑감귤", "사랑감귤주스", "쌕쌕제주감귤캔"}
+
+
+def test_parse_does_not_treat_kilocalorie_as_kilogram():
+    parsed = parse_catalog_title(
+        manufacturer="대웅생명과학",
+        category="파우치음료",
+        title="글램디4킬로칼로리곤약워터젤리복숭아맛150G",
+    )
+    assert "4킬로칼로리" in parsed.canonical_title
+    assert parsed.volumes == ("150G",)
+
+
+def test_card_identity_key_unifies_volume_spellings():
+    maker = "제주특별자치도개발공사"
+    assert card_identity_key(maker, "제주삼다수1L") == card_identity_key(maker, "제주삼다수1리터")
+    assert card_identity_key(maker, "제주삼다수1L") == card_identity_key(maker, "제주삼다수1000ml")
+    assert card_identity_key(maker, "제주삼다수1L") != card_identity_key("농심", "제주삼다수1리터")

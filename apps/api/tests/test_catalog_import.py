@@ -31,7 +31,7 @@ def test_dedupe_rows_merges_volume_options():
     ]
     groups, _ = canonicalize_csv_rows(rows)
     assert len(groups) == 1
-    assert set(groups[0].volume_options) >= {"200ml", "1000ml"}
+    assert set(groups[0].volume_options) >= {"200ML", "1L"}
     assert groups[0].category_mid == "우유"
 
 

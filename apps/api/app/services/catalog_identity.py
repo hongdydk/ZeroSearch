@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass, field
+from decimal import Decimal
 from difflib import SequenceMatcher
 from typing import Iterable, Sequence
 
@@ -18,12 +19,55 @@ NORMALIZATION_VERSION = "v5"
 HIGH_CONFIDENCE = 0.92
 MEDIUM_CONFIDENCE = 0.80
 
+# 긴 단위부터. 킬로칼로리의 '킬로'는 용량이 아니므로 킬로그램만 인정.
 _VOLUME_RE = re.compile(
-    r"(?i)(\d+(?:\.\d+)?)\s*(ml|mℓ|㎖|l|ℓ|㎖|g|kg|팩|개입|입|포|개)",
+    r"(?ix)"
+    r"(\d+(?:\.\d+)?)\s*"
+    r"("
+    r"millilit(?:er|re)s?|밀리리터|미리리터|"
+    r"kilograms?|킬로그램|"
+    r"lit(?:er|re)s?|리터|"
+    r"grams?|그램|"
+    r"개입|"
+    r"㎖|mℓ|ml|"
+    r"㎏|kg|"
+    r"cc|"
+    r"ℓ|l|"
+    r"g|"
+    r"팩|입|포|개"
+    r")"
 )
 _PACK_RE = re.compile(r"(?i)[x×＊*]\s*\d+")
 _NON_ALNUM_RE = re.compile(r"[^0-9A-Za-z가-힣]+")
 _SPACE_RE = re.compile(r"\s+")
+
+_ML_UNITS = frozenset(
+    {
+        "ml",
+        "mℓ",
+        "㎖",
+        "cc",
+        "밀리리터",
+        "미리리터",
+        "milliliter",
+        "millilitre",
+        "milliliters",
+        "millilitres",
+    }
+)
+_L_UNITS = frozenset(
+    {
+        "l",
+        "ℓ",
+        "리터",
+        "liter",
+        "litre",
+        "liters",
+        "litres",
+    }
+)
+_G_UNITS = frozenset({"g", "그램", "gram", "grams"})
+_KG_UNITS = frozenset({"kg", "㎏", "킬로그램", "kilogram", "kilograms"})
 
 # 흔한 맛·옵션 표기 (긴 것부터 제거해 부분 매칭 우선).
 _FLAVOR_TOKENS: tuple[str, ...] = tuple(
@@ -219,15 +263,53 @@ def _strip_manufacturer_prefix(title: str, manufacturer: str) -> str:
     return text.strip(" )）]-_|")
 
 
+def _unit_kind(unit: str) -> str:
+    token = unicodedata.normalize("NFKC", unit).replace(" ", "").casefold()
+    token = token.replace("ℓ", "l").replace("㎖", "ml").replace("㎏", "kg")
+    if token in _ML_UNITS:
+        return "ml"
+    if token in _L_UNITS:
+        return "l"
+    if token in _G_UNITS:
+        return "g"
+    if token in _KG_UNITS:
+        return "kg"
+    return "pack"
+
+
+def _format_decimal(value: Decimal) -> str:
+    value = value.normalize()
+    if value == value.to_integral_value():
+        return str(int(value))
+    return format(value, "f").rstrip("0").rstrip(".")
+
+
+def _format_scaled(amount: Decimal, *, thousand_unit: str, base_unit: str) -> str:
+    if amount >= 1000:
+        return f"{_format_decimal(amount / 1000)}{thousand_unit}"
+    return f"{_format_decimal(amount)}{base_unit}"
+
+
+def _canonical_volume(num: str, unit: str) -> str:
+    amount = Decimal(num)
+    kind = _unit_kind(unit)
+    if kind == "ml":
+        return _format_scaled(amount, thousand_unit="L", base_unit="ML")
+    if kind == "l":
+        return _format_scaled(amount * 1000, thousand_unit="L", base_unit="ML")
+    if kind == "g":
+        return _format_scaled(amount, thousand_unit="KG", base_unit="G")
+    if kind == "kg":
+        return _format_scaled(amount * 1000, thousand_unit="KG", base_unit="G")
+    return f"{_format_decimal(amount)}{unit}"
+
+
 def _extract_volumes(text: str) -> tuple[str, list[str]]:
     volumes: list[str] = []
     for match in _VOLUME_RE.finditer(text):
-        num, unit = match.group(1), match.group(2)
-        unit_norm = unit.upper().replace("ℓ", "L").replace("㎖", "ML").replace("Mℓ", "ML")
-        if unit_norm in {"L", "ML", "G", "KG"}:
-            volumes.append(f"{num}{unit_norm}")
-        else:
-            volumes.append(f"{num}{unit}")
+        token = _canonical_volume(match.group(1), match.group(2))
+        if token and token not in volumes:
+            volumes.append(token)
     cleaned = _VOLUME_RE.sub(" ", text)
     cleaned = _PACK_RE.sub(" ", cleaned)
     return cleaned, volumes
@@ -342,8 +424,12 @@ def parse_catalog_title(
     if volumes_hint:
         for hint in volumes_hint:
             h = (hint or "").strip()
-            if h and h not in vols and h != "해당없음":
-                vols.append(h)
+            if not h or h == "해당없음":
+                continue
+            _, hint_vols = _extract_volumes(h)
+            for token in hint_vols or [h]:
+                if token not in vols:
+                    vols.append(token)
     without_flavor, flavors = _extract_flavors(without_vol)
     base = _collapse_repeated_tokens(without_flavor)
     if not base:
@@ -583,10 +669,11 @@ def canonicalize_csv_rows(rows: Iterable[dict]) -> tuple[list[CanonicalGroup], l
 
 
 def card_identity_key(manufacturer: str, title: str) -> tuple[str, str]:
-    """손님 카드 identity: 회사 + 품목명(용량·공백·반복 접미 무시). 소분류는 넣지 않는다."""
+    """손님 카드 identity: 회사 + 품목명(용량 표기·공백·반복 접미 무시). 소분류는 넣지 않는다."""
+    without_vol, _ = _extract_volumes(unicodedata.normalize("NFKC", title or ""))
     return (
         normalize_manufacturer(manufacturer),
-        _collapse_compact_repeated_tokens(_compact_key(title)),
+        _collapse_compact_repeated_tokens(_compact_key(without_vol)),
     )
 
 
