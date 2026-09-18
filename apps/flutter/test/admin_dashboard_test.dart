@@ -71,6 +71,17 @@ class _AdminApi extends ApiClient {
     return const [];
   }
 
+  int catalogItemCalls = 0;
+
+  @override
+  Future<List<AdminCatalogProductModel>> adminCatalogProducts({
+    String? q,
+    bool includeRetired = false,
+  }) async {
+    catalogItemCalls += 1;
+    return const [];
+  }
+
   @override
   Future<void> adminApproveSeller(String sellerId) async {
     approveCalls += 1;
@@ -153,5 +164,21 @@ void main() {
     api.approveBlock!.complete();
     await pending;
     expect(api.approveCalls, 1);
+  });
+
+  test('admin catalog section loads drafts and catalog items', () async {
+    final api = _AdminApi();
+    final container = ProviderContainer(
+      overrides: [apiClientProvider.overrideWithValue(api)],
+    );
+    addTearDown(container.dispose);
+
+    await container
+        .read(adminDashboardProvider.notifier)
+        .ensureSection(AdminSection.catalog);
+
+    expect(api.draftsCalls, 1);
+    expect(api.catalogItemCalls, 1);
+    expect(api.sellersCalls, 0);
   });
 }

@@ -15,6 +15,7 @@ from app.models import (
     PaymentIntent,
     Product,
     Seller,
+    SellerModerationEvent,
     Subscription,
     User,
 )
@@ -33,6 +34,7 @@ def truncate_data(db: Session, *, keep_users: bool) -> None:
     db.execute(delete(CartItem))
     db.execute(delete(Subscription))
     db.execute(delete(CatalogIntakeDraft))
+    db.execute(delete(SellerModerationEvent))
     db.execute(delete(Product))
     db.execute(delete(CatalogProduct))
     db.execute(delete(Seller))

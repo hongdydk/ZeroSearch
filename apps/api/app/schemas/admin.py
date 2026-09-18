@@ -1,7 +1,8 @@
 from datetime import datetime
 from typing import Literal
+from uuid import UUID
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class AdminStatsResponse(BaseModel):
@@ -84,12 +85,100 @@ class AdminSellerItem(BaseModel):
     status: str
     seller_type: str = Field(alias="sellerType")
     created_at: datetime = Field(alias="createdAt")
+    warning_count: int = Field(default=0, alias="warningCount")
+    last_moderation_action: str | None = Field(default=None, alias="lastModerationAction")
+    last_moderation_reason: str | None = Field(default=None, alias="lastModerationReason")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
 
 class AdminSellerListResponse(BaseModel):
     items: list[AdminSellerItem]
+    total: int
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class AdminSellerModerationRequest(BaseModel):
+    reason: str = Field(min_length=1, max_length=1000)
+
+    model_config = {"populate_by_name": True}
+
+    @field_validator("reason")
+    @classmethod
+    def strip_reason(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("사유를 입력하세요.")
+        return text
+
+
+class SellerModerationEventItem(BaseModel):
+    id: str
+    action: str
+    reason: str
+    created_at: datetime = Field(alias="createdAt")
+    admin_email: str | None = Field(default=None, alias="adminEmail")
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_id(cls, value: UUID | str) -> str:
+        return str(value)
+
+
+class SellerModerationEventListResponse(BaseModel):
+    items: list[SellerModerationEventItem]
+    total: int
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class AdminCatalogCreateRequest(BaseModel):
+    manufacturer: str = Field(min_length=1, max_length=200)
+    title: str = Field(min_length=1, max_length=200)
+    category: str = Field(min_length=1, max_length=120)
+    description: str | None = None
+    image_url: str | None = Field(default=None, alias="imageUrl", max_length=500)
+    price_unit: Literal["ml", "credits"] = Field(default="ml", alias="priceUnit")
+    l1_tags: list[str] | None = Field(default=None, alias="l1Tags")
+    storage: str | None = None
+    volume_options: list[str] = Field(default_factory=list, alias="volumeOptions")
+
+    model_config = {"populate_by_name": True}
+
+    @field_validator("manufacturer", "title", "category")
+    @classmethod
+    def strip_required(cls, value: str) -> str:
+        text = value.strip()
+        if not text:
+            raise ValueError("필수 값을 입력하세요.")
+        return text
+
+
+class AdminCatalogProductItem(BaseModel):
+    id: str
+    title: str
+    manufacturer: str = ""
+    category: str
+    status: str
+    offer_count: int = Field(alias="offerCount")
+    published_offer_count: int = Field(alias="publishedOfferCount")
+    image_url: str | None = Field(default=None, alias="imageUrl")
+    l1_tags: list[str] = Field(default_factory=list, alias="l1Tags")
+    created_at: datetime | None = Field(default=None, alias="createdAt")
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+    @field_validator("id", mode="before")
+    @classmethod
+    def coerce_id(cls, value: UUID | str) -> str:
+        return str(value)
+
+
+class AdminCatalogProductListResponse(BaseModel):
+    items: list[AdminCatalogProductItem]
     total: int
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}

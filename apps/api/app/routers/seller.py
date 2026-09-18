@@ -37,6 +37,7 @@ from app.schemas.seller import (
     SellerResponse,
 
 )
+from app.schemas.admin import SellerModerationEventListResponse
 
 from app.services.catalog_intake import card_draft_to_item, create_card_draft, list_seller_card_drafts
 from app.services.catalog_products import search_seller_catalog_products
@@ -64,7 +65,7 @@ from app.services.seller_orders import (
 
 from app.services.seller_orders import _seller_order_item_response
 
-from app.services.sellers import apply_for_seller, get_seller_for_user
+from app.services.sellers import apply_for_seller, get_seller_for_user, list_moderation_events, moderation_event_item
 
 
 
@@ -115,6 +116,19 @@ def seller_me(
         return None
 
     return SellerResponse.model_validate(seller)
+
+
+@router.get("/moderation-events", response_model=SellerModerationEventListResponse)
+def seller_moderation_events(
+    db: Annotated[Session, Depends(get_db)],
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> SellerModerationEventListResponse:
+    seller = get_seller_for_user(db, current_user)
+    if seller is None:
+        return SellerModerationEventListResponse(items=[], total=0)
+    events = list_moderation_events(db, seller.id)
+    items = [moderation_event_item(event) for event in events]
+    return SellerModerationEventListResponse(items=items, total=len(items))
 
 
 

@@ -66,7 +66,7 @@ class GuestL1AxisView extends ConsumerWidget {
             ),
           ],
         ),
-        const SizedBox(height: 6),
+        const SizedBox(height: 4),
         Text(
           sellerAxis
               ? '판매자 오퍼는 가게·가격이 보이는 한 장입니다. 같은 품목이어도 판매자마다 카드가 갈라집니다.'
@@ -75,7 +75,7 @@ class GuestL1AxisView extends ConsumerWidget {
                 color: const Color(0xA0212121),
               ),
         ),
-        const SizedBox(height: 16),
+        const SizedBox(height: 12),
         SingleChildScrollView(
           scrollDirection: Axis.horizontal,
           child: SegmentedButton<String>(
@@ -180,9 +180,9 @@ class _BrandMenuFacets extends ConsumerWidget {
           itemCount: items.length,
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: cols,
-            childAspectRatio: 1.55,
-            crossAxisSpacing: 14,
-            mainAxisSpacing: 14,
+            childAspectRatio: 1.7,
+            crossAxisSpacing: 10,
+            mainAxisSpacing: 10,
           ),
           itemBuilder: (context, index) {
             final item = items[index];
@@ -198,7 +198,7 @@ class _BrandMenuFacets extends ConsumerWidget {
                     : onPickBrand(item.name),
                 borderRadius: BorderRadius.circular(18),
                 child: Padding(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(12),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -279,9 +279,9 @@ class _SellerOfferResults extends ConsumerWidget {
               itemCount: page.items.length,
               gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: cols,
-                childAspectRatio: 0.72,
-                crossAxisSpacing: 14,
-                mainAxisSpacing: 14,
+                childAspectRatio: 0.78,
+                crossAxisSpacing: 10,
+                mainAxisSpacing: 10,
               ),
               itemBuilder: (context, index) =>
                   _OfferCard(item: page.items[index]),
@@ -352,7 +352,7 @@ class _OfferCard extends StatelessWidget {
                     ),
             ),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,

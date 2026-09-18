@@ -66,6 +66,16 @@ class SellerModel {
     required this.sellerType,
   });
 
+  factory SellerModel.fromJson(Map<String, dynamic> json) {
+    return SellerModel(
+      id: json['id'] as String? ?? '',
+      shopName: json['shopName'] as String? ?? '',
+      slug: json['slug'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      sellerType: json['sellerType'] as String? ?? 'merchant',
+    );
+  }
+
   final String id;
   final String shopName;
   final String slug;
@@ -124,13 +134,52 @@ class AdminSellerModel {
     required this.userEmail,
     required this.status,
     required this.sellerType,
+    this.warningCount = 0,
+    this.lastModerationAction,
+    this.lastModerationReason,
   });
+
+  factory AdminSellerModel.fromJson(Map<String, dynamic> json) {
+    return AdminSellerModel(
+      id: json['id'] as String? ?? '',
+      shopName: json['shopName'] as String? ?? '',
+      userEmail: json['userEmail'] as String? ?? '',
+      status: json['status'] as String? ?? '',
+      sellerType: json['sellerType'] as String? ?? 'merchant',
+      warningCount: json['warningCount'] as int? ?? 0,
+      lastModerationAction: json['lastModerationAction'] as String?,
+      lastModerationReason: json['lastModerationReason'] as String?,
+    );
+  }
 
   final String id;
   final String shopName;
   final String userEmail;
   final String status;
   final String sellerType;
+  final int warningCount;
+  final String? lastModerationAction;
+  final String? lastModerationReason;
+
+  bool get isPlatform => sellerType == 'platform';
+
+  AdminSellerModel copyWith({
+    String? status,
+    int? warningCount,
+    String? lastModerationAction,
+    String? lastModerationReason,
+  }) {
+    return AdminSellerModel(
+      id: id,
+      shopName: shopName,
+      userEmail: userEmail,
+      status: status ?? this.status,
+      sellerType: sellerType,
+      warningCount: warningCount ?? this.warningCount,
+      lastModerationAction: lastModerationAction ?? this.lastModerationAction,
+      lastModerationReason: lastModerationReason ?? this.lastModerationReason,
+    );
+  }
 }
 
 class CartItemModel {
@@ -835,4 +884,87 @@ class IntakeDraftModel {
     }
     return '$maker $product';
   }
+}
+
+class AdminCatalogProductModel {
+  AdminCatalogProductModel({
+    required this.id,
+    required this.title,
+    required this.manufacturer,
+    required this.category,
+    required this.status,
+    required this.offerCount,
+    required this.publishedOfferCount,
+    this.imageUrl,
+    this.l1Tags = const [],
+  });
+
+  factory AdminCatalogProductModel.fromJson(Map<String, dynamic> json) {
+    return AdminCatalogProductModel(
+      id: json['id'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      manufacturer: json['manufacturer'] as String? ?? '',
+      category: json['category'] as String? ?? '',
+      status: json['status'] as String? ?? 'active',
+      offerCount: json['offerCount'] as int? ?? 0,
+      publishedOfferCount: json['publishedOfferCount'] as int? ?? 0,
+      imageUrl: json['imageUrl'] as String?,
+      l1Tags: (json['l1Tags'] as List<dynamic>? ?? [])
+          .map((e) => e.toString())
+          .toList(),
+    );
+  }
+
+  final String id;
+  final String title;
+  final String manufacturer;
+  final String category;
+  final String status;
+  final int offerCount;
+  final int publishedOfferCount;
+  final String? imageUrl;
+  final List<String> l1Tags;
+
+  String get cardTitle {
+    final maker = manufacturer.trim();
+    final product = title.trim();
+    if (maker.isEmpty || product == maker || product.startsWith('$maker ')) {
+      return product;
+    }
+    return '$maker $product';
+  }
+}
+
+class SellerModerationEventModel {
+  SellerModerationEventModel({
+    required this.id,
+    required this.action,
+    required this.reason,
+    this.createdAt,
+    this.adminEmail,
+  });
+
+  factory SellerModerationEventModel.fromJson(Map<String, dynamic> json) {
+    return SellerModerationEventModel(
+      id: json['id'] as String? ?? '',
+      action: json['action'] as String? ?? '',
+      reason: json['reason'] as String? ?? '',
+      createdAt: json['createdAt'] as String?,
+      adminEmail: json['adminEmail'] as String?,
+    );
+  }
+
+  final String id;
+  final String action;
+  final String reason;
+  final String? createdAt;
+  final String? adminEmail;
+
+  String get actionLabel => switch (action) {
+        'warn' => '경고',
+        'suspend' => '정지',
+        'unsuspend' => '정지 해제',
+        'remove' => '판매자 해제',
+        _ => action,
+      };
 }

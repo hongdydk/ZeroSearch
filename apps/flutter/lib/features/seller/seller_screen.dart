@@ -23,6 +23,7 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
   SellerModel? _seller;
   List<ProductModel> _products = [];
   List<SellerOrderItemModel> _orders = [];
+  List<SellerModerationEventModel> _notices = [];
   bool _loading = true;
   bool _metricsLoading = false;
   bool _submitting = false;
@@ -46,8 +47,14 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
       final api = ref.read(apiClientProvider);
       final seller = await api.sellerMe();
       if (!mounted) return;
+      List<SellerModerationEventModel> notices = const [];
+      try {
+        notices = await api.sellerModerationEvents();
+      } catch (_) {}
+      if (!mounted) return;
       setState(() {
         _seller = seller;
+        _notices = notices;
         _loading = false;
       });
       if (seller?.status != 'active') {
@@ -99,6 +106,13 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
     }
   }
 
+  String? _latestReason(String action) {
+    for (final notice in _notices) {
+      if (notice.action == action) return notice.reason;
+    }
+    return _notices.isEmpty ? null : _notices.first.reason;
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_loading) {
@@ -111,7 +125,32 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
       return const Center(child: Text('입점 승인 대기 중입니다.'));
     }
     if (seller.status == 'suspended') {
-      return const Center(child: Text('정지된 판매자 계정입니다.'));
+      final reason = _latestReason('suspend');
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            reason == null
+                ? '정지된 판매자 계정입니다.'
+                : '정지된 판매자 계정입니다.\n사유: $reason',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
+    }
+    if (seller.status == 'removed') {
+      final reason = _latestReason('remove');
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.all(24),
+          child: Text(
+            reason == null
+                ? '해제된 판매자 계정입니다.'
+                : '해제된 판매자 계정입니다.\n사유: $reason',
+            textAlign: TextAlign.center,
+          ),
+        ),
+      );
     }
 
     final published = _products
@@ -132,6 +171,25 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
           children: [
             if (_metricsLoading) const LinearProgressIndicator(minHeight: 2),
             if (_metricsLoading) const SizedBox(height: 12),
+            if (_notices.any((n) => n.action == 'warn')) ...[
+              PortalSection(
+                title: '운영 경고',
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (final notice in _notices.where((n) => n.action == 'warn'))
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: Text('• ${notice.reason}'),
+                        ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 18),
+            ],
             PortalMetricGrid(
               children: [
                 PortalMetricCard(

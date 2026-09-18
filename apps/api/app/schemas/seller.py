@@ -12,7 +12,7 @@ from uuid import UUID
 
 
 
-SellerStatus = Literal["pending", "active", "suspended"]
+SellerStatus = Literal["pending", "active", "suspended", "removed"]
 
 SellerType = Literal["platform", "merchant"]
 

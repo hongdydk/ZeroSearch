@@ -321,10 +321,10 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     final columns = isWebUi
         ? (width < webCompactBreakpoint ? 2 : tokens.productGridColumns)
         : 2;
-    final aspectRatio = isWebUi ? (width < webCompactBreakpoint ? 0.82 : 0.76) : 0.68;
+    final aspectRatio = isWebUi ? (width < webCompactBreakpoint ? 0.88 : 0.82) : 0.74;
     final padding = EdgeInsets.symmetric(
       horizontal: isWebUi ? 24 : 16,
-      vertical: isWebUi ? 20 : 16,
+      vertical: isWebUi ? 16 : 12,
     );
 
     final inSearch = typedSearch.isNotEmpty;
@@ -642,8 +642,8 @@ class _CatalogProductGridState extends State<_CatalogProductGrid> {
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: widget.columns,
               childAspectRatio: widget.aspectRatio,
-              crossAxisSpacing: 14,
-              mainAxisSpacing: 14,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
             ),
             delegate: SliverChildBuilderDelegate(
               (context, index) => _CatalogCard(item: widget.items[index]),
@@ -654,7 +654,7 @@ class _CatalogProductGridState extends State<_CatalogProductGrid> {
         if (showLoading)
           const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 20),
+              padding: EdgeInsets.symmetric(vertical: 12),
               child: Center(
                 child: SizedBox(
                   width: 24,
@@ -667,7 +667,7 @@ class _CatalogProductGridState extends State<_CatalogProductGrid> {
         else if (widget.items.isNotEmpty)
           const SliverToBoxAdapter(
             child: Padding(
-              padding: EdgeInsets.symmetric(vertical: 16),
+              padding: EdgeInsets.symmetric(vertical: 10),
               child: Center(child: Text('모두 불러왔습니다.')),
             ),
           ),
@@ -760,7 +760,7 @@ class _LandingViewState extends State<_LandingView> {
                   }
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
               KeyedSubtree(
                 key: _tableKey,
                 child: Column(
@@ -775,12 +775,12 @@ class _LandingViewState extends State<_LandingView> {
                             fontSize: 22,
                           ),
                     ),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 8),
                     _MajorCircleRow(majors: majors, onPick: widget.onPickMajor),
                   ],
                 ),
               ),
-              const SizedBox(height: 28),
+              const SizedBox(height: 20),
               Text(
                 '오늘 추천',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
@@ -790,7 +790,7 @@ class _LandingViewState extends State<_LandingView> {
                       fontSize: 22,
                     ),
               ),
-              const SizedBox(height: 6),
+              const SizedBox(height: 4),
               Text(
                 '지금 장보기 좋은.',
                 style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -798,21 +798,21 @@ class _LandingViewState extends State<_LandingView> {
                       fontSize: 13,
                     ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               _TodayGrid(items: today, onPick: widget.onPickMajor),
-              const SizedBox(height: 40),
+              const SizedBox(height: 28),
               Text(
                 '대표가는 최저가가 아닙니다',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.w700,
                       color: AppTheme.brandTeal,
                       letterSpacing: -0.5,
-                      fontSize: 26,
+                      fontSize: 22,
                     ),
               ),
-              const SizedBox(height: 22),
+              const SizedBox(height: 12),
               const _ExplainSection(),
-              const SizedBox(height: 40),
+              const SizedBox(height: 28),
             ],
           ),
         ),
@@ -827,7 +827,7 @@ class _HeroBlock extends StatefulWidget {
 
   /// Narrow / mobile: compact strip. Wide: closer to pre-carousel hero (~340).
   static const _bannerHeightCompact = 176.0;
-  static const _bannerHeightWide = 340.0;
+  static const _bannerHeightWide = 260.0;
 
   static const _images = [
     'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1400&q=80',
@@ -1222,12 +1222,12 @@ class _ExplainSection extends StatelessWidget {
         border: Border.all(color: const Color(0x14074A4E)),
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
         child: Column(
           children: [
             for (var i = 0; i < _items.length; i++) ...[
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Align(
                   alignment: Alignment.centerLeft,
                   child: Column(
@@ -1374,13 +1374,13 @@ class _MajorCircleRow extends StatefulWidget {
   static const _compactItemWidth = 72.0;
   static const _compactCircle = 56.0;
   static const _compactRowHeight = 100.0;
-  static const _compactGap = 12.0;
+  static const _compactGap = 8.0;
 
   /// Wide / desktop: closer to original landing photo size.
   static const _wideItemWidth = 100.0;
   static const _wideCircle = 80.0;
   static const _wideRowHeight = 128.0;
-  static const _wideGap = 16.0;
+  static const _wideGap = 12.0;
 
   final List<GuestL1Category> majors;
   final ValueChanged<String> onPick;
@@ -1579,9 +1579,9 @@ class _TodayGrid extends StatelessWidget {
       itemCount: items.length,
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: cols,
-        childAspectRatio: 0.88,
-        crossAxisSpacing: 16,
-        mainAxisSpacing: 16,
+        childAspectRatio: 0.95,
+        crossAxisSpacing: 10,
+        mainAxisSpacing: 10,
       ),
       itemBuilder: (context, index) {
         final m = items[index];
@@ -1640,7 +1640,7 @@ class _TodayGrid extends StatelessWidget {
                   ),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+                  padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -1960,7 +1960,7 @@ class _CatalogCard extends StatelessWidget {
           children: [
             Expanded(child: _CardThumb(item: item)),
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
+              padding: const EdgeInsets.fromLTRB(10, 8, 10, 10),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 mainAxisSize: MainAxisSize.min,

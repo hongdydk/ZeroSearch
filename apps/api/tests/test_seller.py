@@ -65,7 +65,10 @@ def test_admin_approve_seller(client):
     user = make_user(email="merchant@test.local")
     mock_db.get.return_value = user
 
-    with patch("app.routers.admin.approve_seller", return_value=seller):
+    with (
+        patch("app.routers.admin.approve_seller", return_value=seller),
+        patch("app.routers.admin._moderation_summaries", return_value={}),
+    ):
         response = client.post(
             f"/admin/sellers/{seller.id}/approve",
             headers={"Authorization": "Bearer fake"},
