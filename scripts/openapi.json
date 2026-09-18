@@ -2615,7 +2615,14 @@
                   "kg",
                   "팩"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-enum-varnames": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "pack"
+                ]
               },
               {
                 "type": "null"
@@ -2751,7 +2758,14 @@
                   "kg",
                   "팩"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-enum-varnames": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "pack"
+                ]
               },
               {
                 "type": "null"
@@ -3095,7 +3109,14 @@
                   "kg",
                   "팩"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-enum-varnames": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "pack"
+                ]
               },
               {
                 "type": "null"
@@ -3272,7 +3293,14 @@
                   "kg",
                   "팩"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-enum-varnames": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "pack"
+                ]
               },
               {
                 "type": "null"
