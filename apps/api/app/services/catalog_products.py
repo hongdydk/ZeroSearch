@@ -155,9 +155,8 @@ def _catalog_search_filter(
     if category_mid:
         filters.append(CatalogProduct.category_mid == category_mid)
     if l1_tag:
-        tag_filter = l1_tag_filter(l1_tag)
-        if tag_filter is not None:
-            filters.append(tag_filter)
+        # 알 수 없는 l1Tag는 fail-closed (브랜드만 매칭해 전 카탈로그가 나오지 않게).
+        filters.append(l1_tag_filter(l1_tag))
     if storage in {"상온", "냉장", "냉동"}:
         filters.append(CatalogProduct.storage == storage)
     if brand:

@@ -107,3 +107,23 @@ def test_curry_is_cutlet_not_sauce():
 
 def test_category_saengsu_tags_water_without_title_keyword():
     assert TAG_WATER in _tags(title="백산수", manufacturer="농심", category="일반생수", category_mid="생수")
+
+
+def test_greenaid_housewares_are_not_water():
+    for title in (
+        "커피필터",
+        "그린에이드 실리콘 퍼프",
+        "국물팩",
+        "캔들",
+        "쓰레기통",
+        "각질제거기",
+        "발각질파일",
+        "티눈깎기",
+    ):
+        assert TAG_WATER not in _tags(title=title, manufacturer="그린에이드"), title
+
+
+def test_ade_drinks_stay_water_including_greenaid_brand():
+    assert TAG_WATER in _tags(title="레몬에이드 1.5L", manufacturer="롯데")
+    assert TAG_WATER in _tags(title="자몽에이드", manufacturer="해태")
+    assert TAG_WATER in _tags(title="그린에이드 레몬에이드", manufacturer="그린에이드")

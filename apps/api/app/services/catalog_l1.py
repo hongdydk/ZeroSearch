@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import false, func, or_, select
 from sqlalchemy.orm import Session
 from sqlalchemy.orm.attributes import flag_modified
 
@@ -28,7 +28,11 @@ def apply_auto_l1_tags(catalog: CatalogProduct, *, only_if_empty: bool = True) -
         category_mid=catalog.category_mid or "",
         storage=catalog.storage,
     )
-    catalog.l1_tags = result.tags
+    new_tags = result.tags
+    storage_changed = bool(result.storage) and catalog.storage != result.storage
+    if list(catalog.l1_tags or []) == new_tags and not storage_changed:
+        return False
+    catalog.l1_tags = new_tags
     if result.storage:
         catalog.storage = result.storage
     flag_modified(catalog, "l1_tags")
@@ -60,9 +64,12 @@ def backfill_l1_tags(db: Session, *, only_if_empty: bool = True) -> int:
     return updated
 
 
-def l1_tag_filter(tag: str):
-    if tag not in GUEST_L1_SET:
+def l1_tag_filter(tag: str | None):
+    """L1 목록 필터. 빈 값은 필터 없음, 알 수 없는 태그는 빈 결과(fail-closed)."""
+    if not tag:
         return None
+    if tag not in GUEST_L1_SET:
+        return false()
     return CatalogProduct.l1_tags.contains([tag])
 
 
@@ -72,14 +79,14 @@ def list_l1_facets(
     l1_tag: str,
     storage: str | None = None,
 ) -> dict:
-    tag_filter = l1_tag_filter(l1_tag)
-    if tag_filter is None:
+    if l1_tag not in GUEST_L1_SET:
         return {
             "l1_tag": l1_tag,
-            "default_axis": default_axis_for(l1_tag) if l1_tag in GUEST_L1_SET else "brand",
+            "default_axis": "brand",
             "brands": [],
             "menus": [],
         }
+    tag_filter = l1_tag_filter(l1_tag)
 
     filters = [tag_filter]
     if storage in {"상온", "냉장", "냉동"}:

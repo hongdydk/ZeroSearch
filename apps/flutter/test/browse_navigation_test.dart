@@ -32,39 +32,70 @@ class _Api extends ApiClient {
     int? volumeMlMax,
     int offset = 0,
     int limit = 50,
-  }) async => CatalogProductPageModel(
-    items: [
-      if (l1Tag == '라면/면류' && (brand == '농심' || menu == '신라면'))
-        CatalogProductModel(
-          id: 'cat-shin',
-          title: '신라면',
-          manufacturer: '농심',
-          category: '국물봉지라면',
-          offerCount: 2,
-          priceUnit: 'credits',
-          displayPriceLabel: '원',
-          medianPriceCredits: 4200,
-        ),
-    ],
-    total: l1Tag == '라면/면류' && (brand == '농심' || menu == '신라면') ? 1 : 0,
-  );
+  }) async {
+    if (l1Tag == '라면/면류' && (brand == '농심' || menu == '신라면')) {
+      return CatalogProductPageModel(
+        items: [
+          CatalogProductModel(
+            id: 'cat-shin',
+            title: '신라면',
+            manufacturer: '농심',
+            category: '국물봉지라면',
+            offerCount: 2,
+            priceUnit: 'credits',
+            displayPriceLabel: '원',
+            medianPriceCredits: 4200,
+          ),
+        ],
+        total: 1,
+      );
+    }
+    // L1 없이 브랜드만 오면 생활용품이 섞인다. 클라이언트는 l1Tag를 반드시 보낸다.
+    if (l1Tag == null && brand == '그린에이드') {
+      return CatalogProductPageModel(
+        items: [
+          CatalogProductModel(
+            id: 'house-filter',
+            title: '커피필터',
+            manufacturer: '그린에이드',
+            category: '필터',
+            offerCount: 0,
+            priceUnit: 'credits',
+            displayPriceLabel: '원',
+          ),
+        ],
+        total: 1,
+      );
+    }
+    return CatalogProductPageModel(items: const [], total: 0);
+  }
 
   @override
   Future<GuestL1FacetsModel> guestL1Facets({
     required String l1Tag,
     String? storage,
-  }) async => GuestL1FacetsModel(
-    l1Tag: l1Tag,
-    defaultAxis: 'brand',
-    brands: const [
-      GuestL1FacetItem(name: '농심', count: 2),
-      GuestL1FacetItem(name: '오뚜기', count: 1),
-    ],
-    menus: const [
-      GuestL1FacetItem(name: '신라면', count: 1),
-      GuestL1FacetItem(name: '진라면 매운맛', count: 1),
-    ],
-  );
+  }) async {
+    if (l1Tag == '생수/음료') {
+      return GuestL1FacetsModel(
+        l1Tag: l1Tag,
+        defaultAxis: 'brand',
+        brands: const [],
+        menus: const [],
+      );
+    }
+    return GuestL1FacetsModel(
+      l1Tag: l1Tag,
+      defaultAxis: 'brand',
+      brands: const [
+        GuestL1FacetItem(name: '농심', count: 2),
+        GuestL1FacetItem(name: '오뚜기', count: 1),
+      ],
+      menus: const [
+        GuestL1FacetItem(name: '신라면', count: 1),
+        GuestL1FacetItem(name: '진라면 매운맛', count: 1),
+      ],
+    );
+  }
 }
 
 class _Tokens extends TokenStorage {
@@ -158,5 +189,21 @@ void main() {
     expect(router.state.uri.queryParameters['brand'], isNull);
     expect(router.state.uri.queryParameters['l1'], '라면/면류');
     expect(find.text('브랜드부터'), findsWidgets);
+  });
+
+  testWidgets('L1 brand URL keeps l1Tag so untagged housewares do not appear', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final router = await _pumpMall(tester);
+    router.go('/?l1=생수/음료&axis=brand&brand=그린에이드');
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.queryParameters['l1'], '생수/음료');
+    expect(router.state.uri.queryParameters['brand'], '그린에이드');
+    expect(find.text('커피필터'), findsNothing);
+    expect(find.textContaining('조건에 맞는 상품이 없습니다'), findsOneWidget);
   });
 }

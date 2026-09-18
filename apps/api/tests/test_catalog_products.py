@@ -326,6 +326,16 @@ def test_catalog_l1_filter_compiles():
     sql = str(stmt.compile(dialect=postgresql.dialect()))
     assert "l1_tags" in sql
     assert "storage" in sql
+    assert "manufacturer" in sql.lower()
+
+
+def test_unknown_l1_filter_is_fail_closed_not_brand_only():
+    stmt = select(CatalogProduct).where(
+        *_catalog_search_filter(None, None, l1_tag="생수", brand="그린에이드")
+    )
+    sql = str(stmt.compile(dialect=postgresql.dialect()))
+    assert "false" in sql.lower()
+    # 잘린 l1을 무시하면 브랜드 전 카탈로그 매칭이 된다.
 
 
 def test_pick_identity_survivors_collapses_samdasoo_like_duplicates():

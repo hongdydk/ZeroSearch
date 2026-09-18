@@ -34,6 +34,9 @@ GUEST_L1_TAGS: tuple[str, ...] = (
 
 GUEST_L1_SET = frozenset(GUEST_L1_TAGS)
 
+# 자동 태거 규칙 버전. 배포 시 강제 backfill 마커와 맞춘다.
+TAGGER_VERSION = "v2"
+
 DEFAULT_AXIS: dict[str, Axis] = {
     "생수/음료": "brand",
     "커피/원두/차": "brand",
@@ -400,6 +403,9 @@ def _contains(haystack: str, keyword: str) -> bool:
         if "캔디" in haystack or "캔들" in haystack:
             return "캔참치" in haystack or "햄캔" in haystack or "골뱅이캔" in haystack
         return "캔" in haystack
+    if needle == "에이드":
+        # 레몬에이드·자몽에이드는 음료. 그린에이드는 생활용품 브랜드.
+        return "에이드" in haystack.replace("그린에이드", "")
     if needle == "바":
         return haystack.endswith("바") or "씨리얼바" in haystack or "시리얼바" in haystack
     if needle == "면":

@@ -51,6 +51,9 @@ FORCE_CATALOG_IMPORT="${FORCE_CATALOG_IMPORT:-0}"
 CATALOG_NORM_VERSION="${CATALOG_NORM_VERSION:-v4}"
 REMERGE_MARKER="$CACHE_DIR/catalog-remerge-${CATALOG_NORM_VERSION}.done"
 VOLUME_TITLE_REPAIR_MARKER="$CACHE_DIR/catalog-volume-title-repair-${CATALOG_NORM_VERSION}.done"
+# Keep in sync with app.services.guest_l1.TAGGER_VERSION
+L1_TAGGER_VERSION="${L1_TAGGER_VERSION:-v2}"
+L1_TAG_MARKER="$CACHE_DIR/l1-tags-${L1_TAGGER_VERSION}.done"
 
 # One-time production rollout: back up first, inspect the dry-run, then apply.
 # The marker makes subsequent deployments idempotent.
@@ -109,4 +112,14 @@ if [[ -f "$CATALOG_CSV" ]]; then
   fi
 else
   echo "skip catalog import — missing $CATALOG_CSV" >&2
+fi
+
+# 그린에이드 생활용품이 '에이드' 키워드로 생수/음료에 붙던 태그를 다시 추론한다.
+if [[ ! -f "$L1_TAG_MARKER" ]]; then
+  mkdir -p "$CACHE_DIR"
+  echo "re-applying guest L1 tags (tagger=$L1_TAGGER_VERSION)"
+  docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
+    api python -m scripts.backfill_l1_tags --force
+  echo "$L1_TAGGER_VERSION" > "$L1_TAG_MARKER"
+  echo "guest L1 retag applied"
 fi
