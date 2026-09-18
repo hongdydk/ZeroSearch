@@ -35,6 +35,7 @@ class _HeaderTestApiClient extends ApiClient {
     String? categoryMajor,
     String? categoryMid,
     String? l1Tag,
+    String? l2Tag,
     String? storage,
     String? brand,
     String? menu,

@@ -17,7 +17,7 @@ from app.schemas.catalog_product import (
 )
 from app.schemas.seller import SellerSummary
 from app.services.catalog_identity import card_identity_key
-from app.services.catalog_l1 import l1_tag_filter
+from app.services.catalog_l1 import l1_tag_filter, l2_tag_filter
 from app.services.catalog_remerge import resolve_catalog_product
 
 VOLUME_CHIP_MIN_ML = 2000
@@ -137,6 +137,7 @@ def _catalog_search_filter(
     category_major: str | None = None,
     category_mid: str | None = None,
     l1_tag: str | None = None,
+    l2_tag: str | None = None,
     storage: str | None = None,
     brand: str | None = None,
     menu: str | None = None,
@@ -167,6 +168,9 @@ def _catalog_search_filter(
     if l1_tag:
         # 알 수 없는 l1Tag는 fail-closed (브랜드만 매칭해 전 카탈로그가 나오지 않게).
         filters.append(l1_tag_filter(l1_tag))
+    if l2_tag:
+        # 해당 L1에 없는 l2Tag·L1 없이 L2만 오면 fail-closed.
+        filters.append(l2_tag_filter(l1_tag, l2_tag))
     if storage in {"상온", "냉장", "냉동"}:
         filters.append(CatalogProduct.storage == storage)
     if brand:
@@ -210,6 +214,7 @@ def _list_item(catalog: CatalogProduct, offers: list[Product]) -> CatalogProduct
         price_unit=price_unit,  # type: ignore[arg-type]
         display_price_label=display_label,
         l1_tags=list(catalog.l1_tags or []),
+        l2_tags=list(catalog.l2_tags or []),
         storage=catalog.storage,
     )
 
@@ -247,19 +252,21 @@ def list_catalog_offers(
     volume_ml_min: int | None = None,
     volume_ml_max: int | None = None,
     l1_tag: str | None = None,
+    l2_tag: str | None = None,
     storage: str | None = None,
     brand: str | None = None,
     menu: str | None = None,
     offset: int = 0,
     limit: int = 50,
 ) -> CatalogOfferListResult:
-    """공개 오퍼를 한 장씩. 회사+품목 collapse 없음. L1은 fail-closed."""
+    """공개 오퍼를 한 장씩. 회사+품목 collapse 없음. L1·L2는 fail-closed."""
     catalog_filters = _catalog_search_filter(
         q,
         category,
         category_major=category_major,
         category_mid=category_mid,
         l1_tag=l1_tag,
+        l2_tag=l2_tag,
         storage=storage,
         brand=brand,
         menu=menu,
@@ -318,6 +325,7 @@ def list_catalog_products(
     volume_ml_min: int | None = None,
     volume_ml_max: int | None = None,
     l1_tag: str | None = None,
+    l2_tag: str | None = None,
     storage: str | None = None,
     brand: str | None = None,
     menu: str | None = None,
@@ -331,6 +339,7 @@ def list_catalog_products(
         category_major=category_major,
         category_mid=category_mid,
         l1_tag=l1_tag,
+        l2_tag=l2_tag,
         storage=storage,
         brand=brand,
         menu=menu,
@@ -513,5 +522,6 @@ def get_catalog_product(
         reference_variants=reference_variants,
         created_at=catalog.created_at,
         l1_tags=list(catalog.l1_tags or []),
+        l2_tags=list(catalog.l2_tags or []),
         storage=catalog.storage,
     )

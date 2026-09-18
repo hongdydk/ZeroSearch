@@ -85,6 +85,15 @@ def test_pg_l1_brand_returns_only_tagged_cards_not_housewares():
         menu_names = [row["name"] for row in facets["menus"]]
         assert drink.title in menu_names
         assert housewares[0].title not in menu_names
+
+        drink.l2_tags = ["기타음료"]
+        db.flush()
+        l2_scoped = list_catalog_products(db, l1_tag=TAG_WATER, l2_tag="기타음료", brand="그린에이드")
+        assert str(drink.id) in {item.id for item in l2_scoped.items}
+        empty_l2 = list_catalog_products(db, l1_tag=TAG_WATER, l2_tag="생수", brand="그린에이드")
+        assert empty_l2.items == []
+        wrong_l2 = list_catalog_products(db, l1_tag=TAG_WATER, l2_tag="봉지라면")
+        assert wrong_l2.items == []
     finally:
         db.rollback()
         db.close()

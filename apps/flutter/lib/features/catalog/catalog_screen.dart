@@ -59,6 +59,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
     final q = (uri.queryParameters['q'] ?? '').trim();
     final l1Raw = uri.queryParameters['l1'];
+    final l2Raw = uri.queryParameters['l2'];
     final axisRaw = uri.queryParameters['axis'];
     final brandRaw = uri.queryParameters['brand'];
     final menuRaw = uri.queryParameters['menu'];
@@ -67,8 +68,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     final majorRaw = uri.queryParameters['major'];
     final midRaw = uri.queryParameters['mid'];
     final l1 = (l1Raw == null || l1Raw.isEmpty) ? null : l1Raw;
+    final l2 = normalizeGuestL2(l1, l2Raw);
     final axis = (axisRaw == null || axisRaw.isEmpty)
-        ? (l1 == null ? null : guestL1DefaultAxis(l1))
+        ? (l1 == null || l2 == null ? null : guestL1DefaultAxis(l1))
         : normalizeBrowseAxis(
             axisRaw,
             fallback: l1 == null ? kBrowseAxisBrand : guestL1DefaultAxis(l1),
@@ -89,6 +91,9 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       }
       if (ref.read(catalogL1Provider) != null) {
         ref.read(catalogL1Provider.notifier).state = null;
+      }
+      if (ref.read(catalogL2Provider) != null) {
+        ref.read(catalogL2Provider.notifier).state = null;
       }
       if (ref.read(catalogStorageFilterProvider) != null) {
         ref.read(catalogStorageFilterProvider.notifier).state = null;
@@ -131,6 +136,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     }
 
     setIfChanged(catalogL1Provider, l1);
+    setIfChanged(catalogL2Provider, l2);
     setIfChanged(catalogL1AxisProvider, axis);
     setIfChanged(catalogL1BrandProvider, brand);
     setIfChanged(catalogL1MenuProvider, menu);
@@ -165,9 +171,25 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     ref.read(catalogL1MenuProvider.notifier).state = null;
     ref.read(catalogStorageFilterProvider.notifier).state = null;
     ref.read(catalogL1AllProvider.notifier).state = false;
-    ref.read(catalogL1AxisProvider.notifier).state = guestL1DefaultAxis(name);
+    ref.read(catalogL1AxisProvider.notifier).state = null;
+    ref.read(catalogL2Provider.notifier).state = null;
     ref.read(catalogL1Provider.notifier).state = name;
-    context.go(browseLocation(l1: name, axis: guestL1DefaultAxis(name)));
+    context.go(browseLocation(l1: name));
+  }
+
+  void _applyL2Drill(String l2) {
+    final l1 = ref.read(catalogL1Provider);
+    if (l1 == null) return;
+    ref.read(catalogL1AxisScrollOffsetProvider.notifier).state = 0;
+    ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
+    ref.read(catalogL1BrandProvider.notifier).state = null;
+    ref.read(catalogL1MenuProvider.notifier).state = null;
+    ref.read(catalogL1AllProvider.notifier).state = false;
+    ref.read(catalogL2Provider.notifier).state = l2;
+    ref.read(catalogL1AxisProvider.notifier).state = guestL1DefaultAxis(l1);
+    context.go(
+      browseLocation(l1: l1, l2: l2, axis: guestL1DefaultAxis(l1)),
+    );
   }
 
   void _applyL1Axis(String axis) {
@@ -183,6 +205,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       browseLocation(
         q: q.isEmpty ? null : q,
         l1: l1,
+        l2: l1 == null ? null : ref.read(catalogL2Provider),
         axis: axis,
         storage: l1 == null ? null : ref.read(catalogStorageFilterProvider),
       ),
@@ -196,6 +219,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     context.go(
       browseLocation(
         l1: l1,
+        l2: ref.read(catalogL2Provider),
         axis: ref.read(catalogL1AxisProvider),
         brand: ref.read(catalogL1BrandProvider),
         menu: ref.read(catalogL1MenuProvider),
@@ -219,6 +243,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       browseLocation(
         q: q.isEmpty ? null : q,
         l1: l1,
+        l2: l1 == null ? null : ref.read(catalogL2Provider),
         axis: kBrowseAxisBrand,
         brand: name,
         storage: l1 == null ? null : ref.read(catalogStorageFilterProvider),
@@ -240,6 +265,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       browseLocation(
         q: q.isEmpty ? null : q,
         l1: l1,
+        l2: l1 == null ? null : ref.read(catalogL2Provider),
         axis: kBrowseAxisMenu,
         menu: name,
         storage: l1 == null ? null : ref.read(catalogStorageFilterProvider),
@@ -261,6 +287,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       browseLocation(
         q: q.isEmpty ? null : q,
         l1: l1,
+        l2: l1 == null ? null : ref.read(catalogL2Provider),
         axis: ref.read(catalogL1AxisProvider),
         storage: l1 == null ? null : ref.read(catalogStorageFilterProvider),
         all: true,
@@ -306,6 +333,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     final typedSearch = ref.watch(catalogSearchProvider).trim();
     final debouncedSearch = ref.watch(catalogDebouncedSearchProvider).trim();
     final urlL1 = ref.watch(catalogL1Provider);
+    final urlL2 = ref.watch(catalogL2Provider);
     final urlAxis = ref.watch(catalogL1AxisProvider);
     final urlBrand = ref.watch(catalogL1BrandProvider);
     final urlMenu = ref.watch(catalogL1MenuProvider);
@@ -329,6 +357,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
 
     final inSearch = typedSearch.isNotEmpty;
     final l1 = inSearch ? null : urlL1;
+    final l2 = inSearch ? null : urlL2;
     final major = inSearch ? null : urlMajor;
     final mid = inSearch ? null : urlMid;
 
@@ -337,10 +366,12 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         major == null &&
         mid == null &&
         category == null;
-    final isAxisView = (inSearch || l1 != null) &&
+    final isL2Picker = !inSearch && l1 != null && l2 == null;
+    final isAxisView = (inSearch || (l1 != null && l2 != null)) &&
         !urlAll &&
         urlBrand == null &&
-        urlMenu == null;
+        urlMenu == null &&
+        !isL2Picker;
     final isMidBrowse = !inSearch &&
         l1 == null &&
         major != null &&
@@ -365,21 +396,35 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       );
     }
 
+    if (isL2Picker) {
+      return _L2BrowseView(
+        l1Name: l1,
+        l2s: guestL2For(l1),
+        padding: padding,
+        initialScrollOffset: ref.watch(catalogMidScrollOffsetProvider),
+        onScrollOffset: (v) =>
+            ref.read(catalogMidScrollOffsetProvider.notifier).state = v,
+        onBack: () => popBrowseOrHome(context),
+        onPickL2: _applyL2Drill,
+      );
+    }
+
     if (isAxisView) {
       Widget axisView = GuestL1AxisView(
-        title: l1 ?? '“$typedSearch”',
+        title: l1 != null && l2 != null ? '$l1 · $l2' : '“$typedSearch”',
         axis: urlAxis ??
             (l1 == null ? kBrowseAxisBrand : guestL1DefaultAxis(l1)),
         storage: urlStorage,
         padding: padding,
         onBack: () => popBrowseOrHome(context),
+        backLabel: l1 != null ? l1 : '홈',
         onAxis: _applyL1Axis,
         onStorage: _applyL1Storage,
         onPickBrand: _applyL1Brand,
         onPickMenu: _applyL1Menu,
         onSeeAll: _applyL1All,
         showStorage: l1 != null,
-        seeAllLabel: l1 != null ? '이 분류 전체 보기' : '카드로 전체 보기',
+        seeAllLabel: l1 != null ? '이 종류 전체 보기' : '카드로 전체 보기',
       );
       if (!isWebUi && inSearch) {
         axisView = Column(
@@ -414,7 +459,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     }
 
     final bannerText = l1 != null
-        ? '“$l1${urlBrand != null ? ' · $urlBrand' : ''}${urlMenu != null ? ' · $urlMenu' : ''}” · 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
+        ? '“$l1${l2 != null ? ' · $l2' : ''}${urlBrand != null ? ' · $urlBrand' : ''}${urlMenu != null ? ' · $urlMenu' : ''}” · 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
         : mid != null
             ? '“${tableMajorLabel(major ?? '')} · $mid” · 같은 회사·품목은 카드 1장, 상세에서 오퍼를 비교합니다.'
             : inSearch
@@ -452,7 +497,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 icon: const Icon(Icons.arrow_back, size: 18),
                 label: Text(
                   !inSearch && l1 != null
-                      ? l1
+                      ? (l2 ?? l1)
                       : !inSearch && mid != null && major != null
                           ? tableMajorLabel(major)
                           : '홈',
@@ -462,6 +507,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 child: Text(
                   urlBrand ??
                       urlMenu ??
+                      l2 ??
                       mid ??
                       category ??
                       (inSearch
@@ -1687,6 +1733,145 @@ class _TodayGrid extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _L2BrowseView extends StatefulWidget {
+  const _L2BrowseView({
+    required this.l1Name,
+    required this.l2s,
+    required this.padding,
+    required this.initialScrollOffset,
+    required this.onScrollOffset,
+    required this.onBack,
+    required this.onPickL2,
+  });
+
+  final String l1Name;
+  final List<String> l2s;
+  final EdgeInsets padding;
+  final double initialScrollOffset;
+  final ValueChanged<double> onScrollOffset;
+  final VoidCallback onBack;
+  final ValueChanged<String> onPickL2;
+
+  @override
+  State<_L2BrowseView> createState() => _L2BrowseViewState();
+}
+
+class _L2BrowseViewState extends State<_L2BrowseView> {
+  late final ScrollController _scroll;
+
+  @override
+  void initState() {
+    super.initState();
+    _scroll = ScrollController();
+    _scroll.addListener(() {
+      if (_scroll.hasClients) widget.onScrollOffset(_scroll.offset);
+    });
+    WidgetsBinding.instance.addPostFrameCallback((_) => _restoreOffset());
+  }
+
+  void _restoreOffset() {
+    if (!_scroll.hasClients) return;
+    final max = _scroll.position.maxScrollExtent;
+    final target = widget.initialScrollOffset.clamp(0.0, max);
+    if (target > 0) _scroll.jumpTo(target);
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final width = MediaQuery.sizeOf(context).width;
+    final cols = width < webCompactBreakpoint
+        ? 2
+        : (width < 900 ? 3 : (width < 1200 ? 4 : 5));
+
+    return ListView(
+      controller: _scroll,
+      padding: widget.padding,
+      children: [
+        Row(
+          children: [
+            TextButton.icon(
+              onPressed: widget.onBack,
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: const Text('홈'),
+            ),
+            Expanded(
+              child: Text(
+                widget.l1Name,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: AppTheme.brandTeal,
+                    ),
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 6),
+        Text(
+          '종류를 고르면 브랜드·메뉴·판매자 오퍼로 좁힙니다. 등록 분류 나무가 아닙니다.',
+          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                color: const Color(0xA0212121),
+              ),
+        ),
+        const SizedBox(height: 20),
+        if (widget.l2s.isEmpty)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 40),
+            child: Center(child: Text('이 1차에 2차가 없습니다.')),
+          )
+        else
+          GridView.builder(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: widget.l2s.length,
+            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount: cols,
+              childAspectRatio: 1.7,
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+            ),
+            itemBuilder: (context, index) {
+              final name = widget.l2s[index];
+              return Material(
+                color: Colors.white,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(18),
+                  side: const BorderSide(color: Color(0x14074A4E)),
+                ),
+                child: InkWell(
+                  onTap: () => widget.onPickL2(name),
+                  borderRadius: BorderRadius.circular(18),
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Align(
+                      alignment: Alignment.centerLeft,
+                      child: Text(
+                        name,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppTheme.brandTeal,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+      ],
     );
   }
 }

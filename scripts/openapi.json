@@ -1490,6 +1490,13 @@
             "title": "L1Tags",
             "type": "array"
           },
+          "l2Tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "L2Tags",
+            "type": "array"
+          },
           "manufacturer": {
             "default": "",
             "title": "Manufacturer",
@@ -1609,6 +1616,13 @@
               "type": "string"
             },
             "title": "L1Tags",
+            "type": "array"
+          },
+          "l2Tags": {
+            "items": {
+              "type": "string"
+            },
+            "title": "L2Tags",
             "type": "array"
           },
           "manufacturer": {
@@ -1856,6 +1870,18 @@
             "title": "L1Tag",
             "type": "string"
           },
+          "l2Tag": {
+            "default": "",
+            "title": "L2Tag",
+            "type": "string"
+          },
+          "l2s": {
+            "items": {
+              "type": "string"
+            },
+            "title": "L2S",
+            "type": "array"
+          },
           "menus": {
             "items": {
               "$ref": "#/components/schemas/GuestL1FacetItem"
@@ -1881,6 +1907,13 @@
             ],
             "title": "Defaultaxis",
             "type": "string"
+          },
+          "l2s": {
+            "items": {
+              "type": "string"
+            },
+            "title": "L2S",
+            "type": "array"
           },
           "name": {
             "title": "Name",
@@ -5116,6 +5149,22 @@
           },
           {
             "in": "query",
+            "name": "l2Tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "L2Tag"
+            }
+          },
+          {
+            "in": "query",
             "name": "storage",
             "required": false,
             "schema": {
@@ -5305,6 +5354,22 @@
           },
           {
             "in": "query",
+            "name": "l2Tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "L2Tag"
+            }
+          },
+          {
+            "in": "query",
             "name": "q",
             "required": false,
             "schema": {
@@ -5446,6 +5511,22 @@
                 }
               ],
               "title": "L1Tag"
+            }
+          },
+          {
+            "in": "query",
+            "name": "l2Tag",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "L2Tag"
             }
           },
           {

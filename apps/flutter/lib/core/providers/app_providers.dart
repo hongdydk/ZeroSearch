@@ -34,6 +34,9 @@ final catalogCategoryProvider = StateProvider<String?>((ref) => null);
 /// 게스트 1차 태그 (손님 브라우즈 입구).
 final catalogL1Provider = StateProvider<String?>((ref) => null);
 
+/// 게스트 2차 (L1 아래 손님 언어). L2 전에 축 UI를 열지 않는다.
+final catalogL2Provider = StateProvider<String?>((ref) => null);
+
 /// `brand` | `menu` | `seller`
 final catalogL1AxisProvider = StateProvider<String?>((ref) => null);
 
@@ -529,6 +532,7 @@ class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState>
   Future<CatalogListState> build() async {
     final q = ref.watch(catalogDebouncedSearchProvider).trim();
     final l1 = ref.watch(catalogL1Provider);
+    final l2 = ref.watch(catalogL2Provider);
     final brand = ref.watch(catalogL1BrandProvider);
     final menu = ref.watch(catalogL1MenuProvider);
     final storage = ref.watch(catalogStorageFilterProvider);
@@ -545,6 +549,7 @@ class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState>
           categoryMajor: major,
           categoryMid: mid,
           l1Tag: l1,
+          l2Tag: l2,
           storage: storage,
           brand: allInL1 ? null : brand,
           menu: allInL1 ? null : menu,
@@ -582,6 +587,7 @@ class CatalogProductsNotifier extends AutoDisposeAsyncNotifier<CatalogListState>
             categoryMajor: ref.read(catalogMajorProvider),
             categoryMid: ref.read(catalogMidProvider),
             l1Tag: ref.read(catalogL1Provider),
+            l2Tag: ref.read(catalogL2Provider),
             storage: ref.read(catalogStorageFilterProvider),
             brand: ref.read(catalogL1AllProvider)
                 ? null
@@ -644,6 +650,7 @@ class CatalogOffersNotifier extends AutoDisposeAsyncNotifier<CatalogOfferListSta
     }
     final q = ref.watch(catalogDebouncedSearchProvider).trim();
     final l1 = ref.watch(catalogL1Provider);
+    final l2 = ref.watch(catalogL2Provider);
     final brand = ref.watch(catalogL1BrandProvider);
     final menu = ref.watch(catalogL1MenuProvider);
     final storage = ref.watch(catalogStorageFilterProvider);
@@ -651,6 +658,7 @@ class CatalogOffersNotifier extends AutoDisposeAsyncNotifier<CatalogOfferListSta
     final page = await ref.watch(apiClientProvider).catalogOffers(
           q: q.isEmpty ? null : q,
           l1Tag: l1,
+          l2Tag: l2,
           storage: storage,
           brand: allInL1 ? null : brand,
           menu: allInL1 ? null : menu,
@@ -675,6 +683,7 @@ class CatalogOffersNotifier extends AutoDisposeAsyncNotifier<CatalogOfferListSta
       final page = await ref.read(apiClientProvider).catalogOffers(
             q: q.isEmpty ? null : q,
             l1Tag: ref.read(catalogL1Provider),
+            l2Tag: ref.read(catalogL2Provider),
             storage: ref.read(catalogStorageFilterProvider),
             brand: ref.read(catalogL1AllProvider)
                 ? null
@@ -708,11 +717,13 @@ final catalogOffersProvider =
 final guestL1FacetsProvider =
     FutureProvider.autoDispose<GuestL1FacetsModel?>((ref) async {
   final l1 = ref.watch(catalogL1Provider);
+  final l2 = ref.watch(catalogL2Provider);
   final q = ref.watch(catalogDebouncedSearchProvider).trim();
   if ((l1 == null || l1.isEmpty) && q.isEmpty) return null;
   final storage = l1 == null ? null : ref.watch(catalogStorageFilterProvider);
   return ref.watch(apiClientProvider).guestL1Facets(
         l1Tag: l1,
+        l2Tag: l2,
         q: q.isEmpty ? null : q,
         storage: storage,
       );

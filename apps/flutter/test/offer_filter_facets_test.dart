@@ -29,8 +29,11 @@ void main() {
   });
 
   test('browseLocation keeps axis=seller without collapsing to brand', () {
-    final l1Uri = Uri.parse(browseLocation(l1: '라면/면류', axis: 'seller'));
+    final l1Uri = Uri.parse(
+      browseLocation(l1: '라면/면류', l2: '봉지라면', axis: 'seller'),
+    );
     expect(l1Uri.queryParameters['l1'], '라면/면류');
+    expect(l1Uri.queryParameters['l2'], '봉지라면');
     expect(l1Uri.queryParameters['axis'], 'seller');
     expect(l1Uri.queryParameters.containsKey('brand'), isFalse);
     expect(l1Uri.queryParameters.containsKey('menu'), isFalse);
@@ -38,5 +41,20 @@ void main() {
     final searchUri = Uri.parse(browseLocation(q: '신라면', axis: 'seller'));
     expect(searchUri.queryParameters['q'], '신라면');
     expect(searchUri.queryParameters['axis'], 'seller');
+  });
+
+  test('browseStepDown from brand returns L2 axis, then L2 picker', () {
+    final brandUri = Uri.parse(
+      browseLocation(l1: '라면/면류', l2: '봉지라면', axis: 'brand', brand: '농심'),
+    );
+    final axis = Uri.parse(browseStepDown(brandUri));
+    expect(axis.queryParameters['l1'], '라면/면류');
+    expect(axis.queryParameters['l2'], '봉지라면');
+    expect(axis.queryParameters.containsKey('brand'), isFalse);
+
+    final picker = Uri.parse(browseStepDown(axis));
+    expect(picker.queryParameters['l1'], '라면/면류');
+    expect(picker.queryParameters.containsKey('l2'), isFalse);
+    expect(picker.queryParameters.containsKey('axis'), isFalse);
   });
 }
