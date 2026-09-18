@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:shopping_mall/core/auth/login_portal.dart';
+import 'package:shopping_mall/core/layout/ui_platform.dart';
 import 'package:shopping_mall/core/models/models.dart';
 import 'package:shopping_mall/core/network/api_client.dart';
 import 'package:shopping_mall/core/providers/app_providers.dart';
@@ -297,5 +298,22 @@ void main() {
     expect(router.state.uri.queryParameters['axis'], 'seller');
     expect(find.text('커피필터'), findsNothing);
     expect(find.textContaining('공개 오퍼가 없습니다'), findsOneWidget);
+  });
+
+  testWidgets('mobile search axis keeps the search field', (tester) async {
+    debugForceWebUi = false;
+    addTearDown(() => debugForceWebUi = false);
+    await tester.binding.setSurfaceSize(const Size(1280, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final router = await _pumpMall(tester);
+    router.go('/?q=신라면&axis=brand');
+    await tester.pumpAndSettle();
+
+    expect(router.state.uri.queryParameters['q'], '신라면');
+    expect(find.text('브랜드부터'), findsWidgets);
+    expect(find.byType(TextField), findsOneWidget);
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.controller?.text, '신라면');
   });
 }
