@@ -160,7 +160,8 @@ Flutter → **Cloudflare Pages** (`mall.anoveli.com`). FastAPI → EC2 Docker (`
 ### 카탈로그 재병합 (맛·용량 → 대표 카드)
 
 - **병합 단위:** `제조사 + 소분류 + 유사 기본 품목명`. 용량·맛은 변형(`reference_variants`)으로 보존.
-- **규칙 버전:** `catalog_identity.NORMALIZATION_VERSION` (배포 fingerprint에 포함 → 규칙 변경 시 재import).
+- **규칙 버전:** `catalog_identity.NORMALIZATION_VERSION` (배포 fingerprint에 포함 → 규칙 변경 시 재import). 현재 **v5**.
+- **v5 근사 병합:** 같은 제조사에서만, 반복 접미(`사랑감귤사랑` → `사랑감귤`)·짧은 접두/접미 잔여가 이미 짧은 쪽에 있는 경우 한 장. 제조사가 다르거나 잔여가 품목 유형 명사(`주스`·`라면` 등)면 합치지 않음. 과병합보다 미병합.
 - **고신뢰만 자동 병합.** 중간 신뢰는 dry-run 보고만, 별도 카드 유지.
 - **운영 적용 순서 (production):**
   1. DB 백업

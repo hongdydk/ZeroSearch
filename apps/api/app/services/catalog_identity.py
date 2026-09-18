@@ -12,7 +12,7 @@ from difflib import SequenceMatcher
 from typing import Iterable, Sequence
 
 # 규칙 변경 시 bump — deploy fingerprint에 포함.
-NORMALIZATION_VERSION = "v4"
+NORMALIZATION_VERSION = "v5"
 
 # 자동 병합 임계값 (고신뢰만 자동 적용).
 HIGH_CONFIDENCE = 0.92
@@ -92,6 +92,46 @@ _CORP_SUFFIXES = (
     "유한공사",
     "농업회사법인",
     "협동조합",
+)
+
+# 접미 1토큰이 이 집합이면 다른 품목으로 본다 (감귤 vs 감귤주스).
+_PRODUCT_TYPE_NOUNS = frozenset(
+    {
+        "주스",
+        "음료",
+        "에이드",
+        "커피",
+        "라면",
+        "면",
+        "국",
+        "탕",
+        "찌개",
+        "밥",
+        "죽",
+        "스프",
+        "소스",
+        "잼",
+        "칩",
+        "쿠키",
+        "캔디",
+        "젤리",
+        "푸딩",
+        "우유",
+        "요거트",
+        "요구르트",
+        "술",
+        "캔",
+        "컵",
+        "봉지",
+        "스낵",
+        "빵",
+        "오일",
+        "분말",
+        "가루",
+        "티",
+        "워터",
+        "차",
+    }
 )
 
 
@@ -227,6 +267,65 @@ def _compact_key(text: str) -> str:
     return _NON_ALNUM_RE.sub("", unicodedata.normalize("NFKC", text)).casefold()
 
 
+def _collapse_compact_repeated_tokens(compact: str) -> str:
+    """같은 제조사 제목의 반복 토큰·접미만 접는다.
+
+    - 연속 반복: 신라면신라면 → 신라면, 사랑사랑감귤 → 사랑감귤
+    - 접미 중복: 사랑감귤사랑 → 사랑감귤
+    품목 유형 명사(주스·라면 등)는 접미만으로 접지 않는다.
+    """
+    if len(compact) < 4:
+        return compact
+    previous = None
+    while compact != previous and len(compact) >= 4:
+        previous = compact
+        collapsed = False
+        max_n = min(len(compact) // 2, 8)
+        for n in range(max_n, 1, -1):
+            if compact[: 2 * n] == compact[:n] * 2:
+                compact = compact[n:]
+                collapsed = True
+                break
+            if compact[-2 * n :] == compact[-n:] * 2:
+                compact = compact[:-n]
+                collapsed = True
+                break
+        if collapsed:
+            continue
+        for n in (3, 2):
+            if len(compact) < n + 4:
+                continue
+            token = compact[-n:]
+            stem = compact[:-n]
+            if token not in stem:
+                continue
+            if token in _PRODUCT_TYPE_NOUNS and not stem.endswith(token):
+                continue
+            compact = stem
+            break
+    return compact
+
+
+def _collapse_repeated_tokens(text: str) -> str:
+    stripped = _SPACE_RE.sub(" ", (text or "").strip(" -_/|"))
+    compact = _compact_key(stripped)
+    collapsed = _collapse_compact_repeated_tokens(compact)
+    if collapsed == compact:
+        return stripped
+    return collapsed
+
+
+def _affix_leftover(a: str, b: str) -> str | None:
+    if not a or not b or a == b:
+        return None
+    shorter, longer = (a, b) if len(a) <= len(b) else (b, a)
+    if longer.startswith(shorter):
+        return longer[len(shorter) :]
+    if longer.endswith(shorter):
+        return longer[: len(longer) - len(shorter)]
+    return None
+
+
 def parse_catalog_title(
     *,
     manufacturer: str,
@@ -246,14 +345,14 @@ def parse_catalog_title(
             if h and h not in vols and h != "해당없음":
                 vols.append(h)
     without_flavor, flavors = _extract_flavors(without_vol)
-    base = _SPACE_RE.sub(" ", without_flavor).strip(" -_/|")
+    base = _collapse_repeated_tokens(without_flavor)
     if not base:
         # 제조사 외 제품명이 없는 원본도 용량만 카드명이 되지 않게 한다.
         raw_without_vol, _ = _extract_volumes(raw)
         raw_without_flavor, _ = _extract_flavors(raw_without_vol)
         base = (
-            _SPACE_RE.sub(" ", raw_without_flavor).strip(" -_/|")
-            or _SPACE_RE.sub(" ", stripped).strip()
+            _collapse_repeated_tokens(raw_without_flavor)
+            or _collapse_repeated_tokens(stripped)
             or raw
         )
     canonical = base
@@ -284,6 +383,9 @@ def _hard_blocked(a: ParsedCatalogTitle, b: ParsedCatalogTitle) -> bool:
     # 핵심 토큰이 완전히 다르면(한쪽만 긴 고유명) 중간 유사도라도 차단.
     if not a.base_key or not b.base_key:
         return True
+    leftover = _affix_leftover(a.base_key, b.base_key)
+    if leftover and leftover in _PRODUCT_TYPE_NOUNS:
+        return True
     if a.base_key in b.base_key or b.base_key in a.base_key:
         return False
     # 짧은 키(2글자 미만 compact)는 위험 → 차단
@@ -292,17 +394,30 @@ def _hard_blocked(a: ParsedCatalogTitle, b: ParsedCatalogTitle) -> bool:
     return False
 
 
+def _safe_near_duplicate(a: str, b: str) -> bool:
+    """접두·접미 잔여가 짧은 1토큰이고, 이미 짧은 쪽에 있을 때만 같은 품목."""
+    leftover = _affix_leftover(a, b)
+    if leftover is None or leftover in _PRODUCT_TYPE_NOUNS:
+        return False
+    if not (2 <= len(leftover) <= 3):
+        return False
+    shorter = a if len(a) <= len(b) else b
+    return leftover in shorter
+
+
 def _pair_confidence(a: ParsedCatalogTitle, b: ParsedCatalogTitle) -> float:
     if _hard_blocked(a, b):
         return 0.0
     if a.base_key == b.base_key:
         return 1.0
-    # 포함 관계(프링글스 vs 프링글스클래식 잔여 실패 시)
-    if a.base_key in b.base_key or b.base_key in a.base_key:
-        shorter, longer = sorted((a.base_key, b.base_key), key=len)
-        if len(shorter) >= 3 and len(shorter) / max(len(longer), 1) >= 0.55:
-            return 0.95
-    return _similarity(a.base_key, b.base_key)
+    if _safe_near_duplicate(a.base_key, b.base_key):
+        return 0.95
+    leftover = _affix_leftover(a.base_key, b.base_key)
+    similarity = _similarity(a.base_key, b.base_key)
+    if leftover is not None:
+        # 잔여가 새 토큰이면 SequenceMatcher 고유사도만으로 자동 병합하지 않음.
+        return min(similarity, HIGH_CONFIDENCE - 0.01)
+    return similarity
 
 
 def cluster_parsed_titles(
@@ -468,8 +583,11 @@ def canonicalize_csv_rows(rows: Iterable[dict]) -> tuple[list[CanonicalGroup], l
 
 
 def card_identity_key(manufacturer: str, title: str) -> tuple[str, str]:
-    """손님 카드 identity: 회사 + 품목명(용량·공백 무시). 소분류는 넣지 않는다."""
-    return (normalize_manufacturer(manufacturer), _compact_key(title))
+    """손님 카드 identity: 회사 + 품목명(용량·공백·반복 접미 무시). 소분류는 넣지 않는다."""
+    return (
+        normalize_manufacturer(manufacturer),
+        _collapse_compact_repeated_tokens(_compact_key(title)),
+    )
 
 
 def _merge_cross_category_identity(groups: list[CanonicalGroup]) -> list[CanonicalGroup]:

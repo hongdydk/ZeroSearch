@@ -1,6 +1,7 @@
 from app.services.catalog_identity import (
     HIGH_CONFIDENCE,
     canonicalize_csv_rows,
+    card_identity_key,
     cluster_parsed_titles,
     parse_catalog_title,
 )
@@ -151,3 +152,134 @@ def test_cluster_merges_paldo_sikhye_split_categories():
     assert len(paldo[0].members) == 3
     assert paldo[0].canonical_title == "비락식혜"
     assert len(other) == 1
+
+
+def test_parse_collapses_duplicated_trailing_token():
+    repeated = parse_catalog_title(
+        manufacturer="롯데칠성음료",
+        category="과일음료",
+        title="롯데제주사랑감귤사랑1.2L",
+    )
+    short = parse_catalog_title(
+        manufacturer="롯데칠성음료",
+        category="일반생수",
+        title="롯데제주사랑감귤500ML",
+    )
+    assert repeated.canonical_title == "롯데제주사랑감귤"
+    assert short.canonical_title == "롯데제주사랑감귤"
+    assert repeated.base_key == short.base_key
+    assert "1.2L" in repeated.volumes
+    assert "500ML" in short.volumes
+
+
+def test_cluster_merges_same_maker_gamtul_near_duplicates_across_categories():
+    items = [
+        parse_catalog_title(
+            manufacturer="롯데칠성음료",
+            category="과일음료",
+            title="롯데제주사랑감귤사랑1.2L",
+        ),
+        parse_catalog_title(
+            manufacturer="롯데칠성음료",
+            category="과일음료",
+            title="롯데제주사랑감귤사랑1.8L",
+        ),
+        parse_catalog_title(
+            manufacturer="롯데칠성음료",
+            category="채소음료",
+            title="롯데제주사랑감귤사랑1.5L",
+        ),
+        parse_catalog_title(
+            manufacturer="롯데칠성음료",
+            category="일반생수",
+            title="롯데제주사랑감귤500ML",
+        ),
+    ]
+    groups, _ = cluster_parsed_titles(items)
+    lotte = [g for g in groups if g.manufacturer == "롯데칠성음료"]
+    assert len(lotte) == 1
+    assert len(lotte[0].members) == 4
+    assert lotte[0].canonical_title == "롯데제주사랑감귤"
+    assert set(lotte[0].volume_options) >= {"1.2L", "1.8L", "1.5L", "500ML"}
+
+
+def test_cluster_keeps_gamtul_juice_apart_from_plain_gamtul():
+    items = [
+        parse_catalog_title(manufacturer="롯데칠성음료", category="과일음료", title="사랑감귤1.5L"),
+        parse_catalog_title(manufacturer="롯데칠성음료", category="과일음료", title="사랑감귤주스1.5L"),
+    ]
+    groups, _ = cluster_parsed_titles(items)
+    titles = {g.canonical_title for g in groups}
+    assert "사랑감귤" in titles
+    assert "사랑감귤주스" in titles
+    assert len(groups) == 2
+
+
+def test_cluster_keeps_distinct_lotte_gamtul_lines_apart():
+    items = [
+        parse_catalog_title(
+            manufacturer="롯데칠성음료",
+            category="과일음료",
+            title="롯데제주사랑감귤500ML",
+        ),
+        parse_catalog_title(
+            manufacturer="롯데칠성음료",
+            category="과일음료",
+            title="롯데쌕쌕제주감귤캔180ML",
+        ),
+    ]
+    groups, _ = cluster_parsed_titles(items)
+    assert len(groups) == 2
+
+
+def test_cluster_does_not_merge_gamtul_across_manufacturers():
+    items = [
+        parse_catalog_title(
+            manufacturer="롯데칠성음료",
+            category="과일음료",
+            title="롯데제주사랑감귤사랑1.2L",
+        ),
+        parse_catalog_title(
+            manufacturer="웅진식품",
+            category="과일음료",
+            title="웅진자연은내사랑감귤1.5L",
+        ),
+    ]
+    groups, _ = cluster_parsed_titles(items)
+    assert len(groups) == 2
+    assert {g.manufacturer for g in groups} == {"롯데칠성음료", "웅진식품"}
+
+
+def test_cluster_keeps_packaging_suffix_as_separate_card():
+    items = [
+        parse_catalog_title(
+            manufacturer="LG생활건강",
+            category="주방세제",
+            title="메소드주방세제핑크그레이프후루트향",
+        ),
+        parse_catalog_title(
+            manufacturer="LG생활건강",
+            category="주방세제",
+            title="메소드주방세제핑크그레이프후루트향리필",
+        ),
+    ]
+    groups, medium = cluster_parsed_titles(items)
+    assert len(groups) == 2
+    assert any(conf >= 0.80 for _, _, conf in medium)
+
+
+def test_parse_collapses_consecutive_repeated_name():
+    parsed = parse_catalog_title(
+        manufacturer="농심",
+        category="라면",
+        title="신라면신라면120G",
+    )
+    assert parsed.canonical_title == "신라면"
+    maker = "롯데칠성음료"
+    assert card_identity_key(maker, "롯데제주사랑감귤") == card_identity_key(
+        maker, "롯데제주사랑감귤사랑"
+    )
+    assert card_identity_key(maker, "롯데제주사랑감귤") != card_identity_key(
+        "웅진식품", "롯데제주사랑감귤"
+    )
+    assert card_identity_key(maker, "사랑감귤") != card_identity_key(maker, "사랑감귤주스")
