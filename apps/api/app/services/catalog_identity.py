@@ -1,6 +1,6 @@
 """카탈로그 대표 상품 정규화·유사도 군집화.
 
-버전을 바꾸면 배포 fingerprint가 바뀌어 CSV 재import가 강제된다.
+회사+품목 identity는 브랜드부터·메뉴부터 같다. 전체 AI-Hub CSV 재import는 배포에서 기본 꺼 둔다.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from difflib import SequenceMatcher
 from typing import Iterable, Sequence
 
 # 규칙 변경 시 bump — deploy fingerprint에 포함.
-NORMALIZATION_VERSION = "v5"
+NORMALIZATION_VERSION = "v6"
 
 # 자동 병합 임계값 (고신뢰만 자동 적용).
 HIGH_CONFIDENCE = 0.92
@@ -121,7 +121,31 @@ _FLAVOR_TOKENS: tuple[str, ...] = tuple(
             "와사비",
             "김치맛",
             "불닭맛",
+            "트로피칼",
+            "파인애플",
+            "복숭아맛",
+            "복숭아",
+            "오렌지",
+            "사과맛",
+            "사과",
+            "포도맛",
+            "청포도",
+            "포도",
+            "슬라이스",
             "WTF",
+        },
+        key=len,
+        reverse=True,
+    )
+)
+
+# 용량 다음으로 버리는 포장 표기. 후룻볼 `100%주스` 같은 공통 접미.
+_PACKAGING_NOISE: tuple[str, ...] = tuple(
+    sorted(
+        {
+            "100%주스",
+            "100퍼센트주스",
+            "100%",
         },
         key=len,
         reverse=True,
@@ -137,6 +161,34 @@ _CORP_SUFFIXES = (
     "농업회사법인",
     "협동조합",
 )
+
+# 제조사 꼬리 — 제목의 `롯데)` / `동원)` 접두를 만들기 위한 별칭. identity 회사 키에는 쓰지 않음.
+_COMPANY_TAILS = (
+    "제일제당",
+    "제과식품",
+    "칠성음료",
+    "생활건강",
+    "에프앤비",
+    "제과",
+    "식품",
+    "제약",
+    "음료",
+    "유업",
+    "쇼핑",
+    "주류",
+    "코리아",
+    "fb",
+)
+
+_ROMAN_TO_KO = {
+    "lg": "엘지",
+    "lotte": "롯데",
+    "cj": "씨제이",
+    "cocacola": "코카콜라",
+    "coca": "코카",
+    "dole": "돌",
+}
+_KO_TO_ROMAN = {ko: roman for roman, ko in _ROMAN_TO_KO.items()}
 
 # 접미 1토큰이 이 집합이면 다른 품목으로 본다 (감귤 vs 감귤주스).
 _PRODUCT_TYPE_NOUNS = frozenset(
@@ -168,7 +220,7 @@ _PRODUCT_TYPE_NOUNS = frozenset(
         "컵",
         "봉지",
         "스낵",
-        "빵",
+        "파이",
         "오일",
         "분말",
         "가루",
@@ -237,30 +289,91 @@ def normalize_manufacturer(raw: str) -> str:
     return text.casefold()
 
 
+def _manufacturer_identity(raw: str) -> str:
+    """회사 identity. `롯데칠성`/`롯데칠성음료`만 같은 키. `롯데제과`와는 합치지 않음."""
+    compact = normalize_manufacturer(raw)
+    for roman, ko in sorted(_ROMAN_TO_KO.items(), key=lambda item: -len(item[0])):
+        if compact.startswith(roman):
+            compact = ko + compact[len(roman) :]
+            break
+    if compact.endswith("음료") and len(compact) >= 6:
+        compact = compact[: -len("음료")]
+    if compact.endswith("제일제당") and len(compact) > len("제일제당"):
+        compact = compact[: -len("제일제당")]
+    return compact
+
+
+def _manufacturer_aliases(manufacturer: str) -> list[str]:
+    raw = unicodedata.normalize("NFKC", (manufacturer or "").strip())
+    aliases: list[str] = []
+    seen: set[str] = set()
+
+    def add(value: str) -> None:
+        token = (value or "").strip()
+        if not token:
+            return
+        key = token.casefold()
+        if key in seen:
+            return
+        seen.add(key)
+        aliases.append(token)
+
+    add(raw)
+    add(raw.replace(" ", ""))
+    compact = normalize_manufacturer(raw)
+    add(compact)
+    heads = {compact} if compact else set()
+    changed = True
+    while changed:
+        changed = False
+        for head in list(heads):
+            for tail in _COMPANY_TAILS:
+                if head.endswith(tail) and len(head) - len(tail) >= 2:
+                    stem = head[: len(head) - len(tail)]
+                    if stem not in heads:
+                        heads.add(stem)
+                        changed = True
+    for head in heads:
+        add(head)
+        for ko, roman in _KO_TO_ROMAN.items():
+            if head.startswith(ko):
+                add(roman + head[len(ko) :])
+                add(roman)
+        for roman, ko in _ROMAN_TO_KO.items():
+            if head.startswith(roman):
+                add(ko + head[len(roman) :])
+                add(ko)
+    aliases.sort(key=lambda item: (-len(_compact_key(item) or item), -len(item)))
+    return aliases
+
+
 def _strip_manufacturer_prefix(title: str, manufacturer: str) -> str:
-    text = title.strip()
+    text = unicodedata.normalize("NFKC", (title or "").strip())
+    for suffix in _CORP_SUFFIXES:
+        if text.startswith(suffix):
+            text = text[len(suffix) :].lstrip(" )）]-_|(")
     maker = manufacturer.strip()
     if not maker:
-        return text
-    variants = {
-        maker,
-        maker.replace(" ", ""),
-        normalize_manufacturer(maker),
-    }
-    compact = text.replace(" ", "")
-    for variant in variants:
+        return text.strip(" )）]-_|(")
+    compact_title = _compact_key(text)
+    for variant in _manufacturer_aliases(maker):
         if not variant:
             continue
-        if text.startswith(variant):
-            text = text[len(variant) :].lstrip(" )）]-_|")
-            break
-        if compact.startswith(variant.replace(" ", "")):
-            # 공백 없는 접두 제거 후 원문에서 대략 자르기
-            rest = compact[len(variant.replace(" ", "")) :]
-            # 원문에서 제조사 길이만큼 훑으며 재구성은 어렵 → compact rest 사용
-            text = rest
-            break
-    return text.strip(" )）]-_|")
+        for form in (variant, f"{variant})", f"{variant}）", f"{variant}]"):
+            if text.casefold().startswith(form.casefold()):
+                rest = text[len(form) :].lstrip(" )）]-_|")
+                if rest:
+                    return rest.strip(" )）]-_|(")
+        vcompact = _compact_key(variant)
+        if (
+            vcompact
+            and compact_title.startswith(vcompact)
+            and len(compact_title) > len(vcompact)
+        ):
+            rest = compact_title[len(vcompact) :]
+            if rest:
+                return rest.strip(" )）]-_|(")
+    return text.strip(" )）]-_|(")
 
 
 def _unit_kind(unit: str) -> str:
@@ -326,21 +439,37 @@ def is_volume_only_title(title: str) -> bool:
     return not _compact_key(cleaned)
 
 
+def _strip_packaging_noise(text: str) -> str:
+    remaining = text
+    for token in _PACKAGING_NOISE:
+        remaining = remaining.replace(token, " ")
+    return _SPACE_RE.sub(" ", remaining).strip()
+
+
+def _flavor_remainder_ok(trial: str) -> bool:
+    compact = _compact_key(trial)
+    if len(compact) < 2:
+        return False
+    if compact in _PRODUCT_TYPE_NOUNS:
+        return False
+    return True
+
+
 def _extract_flavors(text: str) -> tuple[str, list[str]]:
     flavors: list[str] = []
     remaining = text
-    compact = remaining.replace(" ", "")
     for token in _FLAVOR_TOKENS:
-        if token in remaining:
-            flavors.append(token)
-            remaining = remaining.replace(token, " ")
-        elif token.replace(" ", "") in compact:
-            flavors.append(token)
-            remaining = remaining.replace(token, " ")
-            # compact 치환이 어려우면 토큰 문자만 제거 시도
-            for ch in token:
-                remaining = remaining  # no-op placeholder
-            remaining = remaining.replace(token.replace(" ", ""), " ")
+        compact_remaining = remaining.replace(" ", "")
+        if token not in remaining and token.replace(" ", "") not in compact_remaining:
+            continue
+        trial = remaining.replace(token, " ")
+        if token not in remaining:
+            trial = trial.replace(token.replace(" ", ""), " ")
+        trial = _SPACE_RE.sub(" ", trial).strip()
+        if not _flavor_remainder_ok(trial):
+            continue
+        flavors.append(token)
+        remaining = trial
     remaining = _SPACE_RE.sub(" ", remaining).strip()
     return remaining, flavors
 
@@ -421,6 +550,7 @@ def parse_catalog_title(
 
     stripped = _strip_manufacturer_prefix(raw, maker)
     without_vol, vols = _extract_volumes(stripped)
+    without_vol = _strip_packaging_noise(without_vol)
     if volumes_hint:
         for hint in volumes_hint:
             h = (hint or "").strip()
@@ -669,12 +799,79 @@ def canonicalize_csv_rows(rows: Iterable[dict]) -> tuple[list[CanonicalGroup], l
 
 
 def card_identity_key(manufacturer: str, title: str) -> tuple[str, str]:
-    """손님 카드 identity: 회사 + 품목명(용량 표기·공백·반복 접미 무시). 소분류는 넣지 않는다."""
-    without_vol, _ = _extract_volumes(unicodedata.normalize("NFKC", title or ""))
+    """손님 카드 identity: 회사 + 품목명.
+
+    용량·맛 토큰·제조사 접두(`롯데)` / `LOTTE`)·공백·반복 접미는 같은 카드.
+    소분류는 넣지 않는다. 브랜드부터·메뉴부터 같은 키.
+    """
+    parsed = parse_catalog_title(manufacturer=manufacturer, category="", title=title)
     return (
-        normalize_manufacturer(manufacturer),
-        _collapse_compact_repeated_tokens(_compact_key(without_vol)),
+        _manufacturer_identity(manufacturer),
+        _collapse_compact_repeated_tokens(_compact_key(parsed.canonical_title)),
     )
+
+
+def matches_brand_axis(manufacturer: str, brand: str) -> bool:
+    """브랜드 필터. `롯데칠성`/`롯데칠성음료`는 같은 회사."""
+    token = (brand or "").strip()
+    if not token:
+        return True
+    return card_identity_key(manufacturer, "x")[0] == card_identity_key(token, "x")[0]
+
+
+def matches_menu_axis(manufacturer: str, title: str, menu: str) -> bool:
+    """메뉴 필터. 맛만 다른 제목은 같은 품목. 브랜드부터와 동일 identity."""
+    token = (menu or "").strip()
+    if not token:
+        return True
+    if title == token:
+        return True
+    item = card_identity_key(manufacturer, title)[1]
+    return item == card_identity_key(manufacturer, token)[1] or item == card_identity_key(
+        "", token
+    )[1]
+
+
+def collapse_axis_facets(rows: Iterable[tuple[str, str]]) -> tuple[list[dict], list[dict]]:
+    """(manufacturer, title) → 회사 identity 브랜드 패싯 + 회사+품목 메뉴 패싯."""
+    brands: dict[str, dict] = {}
+    menus: dict[tuple[str, str], dict] = {}
+    for manufacturer, title in rows:
+        maker = (manufacturer or "").strip()
+        name = (title or "").strip()
+        if not maker or not name:
+            continue
+        company, item = card_identity_key(maker, name)
+        if not company or not item:
+            continue
+        brand = brands.get(company)
+        if brand is None:
+            brands[company] = {
+                "name": maker,
+                "count": 0,
+                "items": set(),
+                "freq": {maker: 1},
+            }
+            brand = brands[company]
+        else:
+            brand["freq"][maker] = brand["freq"].get(maker, 0) + 1
+        brand["items"].add(item)
+        parsed = parse_catalog_title(manufacturer=maker, category="", title=name)
+        label = parsed.canonical_title or name
+        menu = menus.get((company, item))
+        if menu is None:
+            # 회사+품목 한 장이 메뉴 한 칸. 맛만 다른 행을 카드 수로 세지 않는다.
+            menus[(company, item)] = {"name": label, "count": 1}
+        elif len(label) < len(menu["name"]):
+            menu["name"] = label
+    for brand in brands.values():
+        brand["name"] = max(brand["freq"], key=lambda key: (brand["freq"][key], len(key), key))
+        brand["count"] = len(brand["items"])
+        del brand["items"]
+        del brand["freq"]
+    brand_list = sorted(brands.values(), key=lambda row: (-row["count"], row["name"]))
+    menu_list = sorted(menus.values(), key=lambda row: (-row["count"], row["name"]))
+    return brand_list, menu_list
 
 
 def _merge_cross_category_identity(groups: list[CanonicalGroup]) -> list[CanonicalGroup]:

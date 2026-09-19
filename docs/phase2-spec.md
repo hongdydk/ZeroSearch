@@ -154,25 +154,17 @@ Phase 2 DoD 이후 구매자 결제 경로 정합성·부하. Phase 3/3.5/4와 �
 
 Flutter → **Cloudflare Pages** (`mall.anoveli.com`). FastAPI → EC2 Docker (`mall-api` :8001). PostgreSQL → EC2 `mall-postgres`.
 
-대표 상품 SSOT는 `data/aihub-catalog.csv` — `main` 배포 시 EC2에서 upsert.  
+대표 상품 SSOT는 운영에서 **큐레이션 ~100장** (`data/mvp-catalog-100.csv`, 리뷰용). 전체 `data/aihub-catalog.csv` upsert는 멈춘다 (`IMPORT_AIHUB_CATALOG=1` 전까지).  
 브라우저 API: **`https://mall.anoveli.com/api`** (Pages Functions → Tunnel `mall-api.anoveli.com`). 원본 API 호스트는 프록시 백엔드용으로 유지.
 
 ### 카탈로그 재병합 (맛·용량 → 대표 카드)
 
-- **병합 단위:** `제조사 + 소분류 + 유사 기본 품목명`. 용량·맛은 변형(`reference_variants`)으로 보존.
-- **규칙 버전:** `catalog_identity.NORMALIZATION_VERSION` (배포 fingerprint에 포함 → 규칙 변경 시 재import). 현재 **v5**.
+- **병합 단위:** 회사 + 품목 (소분류·브랜드/메뉴 축과 무관). 용량·맛은 변형(`reference_variants`)으로 보존.
+- **규칙 버전:** `catalog_identity.NORMALIZATION_VERSION` (엔진 **v6**). 배포 fingerprint는 올리지 않는다 — 전체 CSV 재import를 하지 않기 때문.
 - **v5 근사 병합:** 같은 제조사에서만, 반복 접미(`사랑감귤사랑` → `사랑감귤`)·짧은 접두/접미 잔여가 이미 짧은 쪽에 있는 경우 한 장. **용량 표기**(`1L`·`1리터`·`1ℓ`·`1000ml`)와 `g`/`kg` 동의어도 같은 품목으로 본다. 제조사가 다르거나 잔여가 품목 유형 명사(`주스`·`라면` 등)·다른 맛이면 합치지 않음. 과병합보다 미병합.
 - **고신뢰만 자동 병합.** 중간 신뢰는 dry-run 보고만, 별도 카드 유지.
-- **운영 적용 순서 (production):**
-  1. DB 백업
-  2. Alembic `007` 적용 (`reference_variants`, `catalog_product_aliases`)
-  3. `cd apps/api && python -m scripts.remerge_catalog` (dry-run 수치 확인)
-  4. `python -m scripts.remerge_catalog --apply`
-  5. CSV canonical import (`FORCE_CATALOG_IMPORT=1` 또는 fingerprint 갱신 배포)
-  6. smoke: 대표 카드 수·오퍼 수·옛 상세 UUID(alias)·장바구니/주문
+- **운영 (지금):** 관리자가 AI-Hub를 소프트삭제하는 동안 전체 CSV import·retag을 돌리지 않는다. 리뷰 목록은 [mvp-catalog-100.md](./mvp-catalog-100.md). **확정 전에 운영 DB에 넣지 않는다.**
 - 상세 API는 alias UUID를 생존 대표로 해석. AI-Hub 변형은 구매 불가 `referenceVariants`로만 노출.
-- **CSV dry-run (v2, `data/aihub-catalog.csv`):** source 9886 → high-confidence groups 9064 (−822 cards), medium candidates 944 (자동 병합 안 함), 용량-only 제목 0건.
-- v1의 괄호 옵션 오인으로 용량만 남았던 카드는 v2 import 후 `repair_volume_titles`로 원본 변형별 canonical 카드와 alias를 복구한다.
 
 ## 해야 할 부분 / 추후 작업
 

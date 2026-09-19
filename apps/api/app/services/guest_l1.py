@@ -36,8 +36,8 @@ GUEST_L1_TAGS: tuple[str, ...] = (
 
 GUEST_L1_SET = frozenset(GUEST_L1_TAGS)
 
-# 자동 태거 규칙 버전. 배포 시 강제 backfill 마커와 맞춘다. v3부터 L2 포함.
-TAGGER_VERSION = "v3"
+# 자동 태거 규칙 버전. 배포 시 강제 backfill 마커와 맞춘다. v3부터 L2 포함. v4: L2는 제목 high, 분류만이면 mid.
+TAGGER_VERSION = "v4"
 
 DEFAULT_AXIS: dict[str, Axis] = {
     "생수/음료": "brand",
