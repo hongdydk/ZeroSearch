@@ -12,18 +12,17 @@ class SellerVisibilityRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
+    return InputDecorator(
+      decoration: const InputDecoration(
+        labelText: '가시성',
+        contentPadding: EdgeInsets.fromLTRB(12, 4, 8, 4),
+      ),
       child: Row(
         children: [
-          Text('가시성', style: Theme.of(context).textTheme.bodyLarge),
           const Spacer(),
           Switch(value: isPublic, onChanged: onChanged),
           const SizedBox(width: 8),
-          SizedBox(
-            width: 48,
-            child: Text(isPublic ? '공개' : '비공개'),
-          ),
+          Text(isPublic ? '공개' : '비공개'),
         ],
       ),
     );
