@@ -641,7 +641,7 @@ class ApiClient {
     }
   }
 
-  Future<void> adminUpdateUser(
+  Future<Map<String, dynamic>> adminUpdateUser(
     String userId, {
     required bool isAdmin,
     bool? isBuyer,
@@ -650,7 +650,7 @@ class ApiClient {
     String? sellerName,
   }) async {
     try {
-      await _dio.patch<Map<String, dynamic>>(
+      final response = await _dio.patch<Map<String, dynamic>>(
         'admin/users/$userId',
         data: {
           'isAdmin': isAdmin,
@@ -660,6 +660,9 @@ class ApiClient {
           if (sellerName != null) 'sellerName': sellerName,
         },
       );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return data;
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }
@@ -1234,14 +1237,8 @@ class ApiClient {
     }
   }
 
-  Future<void> adminApproveSeller(String sellerId) async {
-    try {
-      await _dio.post<Map<String, dynamic>>(
-        'admin/sellers/$sellerId/approve',
-      );
-    } on DioException catch (e) {
-      throw _apiExceptionFromDio(e);
-    }
+  Future<AdminSellerModel> adminApproveSeller(String sellerId) {
+    return _adminSellerAction('admin/sellers/$sellerId/approve');
   }
 
   Future<AdminSellerModel> adminWarnSeller(String sellerId, String reason) {

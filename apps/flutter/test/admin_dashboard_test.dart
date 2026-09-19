@@ -17,6 +17,8 @@ class _AdminApi extends ApiClient {
   int draftsCalls = 0;
   int approveCalls = 0;
   Completer<void>? approveBlock;
+  String? roleSellerStatus;
+  String pendingStatus = 'pending';
 
   @override
   Future<Map<String, dynamic>> adminStats() async {
@@ -25,8 +27,8 @@ class _AdminApi extends ApiClient {
       'userCount': 1,
       'productCount': 1,
       'orderCount': 1,
-      'sellerCount': 1,
-      'pendingSellerCount': 1,
+      'sellerCount': (pendingStatus == 'active' ? 1 : 0) + (roleSellerStatus == 'active' ? 1 : 0),
+      'pendingSellerCount': pendingStatus == 'pending' ? 1 : 0,
     };
   }
 
@@ -39,10 +41,11 @@ class _AdminApi extends ApiClient {
           'id': 'u1',
           'email': 'buyer@mall.local',
           'displayName': '구매자',
-          'sellerName': null,
+          'sellerName': roleSellerStatus == null ? null : '청정마트',
           'isBuyer': true,
-          'isSeller': false,
+          'isSeller': roleSellerStatus == 'active',
           'isAdmin': false,
+          'sellerStatus': roleSellerStatus,
         },
       ],
     };
@@ -56,9 +59,17 @@ class _AdminApi extends ApiClient {
         id: 's1',
         shopName: '입점마트',
         userEmail: 'shop@mall.local',
-        status: 'pending',
+        status: pendingStatus,
         sellerType: 'merchant',
       ),
+      if (roleSellerStatus != null)
+        AdminSellerModel(
+          id: 's2',
+          shopName: '청정마트',
+          userEmail: 'buyer@mall.local',
+          status: roleSellerStatus!,
+          sellerType: 'merchant',
+        ),
     ];
   }
 
@@ -104,15 +115,23 @@ class _AdminApi extends ApiClient {
   }
 
   @override
-  Future<void> adminApproveSeller(String sellerId) async {
+  Future<AdminSellerModel> adminApproveSeller(String sellerId) async {
     approveCalls += 1;
     if (approveBlock != null) await approveBlock!.future;
+    pendingStatus = 'active';
+    return AdminSellerModel(
+      id: sellerId,
+      shopName: '입점마트',
+      userEmail: 'shop@mall.local',
+      status: 'active',
+      sellerType: 'merchant',
+    );
   }
 
   Map<String, dynamic>? lastUserUpdate;
 
   @override
-  Future<void> adminUpdateUser(
+  Future<Map<String, dynamic>> adminUpdateUser(
     String userId, {
     required bool isAdmin,
     bool? isBuyer,
@@ -127,6 +146,13 @@ class _AdminApi extends ApiClient {
       'isSeller': isSeller,
       'displayName': displayName,
       'sellerName': sellerName,
+    };
+    roleSellerStatus = isSeller == true ? 'active' : (roleSellerStatus == null ? null : 'removed');
+    return {
+      ...lastUserUpdate!,
+      'email': 'buyer@mall.local',
+      'sellerStatus': roleSellerStatus,
+      'sellerType': roleSellerStatus == null ? null : 'merchant',
     };
   }
 }
@@ -154,7 +180,7 @@ void main() {
     );
   });
 
-  test('admin section remount reuses loaded sellers without refetch', () async {
+  test('admin section remount refetches sellers from server', () async {
     final api = _AdminApi();
     final container = ProviderContainer(
       overrides: [apiClientProvider.overrideWithValue(api)],
@@ -166,7 +192,7 @@ void main() {
     await dash.ensureSection(AdminSection.users);
     await dash.ensureSection(AdminSection.sellers);
 
-    expect(api.sellersCalls, 1);
+    expect(api.sellersCalls, 2);
     expect(api.usersCalls, 1);
     expect(api.statsCalls, 0);
   });
@@ -253,6 +279,24 @@ void main() {
       'displayName': '구매이름',
       'sellerName': '청정마트',
     });
+    expect(api.sellersCalls, 1);
+    expect(container.read(adminDashboardProvider).sellers.last.status, 'active');
+    expect(container.read(adminDashboardProvider).stats?['sellerCount'], 1);
+  });
+
+  test('seller role removal moves seller to removed without page reload', () async {
+    final api = _AdminApi()..roleSellerStatus = 'active';
+    final container = ProviderContainer(overrides: [apiClientProvider.overrideWithValue(api)]);
+    addTearDown(container.dispose);
+    final dash = container.read(adminDashboardProvider.notifier);
+    await dash.ensureSection(AdminSection.sellers);
+    await dash.ensureSection(AdminSection.users);
+    dash.setUserDraft('u1', const AdminUserRowDraft(isSeller: false));
+
+    await dash.saveUser('u1');
+
+    expect(container.read(adminDashboardProvider).sellers.last.status, 'removed');
+    expect(container.read(adminDashboardProvider).stats?['sellerCount'], 0);
   });
 
   test('admin catalog pagination requests next offset and keeps query', () async {

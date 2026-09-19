@@ -78,7 +78,9 @@ def get_admin_stats(db: Session) -> dict:
     user_count = db.scalar(select(func.count()).select_from(User)) or 0
     product_count = db.scalar(select(func.count()).select_from(Product)) or 0
     order_count = db.scalar(select(func.count()).select_from(Order)) or 0
-    seller_count = db.scalar(select(func.count()).select_from(Seller)) or 0
+    seller_count = (
+        db.scalar(select(func.count()).select_from(Seller).where(Seller.status == "active")) or 0
+    )
     pending_seller_count = (
         db.scalar(select(func.count()).select_from(Seller).where(Seller.status == "pending")) or 0
     )

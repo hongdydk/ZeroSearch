@@ -194,6 +194,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
           context,
         ).showSnackBar(const SnackBar(content: Text('기존 카드에 붙였습니다.')));
         await _dashNotifier.removeDraft(draft.id);
+        await Future.wait([
+          _dashNotifier.loadDrafts(force: true),
+          _dashNotifier.loadCatalogItems(force: true),
+          _dashNotifier.loadStats(force: true),
+        ]);
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -301,6 +306,11 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
           context,
         ).showSnackBar(const SnackBar(content: Text('초안을 카탈로그 카드로 올렸습니다.')));
         await _dashNotifier.removeDraft(draft.id);
+        await Future.wait([
+          _dashNotifier.loadDrafts(force: true),
+          _dashNotifier.loadCatalogItems(force: true),
+          _dashNotifier.loadStats(force: true),
+        ]);
       } on ApiException catch (e) {
         if (mounted) {
           ScaffoldMessenger.of(
@@ -540,6 +550,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(text)));
+        await Future.wait([
+          _dashNotifier.loadCatalogItems(force: true, offset: 0),
+          _dashNotifier.loadStats(force: true),
+        ]);
       } on ApiException catch (e) {
         if (!mounted) return;
         setState(() => _importResult = e.message);

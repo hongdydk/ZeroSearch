@@ -266,6 +266,7 @@ def test_update_user_names_and_roles(client):
     assert body["isSeller"] is True
     assert body["isAdmin"] is False
     assert body["sellerStatus"] == "active"
+    mock_db.commit.assert_called_once()
 
 
 def test_update_user_revokes_seller_soft(client):
@@ -299,6 +300,7 @@ def test_update_user_revokes_seller_soft(client):
     assert response.json()["isSeller"] is False
     assert response.json()["sellerStatus"] == "removed"
     assert response.json()["sellerName"] == "청정마트"
+    mock_db.commit.assert_called_once()
 
 
 def test_update_user_restores_removed_seller(client):
@@ -331,6 +333,21 @@ def test_update_user_restores_removed_seller(client):
     mock_restore.assert_called_once()
     assert response.json()["isSeller"] is True
     assert response.json()["sellerStatus"] == "active"
+    mock_db.commit.assert_called_once()
+
+
+def test_admin_seller_count_tracks_active_sellers():
+    from app.services.admin_db import get_admin_stats
+
+    db = MagicMock()
+    db.scalar.side_effect = [3, 2, 1, 1, 0]
+    with patch("app.services.admin_db.get_sales_stats", return_value={}):
+        stats = get_admin_stats(db)
+
+    assert stats["seller_count"] == 1
+    seller_count_query = str(db.scalar.call_args_list[3].args[0]).lower()
+    assert "sellers.status" in seller_count_query
+    assert "active" in str(db.scalar.call_args_list[3].args[0].compile(compile_kwargs={"literal_binds": True})).lower()
 
 
 def test_update_user_rejects_self_admin_strip(client):
