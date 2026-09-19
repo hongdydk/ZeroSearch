@@ -18,6 +18,10 @@ SellerType = Literal["platform", "merchant"]
 
 ProductStatus = Literal["draft", "published", "archived"]
 
+SellerOfferFilter = Literal["all", "published", "pending", "sold_out", "hidden"]
+
+SellerOfferSort = Literal["newest", "price", "stock"]
+
 OfferUnit = Literal["ml", "L", "g", "kg", "팩"]
 
 FulfillmentStatus = Literal["paid", "preparing", "shipped", "delivered"]

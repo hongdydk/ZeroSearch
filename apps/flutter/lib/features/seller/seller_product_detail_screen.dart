@@ -59,13 +59,11 @@ class _SellerProductDetailScreenState
     setState(() => _loading = true);
     try {
       final api = ref.read(apiClientProvider);
-      final items = await api.sellerProducts();
       ProductModel? found;
-      for (final item in items) {
-        if (item.id == widget.productId) {
-          found = item;
-          break;
-        }
+      try {
+        found = await api.sellerProduct(widget.productId);
+      } on ApiException {
+        found = null;
       }
       CatalogProductDetailModel? catalog;
       final catalogId = found?.catalogProductId;

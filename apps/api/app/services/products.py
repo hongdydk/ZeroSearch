@@ -1,12 +1,18 @@
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import CatalogProduct, Product, Seller
-from app.schemas.product import ProductResponse
-from app.schemas.seller import SellerProductCreateRequest, SellerProductUpdateRequest, SellerSummary
+from app.schemas.product import ProductResponse, SellerProductCounts
+from app.schemas.seller import (
+    SellerOfferFilter,
+    SellerOfferSort,
+    SellerProductCreateRequest,
+    SellerProductUpdateRequest,
+    SellerSummary,
+)
 from app.services.catalog_remerge import resolve_catalog_product
 from app.services.offer_units import resolve_offer_units
 
@@ -76,15 +82,83 @@ def get_public_product(db: Session, product_id: UUID) -> Product:
     return product
 
 
-def list_seller_products(db: Session, seller: Seller) -> list[Product]:
-    return list(
-        db.scalars(
-            select(Product)
-            .where(Product.seller_id == seller.id)
-            .options(joinedload(Product.seller))
-            .order_by(Product.created_at.desc())
-        ).all()
+def _seller_offer_search_filters(q: str | None) -> list:
+    text = (q or "").strip()
+    if not text:
+        return []
+    pattern = f"%{text}%"
+    return [or_(Product.title.ilike(pattern), Product.option_label.ilike(pattern))]
+
+
+def _seller_offer_status_filters(offer_filter: SellerOfferFilter) -> list:
+    return {
+        "published": [Product.status == "published", Product.stock > 0],
+        "pending": [Product.status == "draft"],
+        "sold_out": [Product.status == "published", Product.stock <= 0],
+        "hidden": [Product.status == "archived"],
+        "all": [],
+    }[offer_filter]
+
+
+def _seller_offer_order(sort: SellerOfferSort):
+    if sort == "price":
+        return Product.price_credits.asc(), Product.created_at.desc()
+    if sort == "stock":
+        return Product.stock.asc(), Product.created_at.desc()
+    return (Product.created_at.desc(),)
+
+
+def _count_if(condition):
+    return func.coalesce(func.sum(case((condition, 1), else_=0)), 0)
+
+
+def list_seller_products(
+    db: Session,
+    seller: Seller,
+    *,
+    q: str | None = None,
+    offer_filter: SellerOfferFilter = "all",
+    sort: SellerOfferSort = "newest",
+    offset: int = 0,
+    limit: int = 20,
+) -> tuple[list[Product], int, SellerProductCounts]:
+    owner = Product.seller_id == seller.id
+    search_filters = _seller_offer_search_filters(q)
+    status_filters = _seller_offer_status_filters(offer_filter)
+    counts_row = db.execute(
+        select(
+            func.count().label("all_count"),
+            _count_if(and_(Product.status == "published", Product.stock > 0)).label("published"),
+            _count_if(Product.status == "draft").label("pending"),
+            _count_if(and_(Product.status == "published", Product.stock <= 0)).label("sold_out"),
+            _count_if(Product.status == "archived").label("hidden"),
+        )
+        .select_from(Product)
+        .where(owner, *search_filters)
+    ).one()
+    counts = SellerProductCounts(
+        all=int(counts_row.all_count or 0),
+        published=int(counts_row.published or 0),
+        pending=int(counts_row.pending or 0),
+        sold_out=int(counts_row.sold_out or 0),
+        hidden=int(counts_row.hidden or 0),
     )
+    total = {
+        "all": counts.all,
+        "published": counts.published,
+        "pending": counts.pending,
+        "sold_out": counts.sold_out,
+        "hidden": counts.hidden,
+    }[offer_filter]
+    products = db.scalars(
+        select(Product)
+        .where(owner, *search_filters, *status_filters)
+        .options(joinedload(Product.seller))
+        .order_by(*_seller_offer_order(sort))
+        .offset(offset)
+        .limit(limit)
+    ).unique().all()
+    return list(products), total, counts
 
 
 def get_seller_product(db: Session, seller: Seller, product_id: UUID) -> Product:

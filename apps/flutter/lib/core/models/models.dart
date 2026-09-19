@@ -122,6 +122,68 @@ class ProductModel {
   }
 }
 
+class SellerProductCounts {
+  const SellerProductCounts({
+    this.all = 0,
+    this.published = 0,
+    this.pending = 0,
+    this.soldOut = 0,
+    this.hidden = 0,
+  });
+
+  factory SellerProductCounts.fromJson(Map<String, dynamic> json) {
+    return SellerProductCounts(
+      all: json['all'] as int? ?? 0,
+      published: json['published'] as int? ?? 0,
+      pending: json['pending'] as int? ?? 0,
+      soldOut: json['soldOut'] as int? ?? 0,
+      hidden: json['hidden'] as int? ?? 0,
+    );
+  }
+
+  final int all;
+  final int published;
+  final int pending;
+  final int soldOut;
+  final int hidden;
+}
+
+class SellerProductListPage {
+  const SellerProductListPage({
+    required this.items,
+    required this.total,
+    this.counts = const SellerProductCounts(),
+  });
+
+  factory SellerProductListPage.fromJson(Map<String, dynamic> json) {
+    final rawItems = json['items'] as List<dynamic>? ?? [];
+    return SellerProductListPage(
+      items: rawItems
+          .whereType<Map>()
+          .map((e) => ProductModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      total: json['total'] as int? ?? 0,
+      counts: json['counts'] is Map
+          ? SellerProductCounts.fromJson(Map<String, dynamic>.from(json['counts'] as Map))
+          : const SellerProductCounts(),
+    );
+  }
+
+  final List<ProductModel> items;
+  final int total;
+  final SellerProductCounts counts;
+}
+
+class CatalogProductSearchPage {
+  const CatalogProductSearchPage({
+    required this.items,
+    required this.total,
+  });
+
+  final List<CatalogProductModel> items;
+  final int total;
+}
+
 class SellerSummaryModel {
   SellerSummaryModel({
     required this.id,

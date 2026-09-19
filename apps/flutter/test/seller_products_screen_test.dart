@@ -6,6 +6,7 @@ import 'package:shopping_mall/core/models/models.dart';
 import 'package:shopping_mall/core/network/api_client.dart';
 import 'package:shopping_mall/core/providers/app_providers.dart';
 import 'package:shopping_mall/core/theme/app_theme.dart';
+import 'package:shopping_mall/features/seller/seller_offer_format.dart';
 import 'package:shopping_mall/features/seller/seller_product_detail_screen.dart';
 import 'package:shopping_mall/features/seller/seller_products_screen.dart';
 
@@ -45,11 +46,69 @@ class _SellerApi extends ApiClient {
   List<IntakeDraftModel> drafts;
   Map<String, Object?>? lastPatch;
   Map<String, Object?>? lastDraftPatch;
+  Map<String, Object?>? lastListQuery;
   String? lastDeleteId;
   int patchCalls = 0;
+  int listCalls = 0;
+
+  SellerProductCounts _countsFor(List<ProductModel> rows) {
+    return SellerProductCounts(
+      all: rows.length,
+      published: rows.where(sellerOfferIsPublic).length,
+      pending: rows.where((p) => p.status == 'draft').length,
+      soldOut: rows.where((p) => p.status == 'published' && p.stock <= 0).length,
+      hidden: rows.where(sellerOfferIsHidden).length,
+    );
+  }
 
   @override
-  Future<List<ProductModel>> sellerProducts() async => items;
+  Future<SellerProductListPage> sellerProducts({
+    String? q,
+    String? filter,
+    String? sort,
+    int offset = 0,
+    int limit = 20,
+  }) async {
+    listCalls += 1;
+    lastListQuery = {
+      'q': q,
+      'filter': filter,
+      'sort': sort,
+      'offset': offset,
+      'limit': limit,
+    };
+    var rows = List<ProductModel>.from(items);
+    if (q != null && q.isNotEmpty) {
+      final needle = q.toLowerCase();
+      rows = rows
+          .where(
+            (p) =>
+                p.title.toLowerCase().contains(needle) ||
+                (p.optionLabel ?? '').toLowerCase().contains(needle),
+          )
+          .toList();
+    }
+    final counts = _countsFor(rows);
+    if (filter != null && filter.isNotEmpty && filter != 'all') {
+      rows = rows.where((p) => sellerOfferMatchesFilter(p, filter)).toList();
+    }
+    if (sort == 'price') {
+      rows.sort((a, b) => a.priceCredits.compareTo(b.priceCredits));
+    } else if (sort == 'stock') {
+      rows.sort((a, b) => a.stock.compareTo(b.stock));
+    }
+    final page = rows.skip(offset).take(limit).toList();
+    return SellerProductListPage(
+      items: page,
+      total: rows.length,
+      counts: counts,
+    );
+  }
+
+  @override
+  Future<ProductModel> sellerProduct(String productId) async {
+    return items.firstWhere((row) => row.id == productId);
+  }
 
   @override
   Future<List<IntakeDraftModel>> sellerCardDrafts() async => drafts;
@@ -176,12 +235,14 @@ void main() {
       routes: [
         GoRoute(
           path: '/seller/products',
-          builder: (_, _) => const SellerProductsScreen(),
+          builder: (_, _) => const Scaffold(body: SellerProductsScreen()),
         ),
         GoRoute(
           path: '/seller/products/:id',
-          builder: (_, state) => SellerProductDetailScreen(
-            productId: state.pathParameters['id']!,
+          builder: (_, state) => Scaffold(
+            body: SellerProductDetailScreen(
+              productId: state.pathParameters['id']!,
+            ),
           ),
         ),
       ],
@@ -316,8 +377,18 @@ void main() {
     expect(find.text('공개'), findsWidgets);
     expect(find.text('비공개'), findsNothing);
 
-    await tester.enterText(find.byType(TextField).at(0), '4800');
-    await tester.enterText(find.byType(TextField).at(1), '10');
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.labelText == '가격(원)',
+      ),
+      '4800',
+    );
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.labelText == '재고',
+      ),
+      '10',
+    );
     await tester.tap(find.byType(Switch));
     await tester.pump();
     expect(find.text('비공개'), findsOneWidget);
@@ -328,5 +399,94 @@ void main() {
     expect(api.lastDraftPatch?['priceCredits'], 4800);
     expect(api.lastDraftPatch?['stock'], 10);
     expect(api.lastDraftPatch?['visibility'], 'hidden');
+  });
+
+  testWidgets('list searches and uses distinct empty copy', (tester) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final emptyApi = _SellerApi([]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(emptyApi)],
+        child: MaterialApp(
+          theme: AppTheme.web(),
+          home: const Scaffold(body: SellerProductsScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('아직 등록한 오퍼가 없습니다. 오퍼 등록으로 시작하세요.'), findsOneWidget);
+
+    final api = _SellerApi([
+      _offer(),
+      _offer(id: 'p2', optionLabel: '2L × 6', flavor: null, priceCredits: 9800),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: AppTheme.web(),
+          home: const Scaffold(body: SellerProductsScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '없는옵션');
+    await tester.tap(find.text('검색'));
+    await tester.pumpAndSettle();
+    expect(api.lastListQuery?['q'], '없는옵션');
+    expect(find.text('이 검색·조건에 맞는 오퍼가 없습니다.'), findsOneWidget);
+
+    await tester.enterText(find.byType(TextField).first, '2L');
+    await tester.tap(find.text('검색'));
+    await tester.pumpAndSettle();
+    expect(find.text('2L × 6 · 9,800원 · 재고 40'), findsOneWidget);
+    expect(find.text('500ml × 20 · 레몬 · 12,500원 · 재고 40'), findsNothing);
+  });
+
+  testWidgets('list paginates and sorts from the server', (tester) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = _SellerApi([
+      for (var i = 0; i < 21; i++)
+        _offer(
+          id: 'p$i',
+          optionLabel: '500ml × $i',
+          flavor: null,
+          priceCredits: 1000 + i,
+          stock: i,
+        ),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: AppTheme.web(),
+          home: const Scaffold(body: SellerProductsScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('1–20 / 21'), findsOneWidget);
+    await tester.ensureVisible(find.text('다음'));
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+    expect(api.lastListQuery?['offset'], 20);
+    expect(find.text('21–21 / 21'), findsOneWidget);
+
+    await tester.tap(find.text('최신순'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('가격순').last);
+    await tester.pumpAndSettle();
+    expect(api.lastListQuery?['sort'], 'price');
+    expect(api.lastListQuery?['offset'], 0);
   });
 }
