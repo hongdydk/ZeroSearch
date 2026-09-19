@@ -4732,6 +4732,44 @@
         ]
       }
     },
+    "/admin/catalog/export": {
+      "get": {
+        "operationId": "export_catalog_admin_catalog_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Catalog",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/export/template": {
+      "get": {
+        "operationId": "export_catalog_template_admin_catalog_export_template_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Catalog Template",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/catalog/import": {
       "post": {
         "operationId": "import_catalog_admin_catalog_import_post",

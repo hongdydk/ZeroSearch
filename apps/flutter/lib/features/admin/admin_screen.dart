@@ -1,9 +1,11 @@
 import 'dart:async';
+import 'dart:js_interop';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:web/web.dart' as web;
 
 import '../../core/catalog/guest_l1.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
@@ -572,6 +574,30 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
     });
   }
 
+  Future<void> _downloadCatalogCsv({required bool template}) async {
+    final busyKey = template ? 'catalog-template-download' : 'catalog-current-download';
+    await runBusy(busyKey, () async {
+      try {
+        final bytes = await ref
+            .read(apiClientProvider)
+            .adminDownloadCatalogCsv(template: template);
+        final blob = web.Blob(
+          <web.BlobPart>[bytes.toJS].toJS,
+          web.BlobPropertyBag(type: 'text/csv;charset=utf-8'),
+        );
+        final url = web.URL.createObjectURL(blob);
+        final anchor = web.HTMLAnchorElement()
+          ..href = url
+          ..download = template ? 'catalog-template.csv' : 'catalog-current.csv';
+        anchor.click();
+        web.URL.revokeObjectURL(url);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
+  }
+
   Widget _buildWorkspace(AdminSection section) {
     return PortalWorkspaceScaffold(
       role: PortalWorkspaceRole.admin,
@@ -886,7 +912,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         ),
         const SizedBox(height: 18),
         PortalSection(
-          title: '카탈로그 CSV 비상 업로드',
+          title: '카탈로그 CSV 일괄 등록',
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: _CatalogImportPanel(
@@ -897,6 +923,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
               fileName: _importFileName,
               resultText: _importResult,
               onUpload: _importCatalog,
+              downloadingCurrent: isBusy('catalog-current-download'),
+              downloadingTemplate: isBusy('catalog-template-download'),
+              onDownloadCurrent: () => _downloadCatalogCsv(template: false),
+              onDownloadTemplate: () => _downloadCatalogCsv(template: true),
             ),
           ),
         ),
@@ -1124,6 +1154,10 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         resultText: _importResult,
 
         onUpload: _importCatalog,
+        downloadingCurrent: isBusy('catalog-current-download'),
+        downloadingTemplate: isBusy('catalog-template-download'),
+        onDownloadCurrent: () => _downloadCatalogCsv(template: false),
+        onDownloadTemplate: () => _downloadCatalogCsv(template: true),
       ),
 
       const Divider(),
@@ -1208,6 +1242,10 @@ class _CatalogImportPanel extends StatelessWidget {
     required this.processing,
     required this.sendProgress,
     required this.onUpload,
+    required this.downloadingCurrent,
+    required this.downloadingTemplate,
+    required this.onDownloadCurrent,
+    required this.onDownloadTemplate,
     this.locked = false,
     this.fileName,
     this.resultText,
@@ -1220,6 +1258,10 @@ class _CatalogImportPanel extends StatelessWidget {
   final String? fileName;
   final String? resultText;
   final VoidCallback onUpload;
+  final bool downloadingCurrent;
+  final bool downloadingTemplate;
+  final VoidCallback onDownloadCurrent;
+  final VoidCallback onDownloadTemplate;
 
   @override
   Widget build(BuildContext context) {
@@ -1228,7 +1270,7 @@ class _CatalogImportPanel extends StatelessWidget {
     final status = importing
         ? '카탈로그에 넣는 중 $percent% — 창을 닫지 마세요.'
         : (resultText ??
-              'data/aihub-catalog.csv만 올리세요. 식약처 원본·mfds 30만 줄은 여기서 올리면 연결이 끊깁니다.');
+              '템플릿 열 순서 그대로 작성하세요. 한 행은 카드의 옵션 하나이며, 옵션이 없는 카드는 옵션 열을 비워 둘 수 있습니다.');
 
     return Card(
       color: importing ? const Color(0xFFEFF6FF) : null,
@@ -1257,6 +1299,23 @@ class _CatalogImportPanel extends StatelessWidget {
             ] else
               Text(status),
             const SizedBox(height: 12),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                OutlinedButton.icon(
+                  onPressed: downloadingCurrent ? null : onDownloadCurrent,
+                  icon: downloadingCurrent ? busyProgress() : const Icon(Icons.download),
+                  label: const Text('현재 카탈로그 다운로드'),
+                ),
+                OutlinedButton.icon(
+                  onPressed: downloadingTemplate ? null : onDownloadTemplate,
+                  icon: downloadingTemplate ? busyProgress() : const Icon(Icons.file_download_outlined),
+                  label: const Text('카탈로그 템플릿 다운로드'),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
             FilledButton.icon(
               onPressed: importing || locked ? null : onUpload,
               icon: importing ? busyProgress() : const Icon(Icons.upload_file),

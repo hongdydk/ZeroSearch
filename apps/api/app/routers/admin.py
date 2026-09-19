@@ -3,6 +3,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -57,7 +58,11 @@ from app.services.admin_users import (
     list_admin_users,
     update_admin_user,
 )
-from app.services.catalog_import import import_catalog_csv
+from app.services.catalog_import import (
+    admin_catalog_template_csv,
+    export_admin_catalog_csv,
+    import_admin_catalog_csv,
+)
 from app.services.catalog_import_jobs import get_job, start_import_job
 from app.services.catalog_intake import attach_intake_draft, list_admin_intake_queue, promote_card_draft
 from app.services.credits import grant_credits
@@ -108,9 +113,9 @@ async def import_catalog(
     if len(content) > _MAX_CATALOG_CSV_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="파일이 너무 큽니다. data/aihub-catalog.csv만 올리세요.",
+            detail="파일이 너무 큽니다. 카탈로그 템플릿 형식으로 4MB 이하 파일을 올리세요.",
         )
-    result = import_catalog_csv(db, content)
+    result = import_admin_catalog_csv(db, content)
     db.commit()
     return CatalogImportResponse(**result)
 
@@ -121,7 +126,7 @@ def import_catalog_text(
     _: Annotated[User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> CatalogImportResponse:
-    result = import_catalog_csv(db, payload.csv.encode("utf-8"))
+    result = import_admin_catalog_csv(db, payload.csv.encode("utf-8"))
     db.commit()
     return CatalogImportResponse(**result)
 
@@ -131,7 +136,7 @@ def create_catalog_import_job(
     payload: CatalogImportTextRequest,
     _: Annotated[User, Depends(require_admin)],
 ) -> CatalogImportJobResponse:
-    return CatalogImportJobResponse(**start_import_job(payload.csv))
+    return CatalogImportJobResponse(**start_import_job(payload.csv, admin_csv=True))
 
 
 @router.get("/catalog/import-jobs/{job_id}", response_model=CatalogImportJobResponse)
@@ -143,6 +148,29 @@ def read_catalog_import_job(
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="가져오기 작업을 찾을 수 없습니다.")
     return CatalogImportJobResponse(**job)
+
+
+@router.get("/catalog/export", response_class=Response)
+def export_catalog(
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    return Response(
+        content=export_admin_catalog_csv(db),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="catalog-current.csv"'},
+    )
+
+
+@router.get("/catalog/export/template", response_class=Response)
+def export_catalog_template(
+    _: Annotated[User, Depends(require_admin)],
+) -> Response:
+    return Response(
+        content=admin_catalog_template_csv(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="catalog-template.csv"'},
+    )
 
 
 @router.get("/users", response_model=AdminUserListResponse)

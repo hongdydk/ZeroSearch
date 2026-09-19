@@ -774,6 +774,18 @@ class ApiClient {
   static const _importMaxBytes = 4 * 1024 * 1024;
   static const _importMaxRows = 20000;
 
+  Future<List<int>> adminDownloadCatalogCsv({required bool template}) async {
+    try {
+      final response = await _dio.get<List<int>>(
+        template ? 'admin/catalog/export/template' : 'admin/catalog/export',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data ?? const [];
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<({int sourceRows, int upserted})> adminImportCatalog(
     List<int> bytes,
     String filename, {
@@ -781,7 +793,7 @@ class ApiClient {
     void Function()? onProcessing,
   }) async {
     if (bytes.length > _importMaxBytes) {
-      throw ApiException('파일이 너무 큽니다. data/aihub-catalog.csv만 올리세요.');
+      throw ApiException('파일이 너무 큽니다. 카탈로그 템플릿 형식으로 4MB 이하 파일을 올리세요.');
     }
     late final String text;
     try {
@@ -798,7 +810,7 @@ class ApiClient {
         if (line.trim().isNotEmpty) line,
     ];
     if (dataLines.length > _importMaxRows) {
-      throw ApiException('행이 너무 많습니다. data/aihub-catalog.csv만 올리세요.');
+      throw ApiException('행이 너무 많습니다. 카탈로그 템플릿 형식으로 2만 줄 이하 파일을 올리세요.');
     }
     if (dataLines.isEmpty) {
       throw ApiException('데이터 행이 없습니다.');
@@ -850,7 +862,7 @@ class ApiClient {
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.unknown) {
         throw ApiException(
-          '업로드 연결이 끊겼습니다. 초기화가 끝난 뒤 data/aihub-catalog.csv만 다시 올리세요.',
+          '업로드 연결이 끊겼습니다. 잠시 뒤 카탈로그 CSV를 다시 올리세요.',
         );
       }
       throw mapped;
