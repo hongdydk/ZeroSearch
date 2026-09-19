@@ -100,6 +100,70 @@ def test_pg_l1_brand_returns_only_tagged_cards_not_housewares():
         engine.dispose()
 
 
+def test_pg_l2_saengsu_excludes_juice_coffee_and_keeps_water():
+    db, engine = _pg_session()
+    try:
+        stamp = uuid.uuid4().hex[:8]
+        water = _catalog(
+            title=f"제주삼다수-{stamp}",
+            manufacturer=f"삼다수브랜드-{stamp}",
+            category="일반생수",
+            category_major="음료",
+            category_mid="생수",
+        )
+        juice = _catalog(
+            title=f"델몬트수박주스-{stamp}",
+            manufacturer=f"주스브랜드-{stamp}",
+            category="일반생수",
+            category_major="음료",
+            category_mid="생수",
+        )
+        coffee = _catalog(
+            title=f"칸타타아이스블랙커피-{stamp}",
+            manufacturer=f"커피브랜드-{stamp}",
+            category="일반생수",
+            category_major="음료",
+            category_mid="생수",
+        )
+        cheese = _catalog(
+            title=f"서울우유체다치즈-{stamp}",
+            manufacturer="서울우유",
+            category="체다치즈",
+            category_major="유제품",
+            category_mid="치즈",
+        )
+        db.add_all([water, juice, coffee, cheese])
+        db.flush()
+        for row in (water, juice, coffee, cheese):
+            apply_auto_l1_tags(row, only_if_empty=False)
+        db.flush()
+
+        assert "생수" in (water.l2_tags or [])
+        assert "생수" not in (juice.l2_tags or [])
+        assert "생수" not in (coffee.l2_tags or [])
+        assert "우유" not in (cheese.l2_tags or [])
+        assert "요거트·치즈·버터" in (cheese.l2_tags or [])
+
+        scoped = list_catalog_products(db, l1_tag=TAG_WATER, l2_tag="생수")
+        ids = {item.id for item in scoped.items}
+        assert str(water.id) in ids
+        assert str(juice.id) not in ids
+        assert str(coffee.id) not in ids
+
+        facets = list_l1_facets(db, l1_tag=TAG_WATER, l2_tag="생수")
+        brands = [row["name"] for row in facets["brands"]]
+        assert water.manufacturer in brands
+        assert juice.manufacturer not in brands
+        assert coffee.manufacturer not in brands
+
+        dairy = list_catalog_products(db, l1_tag="유제품/아이스크림", l2_tag="우유")
+        assert str(cheese.id) not in {item.id for item in dairy.items}
+    finally:
+        db.rollback()
+        db.close()
+        engine.dispose()
+
+
 def test_pg_l1_facets_omit_brand_with_no_tagged_cards():
     db, engine = _pg_session()
     try:

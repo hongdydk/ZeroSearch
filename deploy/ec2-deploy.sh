@@ -52,7 +52,7 @@ CATALOG_NORM_VERSION="${CATALOG_NORM_VERSION:-v5}"
 REMERGE_MARKER="$CACHE_DIR/catalog-remerge-${CATALOG_NORM_VERSION}.done"
 VOLUME_TITLE_REPAIR_MARKER="$CACHE_DIR/catalog-volume-title-repair-${CATALOG_NORM_VERSION}.done"
 # Keep in sync with app.services.guest_l1.TAGGER_VERSION
-L1_TAGGER_VERSION="${L1_TAGGER_VERSION:-v3}"
+L1_TAGGER_VERSION="${L1_TAGGER_VERSION:-v4}"
 L1_TAG_MARKER="$CACHE_DIR/l1-tags-${L1_TAGGER_VERSION}.done"
 
 # One-time production rollout: back up first, inspect the dry-run, then apply.

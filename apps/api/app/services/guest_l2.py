@@ -205,7 +205,19 @@ _DAIRY_ICE = "아이스크림·빙과"
 
 _HIGH: dict[str, dict[str, tuple[str, ...]]] = {
     TAG_WATER: {
-        _WATER_SAENGSU: ("생수", "먹는샘물", "삼다수", "백산수", "평창수"),
+        _WATER_SAENGSU: (
+            "생수",
+            "먹는샘물",
+            "삼다수",
+            "백산수",
+            "평창수",
+            "아이시스",
+            "에비앙",
+            "광천수",
+            "마신다",
+            "산림수",
+            "미네랄워터",
+        ),
         _WATER_SPARK: (
             "탄산수",
             "탄산음료",
@@ -215,10 +227,22 @@ _HIGH: dict[str, dict[str, tuple[str, ...]]] = {
             "스포츠음료",
             "포카리",
             "게토레이",
+            "스파클링",
         ),
         _WATER_JUICE: ("주스", "과채음료", "착즙", "juice"),
-        _WATER_TRAD: ("식혜", "수정과", "숭늉", "전통음료", "보리차", "옥수수차"),
-        _WATER_RTD: ("커피음료", "캔커피", "병커피", "아이스티", "티음료", "페트커피"),
+        _WATER_TRAD: ("식혜", "수정과", "숭늉", "전통음료", "보리차", "옥수수차", "우엉차"),
+        _WATER_RTD: (
+            "커피음료",
+            "캔커피",
+            "병커피",
+            "아이스티",
+            "티음료",
+            "페트커피",
+            "라떼",
+            "아메리카노",
+            "카푸치노",
+            "콜드브루",
+        ),
         _WATER_OTHER: ("두유", "알로에음료", "콤부차", "에이드", "쿨피스"),
     },
     TAG_COFFEE: {
@@ -338,7 +362,18 @@ _HIGH: dict[str, dict[str, tuple[str, ...]]] = {
     },
 }
 
-_CUP_RAMEN = ("컵라면", "용기면", "사발면", "큰사발", "컵누들", "국물용기라면", "비빔용기라면")
+_CUP_RAMEN = (
+    "컵라면",
+    "용기면",
+    "사발면",
+    "큰사발",
+    "컵누들",
+    "국물용기라면",
+    "비빔용기라면",
+    "작은용기",
+)
+_WATER_NOT_PLAIN = ("워터젤리", "토닉워터", "코코넛워터")
+_RTD_PACK = ("음료", "캔", "페트", "pet", "병")
 _SNACK_SHAPE = ("쿠키", "파이", "과자", "스낵", "칩", "비스킷", "비스켓")
 _DUMPLING_HINTS = ("만두", "교자", "떡볶이", "어묵", "피자", "핫도그", "딤섬", "오뎅")
 _MEAL_HINTS = (
@@ -422,6 +457,45 @@ def _scan_high(haystack: str, l1: str, conf: dict[str, Confidence]) -> None:
             _add(conf, l2, "high")
 
 
+def _has_rtd_pack(raw_title: str) -> bool:
+    blob = (raw_title or "").lower()
+    if any(token in blob for token in ("ml", "㎖", "ℓ")):
+        return True
+    return _any_keyword(_norm(raw_title), _RTD_PACK)
+
+
+def _dispatch_l2(
+    l1: str,
+    haystack: str,
+    conf: dict[str, Confidence],
+    *,
+    title: str,
+    title_norm: str,
+    category: str,
+    category_mid: str,
+    category_major: str,
+    storage: Storage | None,
+) -> None:
+    if l1 == TAG_NOODLE:
+        _infer_noodle(haystack, conf)
+    elif l1 == TAG_COFFEE:
+        _infer_coffee(haystack, conf, raw_title=title)
+    elif l1 == TAG_SNACK:
+        _infer_snack(haystack, conf)
+    elif l1 == TAG_SOUP:
+        _infer_soup(haystack, conf)
+    elif l1 == TAG_SAUCE:
+        _infer_sauce(title_norm, haystack, category, category_mid, category_major, conf)
+    elif l1 == TAG_FROZEN:
+        _infer_frozen(haystack, storage, conf)
+    elif l1 == TAG_DAIRY:
+        _infer_dairy(haystack, conf)
+    elif l1 == TAG_WATER:
+        _infer_water(haystack, conf, raw_title=title)
+    else:
+        _scan_high(haystack, l1, conf)
+
+
 def infer_l2_tags(
     *,
     title: str,
@@ -432,15 +506,19 @@ def infer_l2_tags(
     storage: str | None = None,
     l1_tags: list[str] | None = None,
 ) -> L2TagResult:
-    """Infer L2 under the given L1 tags. Ambiguous → untagged (not auto-saved)."""
+    """Infer L2 under the given L1 tags. Ambiguous → untagged (not auto-saved).
+
+    High matches come from the product title. Category/taxonomy-only hits are mid
+    so noisy 중분류 (주스인데 `생수`) cannot leak into an L2 filter.
+    Manufacturer is not scanned — `서울우유`/`코카콜라` must not tag cheese/water.
+    """
+    del manufacturer  # L2 high is title-only; keep the call signature stable.
     scoped = [tag for tag in (l1_tags or []) if tag in GUEST_L1_SET]
     if not scoped:
         return L2TagResult()
 
     title_norm = _norm(title)
-    haystack = _norm(
-        f"{title} {manufacturer} {category} {category_major} {category_mid} {storage or ''}"
-    )
+    cat_hay = _norm(f"{category} {category_major} {category_mid}")
     resolved_storage: Storage | None
     explicit = (storage or "").strip()
     if explicit in {"상온", "냉장", "냉동"}:
@@ -450,22 +528,37 @@ def infer_l2_tags(
     conf: dict[str, Confidence] = {}
 
     for l1 in scoped:
-        if l1 == TAG_NOODLE:
-            _infer_noodle(haystack, conf)
-        elif l1 == TAG_COFFEE:
-            _infer_coffee(haystack, conf)
-        elif l1 == TAG_SNACK:
-            _infer_snack(haystack, conf)
-        elif l1 == TAG_SOUP:
-            _infer_soup(haystack, conf)
-        elif l1 == TAG_SAUCE:
-            _infer_sauce(title_norm, haystack, category, category_mid, category_major, conf)
-        elif l1 == TAG_FROZEN:
-            _infer_frozen(haystack, resolved_storage, conf)
-        elif l1 == TAG_DAIRY:
-            _infer_dairy(haystack, conf)
-        else:
-            _scan_high(haystack, l1, conf)
+        title_conf: dict[str, Confidence] = {}
+        _dispatch_l2(
+            l1,
+            title_norm,
+            title_conf,
+            title=title,
+            title_norm=title_norm,
+            category=category,
+            category_mid=category_mid,
+            category_major=category_major,
+            storage=resolved_storage,
+        )
+        title_high = [tag for tag, level in title_conf.items() if level == "high"]
+        if title_high:
+            for tag, level in title_conf.items():
+                _add(conf, tag, level)
+            continue
+        cat_conf: dict[str, Confidence] = {}
+        _dispatch_l2(
+            l1,
+            cat_hay,
+            cat_conf,
+            title=title,
+            title_norm=title_norm,
+            category=category,
+            category_mid=category_mid,
+            category_major=category_major,
+            storage=resolved_storage,
+        )
+        for tag in cat_conf:
+            _add(conf, tag, "mid")
 
     ordered: list[str] = []
     seen: set[str] = set()
@@ -480,7 +573,9 @@ def infer_l2_tags(
 
 
 def _infer_noodle(haystack: str, conf: dict[str, Confidence]) -> None:
-    cup = _any_keyword(haystack, _CUP_RAMEN)
+    cup = _any_keyword(haystack, _CUP_RAMEN) or (
+        _contains(haystack, "용기") and _any_keyword(haystack, ("라면", "면"))
+    )
     if cup:
         _add(conf, _NOODLE_CUP, "high")
     elif _any_keyword(
@@ -506,13 +601,17 @@ def _infer_noodle(haystack: str, conf: dict[str, Confidence]) -> None:
         _add(conf, _NOODLE_COLD, "high")
 
 
-def _infer_coffee(haystack: str, conf: dict[str, Confidence]) -> None:
+def _infer_coffee(haystack: str, conf: dict[str, Confidence], *, raw_title: str = "") -> None:
     bean = _any_keyword(haystack, ("원두", "캡슐커피", "홀빈", "분쇄원두"))
     rtd = _any_keyword(haystack, ("커피음료", "캔커피", "콜드브루음료", "아이스티", "티음료"))
-    if bean and not rtd:
-        _add(conf, _COFFEE_BEAN, "high")
-    elif rtd and not bean:
+    rtd_pack = _has_rtd_pack(raw_title) or _any_keyword(haystack, _RTD_PACK)
+    if bean and rtd_pack:
         _add(conf, _COFFEE_RTD, "high")
+    elif bean and not rtd:
+        _add(conf, _COFFEE_BEAN, "high")
+    elif (rtd or rtd_pack) and not bean:
+        if rtd or _any_keyword(haystack, ("커피", "콜드브루", "라떼", "아메리카노", "카푸치노")):
+            _add(conf, _COFFEE_RTD, "high")
     if _any_keyword(haystack, ("커피믹스", "믹스커피", "모카골드")):
         _add(conf, _COFFEE_MIX, "high")
     if _any_keyword(haystack, ("티백", "잎차", "녹차", "홍차", "허브차", "둥굴레", "도라지차", "유자차")):
@@ -595,11 +694,47 @@ def _infer_frozen(
         _add(conf, _FROZEN_CHILL, "high")
 
 
+def _plain_water(haystack: str) -> bool:
+    if _any_keyword(haystack, _WATER_NOT_PLAIN):
+        return False
+    if _any_keyword(haystack, _HIGH[TAG_WATER][_WATER_SAENGSU]):
+        return True
+    return _contains(haystack, "워터")
+
+
+def _infer_water(haystack: str, conf: dict[str, Confidence], *, raw_title: str = "") -> None:
+    juice = _any_keyword(haystack, _HIGH[TAG_WATER][_WATER_JUICE])
+    spark = _any_keyword(haystack, _HIGH[TAG_WATER][_WATER_SPARK])
+    trad = _any_keyword(haystack, _HIGH[TAG_WATER][_WATER_TRAD])
+    rtd = _any_keyword(haystack, _HIGH[TAG_WATER][_WATER_RTD])
+    if not rtd and _contains(haystack, "커피") and (
+        _has_rtd_pack(raw_title) or _any_keyword(haystack, ("라떼", "아메리카노", "카푸치노", "콜드브루", "아이스"))
+    ):
+        rtd = True
+    other = _any_keyword(haystack, _HIGH[TAG_WATER][_WATER_OTHER])
+    specific = juice or spark or trad or rtd or other
+    if juice:
+        _add(conf, _WATER_JUICE, "high")
+    if spark:
+        _add(conf, _WATER_SPARK, "high")
+    if trad:
+        _add(conf, _WATER_TRAD, "high")
+    if rtd:
+        _add(conf, _WATER_RTD, "high")
+    if other:
+        _add(conf, _WATER_OTHER, "high")
+    if _plain_water(haystack) and not specific:
+        _add(conf, _WATER_SAENGSU, "high")
+
+
 def _infer_dairy(haystack: str, conf: dict[str, Confidence]) -> None:
     if _any_keyword(haystack, ("아이스크림", "빙과", "아이스바")):
         _add(conf, _DAIRY_ICE, "high")
         return
     if _any_keyword(haystack, ("요거트", "요구르트", "치즈", "버터", "생크림", "연유")):
         _add(conf, _DAIRY_YOG, "high")
+        return
+    if _any_keyword(haystack, ("주스", "과채음료", "착즙")):
+        return
     if _any_keyword(haystack, ("멸균우유", "우유")):
         _add(conf, _DAIRY_MILK, "high")

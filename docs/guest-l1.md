@@ -60,6 +60,6 @@ URL: `/`, `/?l1=라면/면류`, `/?l1=…&l2=봉지라면`, `/?l1=…&l2=…&axi
 
 ## 저장
 
-`catalog_products.l1_tags[]` (15개 중 0~N). `catalog_products.l2_tags[]` (해당 1차 L2 이름, 0~N, 겹침 허용). 제목·브랜드·기존 중·소분류·보관으로 자동 태깅. high만 자동 저장, mid/low·애매하면 MD 게이트 또는 미태그. 미태그는 그 L2 목록에 안 나온다.
+`catalog_products.l1_tags[]` (15개 중 0~N). `catalog_products.l2_tags[]` (해당 1차 L2 이름, 0~N, 겹침 허용). L1은 제목·브랜드·중·소분류·보관, L2 high는 상품명(분류만 맞으면 mid). high만 자동 저장, mid/low·애매하면 MD 게이트 또는 미태그. 미태그는 그 L2 목록에 안 나온다.
 
-구현: `apps/api/app/services/guest_l1.py`, `apps/api/app/services/guest_l2.py`
+구현: `apps/api/app/services/guest_l1.py`, `apps/api/app/services/guest_l2.py`. L2 high는 상품명, 중·소분류만 맞으면 mid(미태그).
