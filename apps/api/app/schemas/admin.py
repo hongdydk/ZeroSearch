@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.catalog_product import PriceUnit
+from app.schemas.seller import DailySalesItem
 
 
 class AdminStatsResponse(BaseModel):
@@ -16,6 +17,11 @@ class AdminStatsResponse(BaseModel):
     sold_item_count: int = Field(alias="soldItemCount")
     sold_qty_sum: int = Field(alias="soldQtySum")
     sold_amount_sum: int = Field(alias="soldAmountSum")
+    paid_order_count: int = Field(default=0, alias="paidOrderCount")
+    sales_line_count: int = Field(default=0, alias="salesLineCount")
+    daily_sales: list[DailySalesItem] = Field(default_factory=list, alias="dailySales")
+    fulfillment_counts: dict[str, int] = Field(default_factory=dict, alias="fulfillmentCounts")
+    offer_counts: dict[str, int] = Field(default_factory=dict, alias="offerCounts")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

@@ -49,6 +49,7 @@ from app.schemas.seller import (
     SellerImageUploadResponse,
 
     SellerResponse,
+    SalesStatsResponse,
 
 )
 from app.schemas.admin import SellerModerationEventListResponse
@@ -63,7 +64,7 @@ from app.services.uploads import save_seller_image
 from app.services.catalog_products import search_seller_catalog_products
 from app.services.products import (
 
-    archive_seller_product,
+    delete_seller_product,
 
     bulk_update_seller_products,
 
@@ -90,10 +91,19 @@ from app.services.seller_orders import (
 from app.services.seller_orders import _seller_order_item_response
 
 from app.services.sellers import apply_for_seller, get_seller_for_user, list_moderation_events, moderation_event_item
+from app.services.sales_stats import get_sales_stats
 
 
 
 router = APIRouter(prefix="/seller", tags=["seller"])
+
+
+@router.get("/stats", response_model=SalesStatsResponse)
+def seller_stats(
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> SalesStatsResponse:
+    return SalesStatsResponse(**get_sales_stats(db, seller_id=seller.id))
 
 
 
@@ -328,7 +338,7 @@ def seller_delete_product(
 
 ) -> None:
 
-    archive_seller_product(db, seller, product_id)
+    delete_seller_product(db, seller, product_id)
 
     db.commit()
 

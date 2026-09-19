@@ -231,6 +231,27 @@ class SellerOrderItemListResponse(BaseModel):
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
 
+class DailySalesItem(BaseModel):
+    date: str
+    line_count: int = Field(alias="lineCount")
+    amount: int
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class SalesStatsResponse(BaseModel):
+    paid_order_count: int = Field(alias="paidOrderCount")
+    sales_line_count: int = Field(alias="salesLineCount")
+    sold_item_count: int = Field(alias="soldItemCount")
+    sold_qty_sum: int = Field(alias="soldQtySum")
+    sold_amount_sum: int = Field(alias="soldAmountSum")
+    daily_sales: list[DailySalesItem] = Field(alias="dailySales")
+    fulfillment_counts: dict[str, int] = Field(alias="fulfillmentCounts")
+    offer_counts: dict[str, int] = Field(alias="offerCounts")
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
 
 
 

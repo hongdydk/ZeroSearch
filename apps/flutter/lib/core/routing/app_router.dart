@@ -22,6 +22,7 @@ import '../../features/payment/toss_pay_exit_screen.dart';
 import '../../features/product_detail/catalog_detail_screen.dart';
 import '../../features/product_detail/product_detail_screen.dart';
 import '../../features/seller/seller_offer_register_screen.dart';
+import '../../features/seller/seller_stats_screen.dart';
 import '../../features/seller/seller_orders_screen.dart';
 import '../../features/seller/seller_product_detail_screen.dart';
 import '../../features/seller/seller_products_screen.dart';
@@ -212,13 +213,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/seller/stats',
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.seller,
-              child: PortalComingSoonScreen(
-                role: PortalWorkspaceRole.seller,
-                activePath: '/seller/stats',
-                title: '통계',
-                description: '주문·배송·오퍼 운영 추이를 한곳에서 확인하는 화면입니다.',
-                items: ['기간별 주문 줄 추이', '배송 상태 분포', '오퍼 노출·품절 비율'],
-              ),
+              child: SellerStatsScreen(),
             ),
           ),
           GoRoute(

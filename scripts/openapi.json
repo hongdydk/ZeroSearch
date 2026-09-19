@@ -594,8 +594,34 @@
       },
       "AdminStatsResponse": {
         "properties": {
+          "dailySales": {
+            "items": {
+              "$ref": "#/components/schemas/DailySalesItem"
+            },
+            "title": "Dailysales",
+            "type": "array"
+          },
+          "fulfillmentCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Fulfillmentcounts",
+            "type": "object"
+          },
+          "offerCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Offercounts",
+            "type": "object"
+          },
           "orderCount": {
             "title": "Ordercount",
+            "type": "integer"
+          },
+          "paidOrderCount": {
+            "default": 0,
+            "title": "Paidordercount",
             "type": "integer"
           },
           "pendingSellerCount": {
@@ -604,6 +630,11 @@
           },
           "productCount": {
             "title": "Productcount",
+            "type": "integer"
+          },
+          "salesLineCount": {
+            "default": 0,
+            "title": "Saleslinecount",
             "type": "integer"
           },
           "sellerCount": {
@@ -1885,6 +1916,29 @@
         "title": "CreditBalanceResponse",
         "type": "object"
       },
+      "DailySalesItem": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "lineCount": {
+            "title": "Linecount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "lineCount",
+          "amount"
+        ],
+        "title": "DailySalesItem",
+        "type": "object"
+      },
       "DbResetRequest": {
         "properties": {
           "confirm": {
@@ -2494,6 +2548,63 @@
           "password"
         ],
         "title": "RegisterRequest",
+        "type": "object"
+      },
+      "SalesStatsResponse": {
+        "properties": {
+          "dailySales": {
+            "items": {
+              "$ref": "#/components/schemas/DailySalesItem"
+            },
+            "title": "Dailysales",
+            "type": "array"
+          },
+          "fulfillmentCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Fulfillmentcounts",
+            "type": "object"
+          },
+          "offerCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Offercounts",
+            "type": "object"
+          },
+          "paidOrderCount": {
+            "title": "Paidordercount",
+            "type": "integer"
+          },
+          "salesLineCount": {
+            "title": "Saleslinecount",
+            "type": "integer"
+          },
+          "soldAmountSum": {
+            "title": "Soldamountsum",
+            "type": "integer"
+          },
+          "soldItemCount": {
+            "title": "Solditemcount",
+            "type": "integer"
+          },
+          "soldQtySum": {
+            "title": "Soldqtysum",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "paidOrderCount",
+          "salesLineCount",
+          "soldItemCount",
+          "soldQtySum",
+          "soldAmountSum",
+          "dailySales",
+          "fulfillmentCounts",
+          "offerCounts"
+        ],
+        "title": "SalesStatsResponse",
         "type": "object"
       },
       "SellerApplyRequest": {
@@ -8162,6 +8273,32 @@
           }
         ],
         "summary": "Seller Update Product",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/stats": {
+      "get": {
+        "operationId": "seller_stats_seller_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesStatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Stats",
         "tags": [
           "seller"
         ]

@@ -56,6 +56,11 @@ def test_admin_stats_ok_for_admin(client):
         "soldItemCount": 5,
         "soldQtySum": 11,
         "soldAmountSum": 2200,
+        "paidOrderCount": 0,
+        "salesLineCount": 0,
+        "dailySales": [],
+        "fulfillmentCounts": {},
+        "offerCounts": {},
     }
 
 

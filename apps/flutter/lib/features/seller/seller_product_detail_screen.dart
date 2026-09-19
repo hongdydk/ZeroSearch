@@ -164,7 +164,7 @@ class _SellerProductDetailScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('오퍼 삭제'),
-        content: const Text('구매자에게 보이지 않게 숨김으로 옮깁니다. 나중에 숨김 해제로 되돌릴 수 있습니다.'),
+        content: const Text('오퍼를 영구 삭제합니다. 되돌릴 수 없습니다. 기존 주문과 판매 기록은 유지됩니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),

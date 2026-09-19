@@ -20,6 +20,7 @@ from app.models import (
     User,
 )
 from app.services.catalog_cleanup import purge_catalogs_without_display_image
+from app.services.sales_stats import get_sales_stats
 from seed import ensure_admin_user, ensure_catalog_seed
 
 logger = logging.getLogger(__name__)
@@ -73,7 +74,7 @@ def run_db_reset(db: Session, mode: str) -> str:
     raise ValueError(f"Unknown reset mode: {mode}")
 
 
-def get_admin_stats(db: Session) -> dict[str, int]:
+def get_admin_stats(db: Session) -> dict:
     user_count = db.scalar(select(func.count()).select_from(User)) or 0
     product_count = db.scalar(select(func.count()).select_from(Product)) or 0
     order_count = db.scalar(select(func.count()).select_from(Order)) or 0
@@ -81,26 +82,12 @@ def get_admin_stats(db: Session) -> dict[str, int]:
     pending_seller_count = (
         db.scalar(select(func.count()).select_from(Seller).where(Seller.status == "pending")) or 0
     )
-    sold_item_count = (
-        db.scalar(
-            select(func.count(func.distinct(Product.catalog_product_id)))
-            .select_from(OrderItem)
-            .join(Product, OrderItem.product_id == Product.id)
-        )
-        or 0
-    )
-    sold_qty_sum = db.scalar(select(func.coalesce(func.sum(OrderItem.qty), 0))) or 0
-    sold_amount_sum = (
-        db.scalar(select(func.coalesce(func.sum(OrderItem.qty * OrderItem.unit_price_credits), 0))) or 0
-    )
     return {
         "user_count": user_count,
         "product_count": product_count,
         "order_count": order_count,
         "seller_count": seller_count,
         "pending_seller_count": pending_seller_count,
-        "sold_item_count": int(sold_item_count),
-        "sold_qty_sum": int(sold_qty_sum),
-        "sold_amount_sum": int(sold_amount_sum),
+        **get_sales_stats(db),
     }
 

@@ -618,6 +618,15 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> sellerStats() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('seller/stats');
+      return response.data ?? {};
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<Map<String, dynamic>> adminUsers({String? q}) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(

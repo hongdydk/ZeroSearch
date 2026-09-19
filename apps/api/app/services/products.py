@@ -1,10 +1,10 @@
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import CatalogProduct, Product, Seller
+from app.models import CartItem, CatalogIntakeDraft, CatalogProduct, Product, Seller
 from app.schemas.product import ProductResponse, SellerProductBulkFailure, SellerProductCounts
 from app.schemas.seller import (
     SellerOfferFilter,
@@ -312,9 +312,15 @@ def bulk_update_seller_products(
     return updated, failed
 
 
-def archive_seller_product(db: Session, seller: Seller, product_id: UUID) -> None:
+def delete_seller_product(db: Session, seller: Seller, product_id: UUID) -> None:
     product = get_seller_product(db, seller, product_id)
-    product.status = "archived"
+    db.execute(delete(CartItem).where(CartItem.product_id == product.id))
+    db.execute(
+        update(CatalogIntakeDraft)
+        .where(CatalogIntakeDraft.product_id == product.id)
+        .values(product_id=None)
+    )
+    db.delete(product)
     db.flush()
 
 

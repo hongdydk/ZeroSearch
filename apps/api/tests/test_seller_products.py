@@ -11,7 +11,7 @@ from app.models import Product, Seller
 from app.schemas.product import SellerProductCounts
 from app.schemas.seller import SellerProductBulkRequest, SellerProductUpdateRequest
 from app.services.products import (
-    archive_seller_product,
+    delete_seller_product,
     bulk_update_seller_products,
     list_seller_products,
     product_to_response,
@@ -249,12 +249,17 @@ def test_bulk_requires_an_action():
     assert "가격" in exc.value.detail
 
 
-def test_delete_soft_archives_offer():
+def test_delete_removes_offer_and_its_live_references():
     seller = _seller()
     product = _product(seller, status="published")
+    db = MagicMock()
     with patch("app.services.products.get_seller_product", return_value=product):
-        archive_seller_product(MagicMock(), seller, product.id)
-    assert product.status == "archived"
+        delete_seller_product(db, seller, product.id)
+    assert product.status == "published"
+    db.delete.assert_called_once_with(product)
+    assert db.execute.call_count == 2
+    assert "cart_items" in str(db.execute.call_args_list[0].args[0]).lower()
+    assert "catalog_intake_drafts" in str(db.execute.call_args_list[1].args[0]).lower()
 
 
 def test_seller_list_route_returns_hidden_option_fields(client):

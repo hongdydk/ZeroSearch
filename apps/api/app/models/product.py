@@ -43,5 +43,4 @@ class Product(Base):
     seller = relationship("Seller", back_populates="products")
     catalog_product = relationship("CatalogProduct", back_populates="offers")
     cart_items = relationship("CartItem", back_populates="product")
-    order_items = relationship("OrderItem", back_populates="product")
 

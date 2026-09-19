@@ -16,6 +16,7 @@ import '../../shared/widgets/catalog_browse_card.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/portal_workspace.dart';
 import 'admin_dashboard.dart';
+import '../seller/sales_stats_panel.dart';
 
 export 'admin_dashboard.dart' show AdminSection;
 
@@ -670,24 +671,19 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        PortalMetricGrid(
-          children: [
-            PortalMetricCard(label: '사용자', value: '${stats['userCount']}'),
-            PortalMetricCard(label: '오퍼', value: '${stats['productCount']}'),
-            PortalMetricCard(label: '주문', value: '${stats['orderCount']}'),
-            PortalMetricCard(label: '판매자', value: '${stats['sellerCount']}'),
-          ],
-        ),
+        SalesStatsPanel(stats: stats),
         const SizedBox(height: 18),
         PortalSection(
-          title: '현재 제공되는 통계',
+          title: '몰 운영 현황',
           child: Padding(
             padding: const EdgeInsets.all(18),
-            child: Row(
+            child: Wrap(
+              spacing: 24,
+              runSpacing: 8,
               children: [
-                const Expanded(
-                  child: Text('기간별 추이와 카탈로그 건강 통계는 아직 API가 없어 준비 중입니다.'),
-                ),
+                Text('사용자 ${stats['userCount']}명'),
+                Text('판매자 ${stats['sellerCount']}명'),
+                Text('현재 오퍼 ${stats['productCount']}건'),
                 PortalStatusBadge(
                   label: '승인 대기 ${stats['pendingSellerCount']}',
                   attention: (stats['pendingSellerCount'] as int? ?? 0) > 0,
