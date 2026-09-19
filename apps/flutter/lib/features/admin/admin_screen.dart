@@ -175,7 +175,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
 
   Future<void> _attachDraft(IntakeDraftModel draft) async {
     String? catalogId = draft.catalogProductId;
-    if (draft.isCard || catalogId == null || catalogId.isEmpty) {
+    if (catalogId == null || catalogId.isEmpty) {
       catalogId = await showDialog<String>(
         context: context,
         builder: (ctx) => const _AdminCatalogPickDialog(),
@@ -407,6 +407,14 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
         context,
       ).showSnackBar(const SnackBar(content: Text('카드를 추가했습니다.')));
     }
+  }
+
+  Future<void> _addCatalogVariants(AdminCatalogProductModel item) async {
+    final done = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => _AdminCatalogCreateDialog(existing: item),
+    );
+    if (done == true) await _dashNotifier.loadCatalogItems(force: true);
   }
 
   Future<void> _deleteCatalogItem(AdminCatalogProductModel item) async {
@@ -873,6 +881,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
                   );
                 },
           onAdd: _addCatalogItem,
+          onAddVariants: _addCatalogVariants,
           onDelete: _deleteCatalogItem,
         ),
         const SizedBox(height: 18),
@@ -1305,7 +1314,7 @@ class AdminCatalogDraftsPanel extends StatelessWidget {
                     subtitle: Text(
                       '${draft.isCard ? '카드 초안' : '오퍼 초안'} · '
                       '${draft.shopName} · ${draft.category} · '
-                      '${draft.optionLabel ?? ''} · ${draft.priceCredits}원',
+                      '${draft.variants.isNotEmpty ? draft.variants.map((v) => v.displayLabel).join(', ') : draft.optionLabel ?? ''} · ${draft.priceCredits}원',
                     ),
                     trailing: Wrap(
                       spacing: 8,
@@ -1319,7 +1328,7 @@ class AdminCatalogDraftsPanel extends StatelessWidget {
                               ? busyProgress()
                               : Text(draft.isCard ? '기존 카드에 붙이기' : '승인'),
                         ),
-                        if (draft.isCard)
+                        if (draft.isCard && draft.catalogProductId == null)
                           FilledButton(
                             onPressed:
                                 pageLocked || isRowBusy(draft.id)
@@ -1564,6 +1573,7 @@ class AdminCatalogItemsPanel extends StatelessWidget {
     required this.onL1Tag,
     required this.onIncludeRetired,
     required this.onAdd,
+    required this.onAddVariants,
     required this.onDelete,
     this.onPrev,
     this.onNext,
@@ -1584,6 +1594,7 @@ class AdminCatalogItemsPanel extends StatelessWidget {
   final ValueChanged<String?> onL1Tag;
   final ValueChanged<bool> onIncludeRetired;
   final VoidCallback onAdd;
+  final void Function(AdminCatalogProductModel item) onAddVariants;
   final void Function(AdminCatalogProductModel item) onDelete;
   final VoidCallback? onPrev;
   final VoidCallback? onNext;
@@ -1714,9 +1725,14 @@ class AdminCatalogItemsPanel extends StatelessWidget {
                         medianPriceCredits: item.medianPriceCredits,
                         shopCount: item.shopCount,
                         statusLabel: item.isRetired ? '삭제됨' : null,
-                        action: Align(
-                          alignment: Alignment.centerLeft,
-                          child: TextButton(
+                        action: Wrap(
+                          spacing: 4,
+                          children: [
+                          TextButton(
+                            onPressed: pageLocked || item.isRetired ? null : () => onAddVariants(item),
+                            child: const Text('옵션 추가'),
+                          ),
+                          TextButton(
                             onPressed: pageLocked ||
                                     isRowBusy(item.id) ||
                                     item.isRetired
@@ -1726,6 +1742,7 @@ class AdminCatalogItemsPanel extends StatelessWidget {
                                 ? busyProgress()
                                 : const Text('삭제'),
                           ),
+                          ],
                         ),
                       );
                     },
@@ -1740,7 +1757,9 @@ class AdminCatalogItemsPanel extends StatelessWidget {
 }
 
 class _AdminCatalogCreateDialog extends ConsumerStatefulWidget {
-  const _AdminCatalogCreateDialog();
+  const _AdminCatalogCreateDialog({this.existing});
+
+  final AdminCatalogProductModel? existing;
 
   @override
   ConsumerState<_AdminCatalogCreateDialog> createState() =>
@@ -1753,11 +1772,24 @@ class _AdminCatalogCreateDialogState
   final _title = TextEditingController();
   final _category = TextEditingController();
   final _imageUrl = TextEditingController();
+  final _optionName = TextEditingController();
+  final _optionImageUrl = TextEditingController();
   final _amount = TextEditingController();
   final _pack = TextEditingController(text: '1');
-  final _volumeOptions = <String>[];
+  final _variants = <Map<String, dynamic>>[];
   String _unit = 'ml';
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    final existing = widget.existing;
+    if (existing != null) {
+      _manufacturer.text = existing.manufacturer;
+      _title.text = existing.title;
+      _category.text = existing.category;
+    }
+  }
 
   @override
   void dispose() {
@@ -1765,6 +1797,8 @@ class _AdminCatalogCreateDialogState
     _title.dispose();
     _category.dispose();
     _imageUrl.dispose();
+    _optionName.dispose();
+    _optionImageUrl.dispose();
     _amount.dispose();
     _pack.dispose();
     super.dispose();
@@ -1777,9 +1811,17 @@ class _AdminCatalogCreateDialogState
       setState(() => _error = '용량은 0보다 크게, 들이 개수는 1개 이상으로 입력하세요.');
       return;
     }
-    final label = formatSellerUnitLabel(amount: amount, unit: _unit, packCount: pack);
+    final name = _optionName.text.trim().isEmpty ? '기본' : _optionName.text.trim();
+    final variant = <String, dynamic>{
+      'name': name, 'unitAmount': amount, 'unit': _unit, 'packCount': pack,
+      if (_optionImageUrl.text.trim().isNotEmpty) 'imageUrl': _optionImageUrl.text.trim(),
+    };
     setState(() {
-      if (!_volumeOptions.contains(label)) _volumeOptions.add(label);
+      if (!_variants.any((item) => item['name'] == name && item['unitAmount'] == amount && item['unit'] == _unit && item['packCount'] == pack)) {
+        _variants.add(variant);
+      }
+      _optionName.clear();
+      _optionImageUrl.clear();
       _amount.clear();
       _pack.text = '1';
       _error = null;
@@ -1798,23 +1840,35 @@ class _AdminCatalogCreateDialogState
       setState(() => _error = '입력한 용량은 먼저 옵션 추가를 누르세요.');
       return;
     }
-    final priceUnit = _volumeOptions.isNotEmpty &&
-            _volumeOptions.every((label) {
-              final unit = parseSellerUnitLabel(label)?.unit;
+    if (_variants.isEmpty) {
+      setState(() => _error = '상품 옵션을 하나 이상 추가하세요.');
+      return;
+    }
+    final volumeOptions = [
+      for (final variant in _variants)
+        formatSellerUnitLabel(amount: variant['unitAmount'] as double, unit: variant['unit'] as String, packCount: variant['packCount'] as int),
+    ];
+    final priceUnit = _variants.every((variant) {
+              final unit = variant['unit'] as String;
               return unit == 'ml' || unit == 'L';
             })
         ? 'ml'
         : 'credits';
     await runBusy('create', () async {
       try {
-        await ref.read(adminDashboardProvider.notifier).addCatalogItem(
+        if (widget.existing != null) {
+          await ref.read(apiClientProvider).adminAddCatalogVariants(widget.existing!.id, _variants);
+        } else {
+          await ref.read(adminDashboardProvider.notifier).addCatalogItem(
               manufacturer: manufacturer,
               title: title,
               category: category,
               imageUrl: _imageUrl.text.trim(),
-              volumeOptions: _volumeOptions,
+              volumeOptions: volumeOptions,
+              variants: _variants,
               priceUnit: priceUnit,
             );
+        }
         if (mounted) Navigator.pop(context, true);
       } on ApiException catch (e) {
         if (mounted) setState(() => _error = e.message);
@@ -1826,12 +1880,13 @@ class _AdminCatalogCreateDialogState
   Widget build(BuildContext context) {
     final busy = isBusy('create');
     return AlertDialog(
-      title: const Text('대표 카드 추가'),
+      title: Text(widget.existing == null ? '대표 카드 추가' : '${widget.existing!.cardTitle} 옵션 추가'),
       content: SizedBox(
         width: 420,
         child: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            if (widget.existing == null) ...[
             TextField(
               controller: _manufacturer,
               decoration: const InputDecoration(labelText: '회사'),
@@ -1848,12 +1903,17 @@ class _AdminCatalogCreateDialogState
               controller: _imageUrl,
               decoration: const InputDecoration(labelText: '대표 사진 URL (선택)'),
             ),
+            ],
             const SizedBox(height: 12),
+            TextField(
+              controller: _optionName,
+              decoration: const InputDecoration(labelText: '옵션명', hintText: '오리지널, 매운맛, 제로 등'),
+            ),
             Row(children: [
               Expanded(
                 child: TextField(
                   controller: _amount,
-                  decoration: const InputDecoration(labelText: '용량·팩 (선택)'),
+                  decoration: const InputDecoration(labelText: '들이 용량'),
                   keyboardType: const TextInputType.numberWithOptions(decimal: true),
                 ),
               ),
@@ -1874,6 +1934,10 @@ class _AdminCatalogCreateDialogState
               decoration: const InputDecoration(labelText: '들이 개수', hintText: '낱개는 1'),
               keyboardType: TextInputType.number,
             ),
+            TextField(
+              controller: _optionImageUrl,
+              decoration: const InputDecoration(labelText: '옵션 사진 URL (선택)'),
+            ),
             Align(
               alignment: Alignment.centerRight,
               child: TextButton(
@@ -1881,14 +1945,14 @@ class _AdminCatalogCreateDialogState
                 child: const Text('옵션 추가'),
               ),
             ),
-            if (_volumeOptions.isNotEmpty)
+            if (_variants.isNotEmpty)
               Wrap(
                 spacing: 8,
                 children: [
-                  for (final option in _volumeOptions)
+                  for (final option in _variants)
                     InputChip(
-                      label: Text(option),
-                      onDeleted: busy ? null : () => setState(() => _volumeOptions.remove(option)),
+                      label: Text('${option['name']} · ${formatSellerUnitLabel(amount: option['unitAmount'] as double, unit: option['unit'] as String, packCount: option['packCount'] as int)}'),
+                      onDeleted: busy ? null : () => setState(() => _variants.remove(option)),
                     ),
                 ],
               ),

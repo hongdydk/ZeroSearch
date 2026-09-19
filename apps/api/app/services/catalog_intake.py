@@ -6,7 +6,7 @@ from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import CatalogIntakeDraft, CatalogProduct, Product, Seller, User
+from app.models import CatalogIntakeDraft, CatalogProduct, CatalogVariant, Product, Seller, User
 from app.schemas.catalog_intake import (
     AdminAttachDraftRequest,
     AdminPromoteDraftRequest,
@@ -18,6 +18,8 @@ from app.services.catalog_remerge import resolve_catalog_product
 from app.services.catalog_l1 import apply_auto_l1_tags, set_l1_tags
 from app.services.guest_l1 import infer_l1_tags, suggestions_payload
 from app.services.offer_units import resolve_offer_units
+from app.schemas.catalog_variant import CatalogVariantCreateRequest
+from app.services.catalog_variants import add_catalog_variant, variant_to_item
 
 
 def _offer_status_for_visibility(visibility: str | None) -> str:
@@ -68,6 +70,8 @@ def card_draft_to_item(draft: CatalogIntakeDraft) -> CatalogIntakeItem:
         category=draft.category,
         image_url=draft.image_url,
         flavor=draft.flavor,
+        variant_name=draft.variant_name,
+        variants=list(draft.variant_proposals or []),
         option_label=draft.option_label,
         volume_ml=draft.volume_ml,
         unit_amount=float(draft.unit_amount) if draft.unit_amount is not None else None,
@@ -126,21 +130,30 @@ def _offer_item(product: Product) -> CatalogIntakeItem:
 def create_card_draft(
     db: Session, seller: Seller, payload: SellerCardDraftCreateRequest
 ) -> CatalogIntakeDraft:
+    if payload.variants and payload.price_credits:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="옵션 제안 후 승인된 옵션에 판매 오퍼를 등록하세요.")
+    catalog = None
+    if payload.catalog_product_id:
+        catalog = _require_catalog(db, payload.catalog_product_id)
     units = resolve_offer_units(
         option_label=payload.option_label,
         unit_amount=payload.unit_amount,
         unit=payload.unit,
         pack_count=payload.pack_count,
         volume_ml=payload.volume_ml,
+        required=not bool(payload.variants),
     )
     draft = CatalogIntakeDraft(
         seller_id=seller.id,
         status="pending",
-        manufacturer=payload.manufacturer.strip(),
-        title=payload.title.strip(),
-        category=payload.category.strip(),
+        manufacturer=catalog.manufacturer if catalog else payload.manufacturer.strip(),
+        title=catalog.title if catalog else payload.title.strip(),
+        category=catalog.category if catalog else payload.category.strip(),
+        catalog_product_id=catalog.id if catalog else None,
         image_url=(payload.image_url or "").strip() or None,
         flavor=(payload.flavor or "").strip() or None,
+        variant_name=(payload.variant_name or payload.flavor or "기본").strip(),
+        variant_proposals=[v.model_dump(by_alias=True) for v in payload.variants],
         option_label=units.option_label,
         volume_ml=units.volume_ml,
         unit_amount=units.unit_amount,
@@ -183,6 +196,8 @@ def update_card_draft(
         draft.image_url = payload.image_url.strip() or None
     if payload.flavor is not None:
         draft.flavor = payload.flavor.strip() or None
+    if payload.variant_name is not None:
+        draft.variant_name = payload.variant_name.strip() or "기본"
     if payload.description is not None:
         draft.description = payload.description
     if payload.price_credits is not None:
@@ -291,6 +306,22 @@ def _append_volume_option(catalog: CatalogProduct, option_label: str | None) -> 
         catalog.volume_options = options
 
 
+def _variants_for_draft(db: Session, catalog: CatalogProduct, draft: CatalogIntakeDraft):
+    proposals = [CatalogVariantCreateRequest.model_validate(v) for v in (draft.variant_proposals or [])]
+    if not proposals and draft.unit_amount is not None and draft.unit:
+        proposals = [CatalogVariantCreateRequest(
+            name=draft.variant_name or draft.flavor or "기본",
+            unit_amount=float(draft.unit_amount), unit=draft.unit,
+            pack_count=draft.pack_count or 1, image_url=draft.image_url,
+        )]
+    variants = [add_catalog_variant(db, catalog, proposal, allow_existing=True) for proposal in proposals]
+    for variant in variants:
+        _append_volume_option(catalog, variant_to_item(variant).option_label)
+    if variants and not all(v.unit in ("ml", "L") for v in variants):
+        catalog.price_unit = "credits"
+    return variants
+
+
 def _publish_offer(
     db: Session,
     *,
@@ -306,18 +337,21 @@ def _publish_offer(
     unit: str | None,
     pack_count: int,
     flavor: str | None,
+    variant_id: UUID | None = None,
     visibility: str = "public",
 ) -> Product:
     _append_volume_option(catalog, option_label)
+    variant = db.get(CatalogVariant, variant_id) if variant_id else None
     product = Product(
         seller_id=seller_id,
         catalog_product_id=catalog.id,
-        title=catalog.title,
+        variant_id=variant_id,
+        title=(f"{catalog.title} · {variant.name} · {option_label}"[:200] if variant else catalog.title),
         description=description,
         price_credits=price_credits,
         stock=stock,
         category=catalog.category,
-        image_url=image_url or catalog.image_url,
+        image_url=image_url or (variant.image_url if variant else None) or catalog.image_url,
         status=_offer_status_for_visibility(visibility),
         option_label=option_label,
         volume_ml=volume_ml,
@@ -341,9 +375,18 @@ def attach_intake_draft(
         product = _get_offer_draft(db, draft_id)
         catalog_id = UUID(payload.catalog_product_id) if payload.catalog_product_id else product.catalog_product_id
         catalog = _require_catalog(db, catalog_id)
+        variant = db.get(CatalogVariant, product.variant_id) if product.variant_id else None
+        if variant and variant.catalog_product_id != catalog.id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="선택한 상품 옵션은 이 카드에 속하지 않습니다.",
+            )
         _append_volume_option(catalog, product.option_label)
         product.catalog_product_id = catalog.id
-        product.title = catalog.title
+        product.title = (
+            f"{catalog.title} · {variant.name} · {product.option_label}"[:200]
+            if variant else catalog.title
+        )
         product.category = catalog.category
         if not product.image_url:
             product.image_url = catalog.image_url
@@ -366,25 +409,29 @@ def attach_intake_draft(
             detail="붙일 기존 카드를 고르세요.",
         )
     catalog = _require_catalog(db, UUID(payload.catalog_product_id))
-    product = _publish_offer(
-        db,
-        seller_id=draft.seller_id,
-        catalog=catalog,
-        description=draft.description,
-        price_credits=draft.price_credits,
-        stock=draft.stock,
-        image_url=draft.image_url,
-        option_label=draft.option_label,
-        volume_ml=draft.volume_ml,
-        unit_amount=float(draft.unit_amount) if draft.unit_amount is not None else None,
-        unit=draft.unit,
-        pack_count=draft.pack_count or 1,
-        flavor=draft.flavor,
-        visibility=_draft_visibility(getattr(draft, "visibility", None)),
-    )
+    variants = _variants_for_draft(db, catalog, draft)
+    product = None
+    if draft.price_credits > 0:
+        product = _publish_offer(
+            db,
+            seller_id=draft.seller_id,
+            catalog=catalog,
+            description=draft.description,
+            price_credits=draft.price_credits,
+            stock=draft.stock,
+            image_url=draft.image_url,
+            option_label=draft.option_label,
+            volume_ml=draft.volume_ml,
+            unit_amount=float(draft.unit_amount) if draft.unit_amount is not None else None,
+            unit=draft.unit,
+            pack_count=draft.pack_count or 1,
+            flavor=draft.flavor,
+            variant_id=variants[0].id if variants else None,
+            visibility=_draft_visibility(getattr(draft, "visibility", None)),
+        )
     draft.status = "attached"
     draft.catalog_product_id = catalog.id
-    draft.product_id = product.id
+    draft.product_id = product.id if product else None
     draft.reviewed_by = reviewer.id
     draft.reviewed_at = _now()
     db.flush()
@@ -444,25 +491,29 @@ def promote_card_draft(
             status_code=status.HTTP_409_CONFLICT,
             detail="같은 회사·종류·품목 카드가 있습니다. 기존 카드에 붙이세요.",
         ) from exc
-    product = _publish_offer(
-        db,
-        seller_id=draft.seller_id,
-        catalog=catalog,
-        description=draft.description,
-        price_credits=draft.price_credits,
-        stock=draft.stock,
-        image_url=draft.image_url,
-        option_label=draft.option_label,
-        volume_ml=draft.volume_ml,
-        unit_amount=float(draft.unit_amount) if draft.unit_amount is not None else None,
-        unit=draft.unit,
-        pack_count=draft.pack_count or 1,
-        flavor=draft.flavor,
-        visibility=_draft_visibility(getattr(draft, "visibility", None)),
-    )
+    variants = _variants_for_draft(db, catalog, draft)
+    product = None
+    if draft.price_credits > 0:
+        product = _publish_offer(
+            db,
+            seller_id=draft.seller_id,
+            catalog=catalog,
+            description=draft.description,
+            price_credits=draft.price_credits,
+            stock=draft.stock,
+            image_url=draft.image_url,
+            option_label=draft.option_label,
+            volume_ml=draft.volume_ml,
+            unit_amount=float(draft.unit_amount) if draft.unit_amount is not None else None,
+            unit=draft.unit,
+            pack_count=draft.pack_count or 1,
+            flavor=draft.flavor,
+            variant_id=variants[0].id if variants else None,
+            visibility=_draft_visibility(getattr(draft, "visibility", None)),
+        )
     draft.status = "promoted"
     draft.catalog_product_id = catalog.id
-    draft.product_id = product.id
+    draft.product_id = product.id if product else None
     draft.reviewed_by = reviewer.id
     draft.reviewed_at = _now()
     db.flush()

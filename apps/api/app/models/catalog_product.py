@@ -45,6 +45,7 @@ class CatalogProduct(Base):
     )
 
     offers = relationship("Product", back_populates="catalog_product")
+    variants = relationship("CatalogVariant", back_populates="catalog_product")
     aliases = relationship(
         "CatalogProductAlias",
         back_populates="canonical",

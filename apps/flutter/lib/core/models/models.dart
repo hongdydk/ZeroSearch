@@ -31,6 +31,7 @@ class ProductModel {
     this.imageUrl,
     this.status = 'published',
     this.catalogProductId,
+    this.variantId,
     this.optionLabel,
     this.volumeMl,
     this.unitAmount,
@@ -54,6 +55,7 @@ class ProductModel {
       imageUrl: json['imageUrl'] as String?,
       status: json['status'] as String? ?? 'published',
       catalogProductId: json['catalogProductId'] as String?,
+      variantId: json['variantId'] as String?,
       optionLabel: json['optionLabel'] as String?,
       volumeMl: json['volumeMl'] as int?,
       unitAmount: (json['unitAmount'] as num?)?.toDouble(),
@@ -73,6 +75,7 @@ class ProductModel {
   final String? imageUrl;
   final String status;
   final String? catalogProductId;
+  final String? variantId;
   final String? optionLabel;
   final int? volumeMl;
   final double? unitAmount;
@@ -94,6 +97,7 @@ class ProductModel {
     String? imageUrl,
     String? status,
     String? catalogProductId,
+    String? variantId,
     String? optionLabel,
     int? volumeMl,
     double? unitAmount,
@@ -112,6 +116,7 @@ class ProductModel {
       imageUrl: imageUrl ?? this.imageUrl,
       status: status ?? this.status,
       catalogProductId: catalogProductId ?? this.catalogProductId,
+      variantId: variantId ?? this.variantId,
       optionLabel: optionLabel ?? this.optionLabel,
       volumeMl: volumeMl ?? this.volumeMl,
       unitAmount: unitAmount ?? this.unitAmount,
@@ -811,6 +816,38 @@ class SubscriptionModel {
   final DateTime currentPeriodEnd;
 }
 
+class CatalogVariantModel {
+  const CatalogVariantModel({
+    required this.id,
+    required this.name,
+    required this.optionLabel,
+    required this.unitAmount,
+    required this.unit,
+    required this.packCount,
+    this.imageUrl,
+  });
+
+  factory CatalogVariantModel.fromJson(Map<String, dynamic> json) => CatalogVariantModel(
+    id: json['id'] as String? ?? '',
+    name: json['name'] as String? ?? '기본',
+    optionLabel: json['optionLabel'] as String? ?? '',
+    unitAmount: (json['unitAmount'] as num?)?.toDouble() ?? 0,
+    unit: json['unit'] as String? ?? '',
+    packCount: json['packCount'] as int? ?? 1,
+    imageUrl: json['imageUrl'] as String?,
+  );
+
+  final String id;
+  final String name;
+  final String optionLabel;
+  final double unitAmount;
+  final String unit;
+  final int packCount;
+  final String? imageUrl;
+
+  String get displayLabel => name == '기본' ? optionLabel : '$name · $optionLabel';
+}
+
 class CatalogProductModel {
   CatalogProductModel({
     required this.id,
@@ -825,6 +862,7 @@ class CatalogProductModel {
     this.medianUnitPrice,
     this.medianPriceCredits,
     this.volumeOptions = const [],
+    this.variants = const [],
     this.l1Tags = const [],
     this.l2Tags = const [],
     this.storage,
@@ -845,6 +883,10 @@ class CatalogProductModel {
       medianPriceCredits: json['medianPriceCredits'] as int?,
       volumeOptions: (json['volumeOptions'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
+          .toList(),
+      variants: (json['variants'] as List<dynamic>? ?? [])
+          .whereType<Map>()
+          .map((e) => CatalogVariantModel.fromJson(Map<String, dynamic>.from(e)))
           .toList(),
       l1Tags: (json['l1Tags'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
@@ -868,6 +910,7 @@ class CatalogProductModel {
   final double? medianUnitPrice;
   final int? medianPriceCredits;
   final List<String> volumeOptions;
+  final List<CatalogVariantModel> variants;
   final List<String> l1Tags;
   final List<String> l2Tags;
   final String? storage;
@@ -945,12 +988,14 @@ class CatalogOfferModel {
     this.optionLabel,
     this.flavor,
     this.volumeMl,
+    this.variantId,
   });
 
   final String id;
   final String? optionLabel;
   final String? flavor;
   final int? volumeMl;
+  final String? variantId;
   final int priceCredits;
   final int stock;
   final SellerSummaryModel seller;
@@ -968,6 +1013,7 @@ class CatalogProductDetailModel {
     this.description,
     this.imageUrl,
     this.referenceVariants = const [],
+    this.variants = const [],
   });
 
   final String id;
@@ -978,6 +1024,45 @@ class CatalogProductDetailModel {
   final String? description;
   final String? imageUrl;
   final List<CatalogReferenceVariantModel> referenceVariants;
+  final List<CatalogVariantModel> variants;
+
+  factory CatalogProductDetailModel.fromJson(Map<String, dynamic> json) => CatalogProductDetailModel(
+    id: json['id'] as String? ?? '',
+    title: json['title'] as String? ?? '',
+    category: json['category'] as String? ?? '',
+    offerCount: json['offerCount'] as int? ?? 0,
+    description: json['description'] as String?,
+    imageUrl: json['imageUrl'] as String?,
+    variants: (json['variants'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((e) => CatalogVariantModel.fromJson(Map<String, dynamic>.from(e)))
+        .toList(),
+    offers: (json['offers'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((e) {
+          final row = Map<String, dynamic>.from(e);
+          return CatalogOfferModel(
+            id: row['id'] as String? ?? '',
+            variantId: row['variantId'] as String?,
+            optionLabel: row['optionLabel'] as String?,
+            flavor: row['flavor'] as String?,
+            volumeMl: row['volumeMl'] as int?,
+            priceCredits: row['priceCredits'] as int? ?? 0,
+            stock: row['stock'] as int? ?? 0,
+            seller: SellerSummaryModel.fromJson(Map<String, dynamic>.from(row['seller'] as Map? ?? {})),
+          );
+        }).toList(),
+    referenceVariants: (json['referenceVariants'] as List<dynamic>? ?? [])
+        .whereType<Map>()
+        .map((e) {
+          final row = Map<String, dynamic>.from(e);
+          return CatalogReferenceVariantModel(
+            originalTitle: row['originalTitle'] as String? ?? '',
+            flavors: (row['flavors'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+            volumes: (row['volumes'] as List<dynamic>? ?? []).map((e) => e.toString()).toList(),
+          );
+        }).toList(),
+  );
 }
 
 class CatalogReferenceVariantModel {
@@ -1006,6 +1091,24 @@ class CatalogReferenceVariantModel {
   }
 }
 
+class CatalogVariantProposalModel {
+  const CatalogVariantProposalModel({required this.name, required this.unitAmount, required this.unit, required this.packCount});
+
+  factory CatalogVariantProposalModel.fromJson(Map<String, dynamic> json) => CatalogVariantProposalModel(
+    name: json['name'] as String? ?? '기본',
+    unitAmount: (json['unitAmount'] as num?)?.toDouble() ?? 0,
+    unit: json['unit'] as String? ?? '',
+    packCount: json['packCount'] as int? ?? 1,
+  );
+
+  final String name;
+  final double unitAmount;
+  final String unit;
+  final int packCount;
+
+  String get displayLabel => '$name · $unitAmount$unit × $packCount';
+}
+
 class IntakeDraftModel {
   IntakeDraftModel({
     required this.id,
@@ -1030,6 +1133,7 @@ class IntakeDraftModel {
     this.suggestedL1Tags = const [],
     this.l1Tags = const [],
     this.visibility = 'public',
+    this.variants = const [],
   });
 
   factory IntakeDraftModel.fromJson(Map<String, dynamic> json) {
@@ -1068,6 +1172,10 @@ class IntakeDraftModel {
           .map((e) => e.toString())
           .toList(),
       visibility: json['visibility'] as String? ?? 'public',
+      variants: (json['variants'] as List<dynamic>? ?? [])
+          .whereType<Map>()
+          .map((row) => CatalogVariantProposalModel.fromJson(Map<String, dynamic>.from(row)))
+          .toList(),
     );
   }
 
@@ -1093,6 +1201,7 @@ class IntakeDraftModel {
   final List<({String tag, String confidence})> suggestedL1Tags;
   final List<String> l1Tags;
   final String visibility;
+  final List<CatalogVariantProposalModel> variants;
 
   bool get isCard => kind == 'card';
   bool get isOffer => kind == 'offer';

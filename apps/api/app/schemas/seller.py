@@ -117,6 +117,7 @@ class SellerProductCreateRequest(BaseModel):
     status: ProductStatus = "draft"
 
     catalog_product_id: str | None = Field(default=None, alias="catalogProductId")
+    variant_id: UUID | None = Field(default=None, alias="variantId")
 
     option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
 

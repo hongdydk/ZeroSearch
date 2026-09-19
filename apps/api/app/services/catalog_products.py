@@ -8,6 +8,7 @@ from sqlalchemy import Text, cast, exists, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import CatalogProduct, Product, Seller
+from app.services.catalog_variants import variant_to_item
 from app.schemas.catalog_product import (
     CatalogOfferBrowseItem,
     CatalogOfferItem,
@@ -208,6 +209,7 @@ def _list_item(catalog: CatalogProduct, offers: list[Product]) -> CatalogProduct
         description=catalog.description,
         image_url=catalog.image_url,
         volume_options=list(catalog.volume_options or []),
+        variants=[variant_to_item(v) for v in catalog.variants],
         offer_count=offer_count,
         median_unit_price=median_unit,
         median_price_credits=median_credits,
@@ -487,6 +489,7 @@ def get_catalog_product(
     offer_items = [
         CatalogOfferItem(
             id=str(o.id),
+            variant_id=str(o.variant_id) if o.variant_id else None,
             option_label=o.option_label,
             flavor=o.flavor,
             volume_ml=o.volume_ml,
@@ -517,6 +520,7 @@ def get_catalog_product(
         description=catalog.description,
         image_url=catalog.image_url,
         volume_options=list(catalog.volume_options or []),
+        variants=[variant_to_item(v) for v in catalog.variants],
         offer_count=len(offer_items),
         offers=offer_items,
         reference_variants=reference_variants,

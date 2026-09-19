@@ -8,7 +8,9 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.deps import require_admin
-from app.models import User
+from app.models import CatalogProduct, User
+from app.schemas.catalog_variant import CatalogVariantCreateRequest, CatalogVariantItem, CatalogVariantsCreateRequest
+from app.services.catalog_variants import add_catalog_variant, variant_to_item
 from app.schemas.admin import (
     AdminCatalogCreateRequest,
     AdminCatalogProductItem,
@@ -471,6 +473,36 @@ def create_admin_catalog(
     db.commit()
     logger.info("Admin %s created catalog %s / %s", admin.email, payload.manufacturer, payload.title)
     return item
+
+
+@router.post("/catalog/products/{catalog_id}/variants", response_model=CatalogVariantItem, status_code=status.HTTP_201_CREATED)
+def create_admin_catalog_variant(
+    catalog_id: UUID,
+    payload: CatalogVariantCreateRequest,
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CatalogVariantItem:
+    catalog = db.get(CatalogProduct, catalog_id)
+    if catalog is None or catalog.status != "active":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 카드를 찾을 수 없습니다.")
+    variant = add_catalog_variant(db, catalog, payload)
+    db.commit()
+    return variant_to_item(variant)
+
+
+@router.post("/catalog/products/{catalog_id}/variants/batch", response_model=list[CatalogVariantItem], status_code=status.HTTP_201_CREATED)
+def create_admin_catalog_variants(
+    catalog_id: UUID,
+    payload: CatalogVariantsCreateRequest,
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[CatalogVariantItem]:
+    catalog = db.get(CatalogProduct, catalog_id)
+    if catalog is None or catalog.status != "active":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 카드를 찾을 수 없습니다.")
+    variants = [add_catalog_variant(db, catalog, item) for item in payload.variants]
+    db.commit()
+    return [variant_to_item(item) for item in variants]
 
 
 @router.delete("/catalog/products/{catalog_id}", response_model=AdminCatalogProductItem)

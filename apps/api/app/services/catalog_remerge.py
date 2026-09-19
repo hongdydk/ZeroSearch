@@ -12,6 +12,7 @@ from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models import CatalogProduct, CatalogProductAlias, Product
+from app.services.catalog_variants import rehome_catalog_variants
 from app.services.catalog_identity import (
     HIGH_CONFIDENCE,
     CanonicalGroup,
@@ -262,6 +263,7 @@ def apply_db_remarge(db: Session) -> RemargeReport:
         # canonical 제목이 중복 행의 현재 제목이면 UPDATE가 DELETE보다 먼저
         # flush되어 unique 위반이 난다. 중복 행을 먼저 제거한다.
         for dupe in dupes:
+            rehome_catalog_variants(db, dupe.id, survivor.id)
             db.delete(dupe)
         db.flush()
 
@@ -478,6 +480,7 @@ def apply_volume_title_repair(db: Session) -> VolumeTitleRepairReport:
 
         # alias FK를 먼저 새 target으로 옮겨야 bad 삭제의 CASCADE를 피한다.
         db.flush()
+        rehome_catalog_variants(db, plan.bad.id, primary.id)
         db.delete(plan.bad)
         db.flush()
 

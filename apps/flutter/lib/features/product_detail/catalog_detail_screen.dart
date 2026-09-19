@@ -28,7 +28,16 @@ class CatalogDetailScreen extends ConsumerStatefulWidget {
 
 class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
     with AsyncBusyState {
+  static const _legacyVariantId = 'legacy';
   final Map<String, int> _qtyByOffer = {};
+  String? _selectedVariantId;
+
+  CatalogVariantModel? _variantFor(CatalogProductDetailModel detail, String? id) {
+    for (final variant in detail.variants) {
+      if (variant.id == id) return variant;
+    }
+    return null;
+  }
 
   int _qtyFor(CatalogOfferModel offer) {
     final max = offer.stock < 1 ? 1 : offer.stock;
@@ -53,7 +62,11 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
             productTitle: catalogOfferCartTitle(
               detail.title,
               optionLabel: offer.optionLabel,
-              flavor: offer.flavor,
+              flavor: offer.variantId == null
+                  ? offer.flavor
+                  : (_variantFor(detail, offer.variantId)?.name == '기본'
+                      ? null
+                      : _variantFor(detail, offer.variantId)?.name),
             ),
             priceCredits: offer.priceCredits,
             sellerId: offer.seller.id,
@@ -122,7 +135,20 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
           ],
         ),
       ),
-      data: (detail) => PageFormScaffold(
+      data: (detail) {
+        final hasLegacyOffers = detail.offers.any((offer) => offer.variantId == null);
+        final selectedId = _selectedVariantId ??
+            (detail.variants.isNotEmpty
+                ? detail.variants.firstWhere(
+                    (variant) => detail.offers.any((offer) => offer.variantId == variant.id),
+                    orElse: () => detail.variants.first,
+                  ).id
+                : null);
+        final selectedVariant = _variantFor(detail, selectedId);
+        final visibleOffers = selectedId == null
+            ? detail.offers
+            : detail.offers.where((offer) => offer.variantId == (selectedId == _legacyVariantId ? null : selectedId)).toList();
+        return PageFormScaffold(
         maxWidth: isWebUi ? webContentMaxWidth : 960,
         padding: EdgeInsets.all(isWebUi ? 20 : 16),
         child: Column(
@@ -139,7 +165,7 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
                 SizedBox(
                   width: isWebUi ? 160 : 120,
                   height: isWebUi ? 160 : 120,
-                  child: ProductImage(imageUrl: detail.imageUrl, title: detail.title),
+                  child: ProductImage(imageUrl: selectedVariant?.imageUrl ?? detail.imageUrl, title: detail.title),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -164,15 +190,38 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
               ],
             ),
             const SizedBox(height: 24),
+            if (detail.variants.isNotEmpty) ...[
+              Text('상품 옵션', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  for (final variant in detail.variants)
+                    ChoiceChip(
+                      label: Text(variant.displayLabel),
+                      selected: selectedId == variant.id,
+                      onSelected: (_) => setState(() => _selectedVariantId = variant.id),
+                    ),
+                  if (hasLegacyOffers)
+                    ChoiceChip(
+                      label: const Text('기존 오퍼'),
+                      selected: selectedId == _legacyVariantId,
+                      onSelected: (_) => setState(() => _selectedVariantId = _legacyVariantId),
+                    ),
+                ],
+              ),
+              const SizedBox(height: 20),
+            ],
             Text('판매 옵션', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
-            if (detail.offers.isEmpty)
+            if (visibleOffers.isEmpty)
               const Padding(
                 padding: EdgeInsets.symmetric(vertical: 24),
                 child: Center(child: Text('지금은 비교할 판매 옵션이 없습니다.')),
               )
             else
-              ...detail.offers.map((offer) {
+              ...visibleOffers.map((offer) {
                 final loading = isBusy('add:${offer.id}');
                 final qty = _qtyFor(offer);
                 return Card(
@@ -246,7 +295,7 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
               Padding(
                 padding: const EdgeInsets.only(top: 8),
                 child: Text(
-                  '전체 ${detail.offerCount}건 · 필터 적용 시 목록과 동일',
+                  '선택한 옵션 ${visibleOffers.length}건',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       ),
@@ -285,7 +334,8 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
             ],
           ],
         ),
-      ),
+      );
+      },
     );
   }
 }

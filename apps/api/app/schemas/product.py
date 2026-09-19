@@ -43,6 +43,7 @@ class ProductResponse(BaseModel):
     status: ProductStatus = "published"
 
     catalog_product_id: str = Field(alias="catalogProductId")
+    variant_id: str | None = Field(default=None, alias="variantId")
 
     option_label: str | None = Field(default=None, alias="optionLabel")
 

@@ -22,6 +22,9 @@ class Product(Base):
     catalog_product_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("catalog_products.id"), nullable=False, index=True
     )
+    variant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("catalog_variants.id"), nullable=True, index=True
+    )
     title: Mapped[str] = mapped_column(String(200), nullable=False)
     option_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
     volume_ml: Mapped[int | None] = mapped_column(Integer, nullable=True)
@@ -42,5 +45,6 @@ class Product(Base):
 
     seller = relationship("Seller", back_populates="products")
     catalog_product = relationship("CatalogProduct", back_populates="offers")
+    variant = relationship("CatalogVariant", back_populates="offers")
     cart_items = relationship("CartItem", back_populates="product")
 

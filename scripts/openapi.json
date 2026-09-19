@@ -106,6 +106,14 @@
             "title": "Title",
             "type": "string"
           },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+            },
+            "maxItems": 30,
+            "title": "Variants",
+            "type": "array"
+          },
           "volumeOptions": {
             "items": {
               "type": "string"
@@ -1325,6 +1333,24 @@
             ],
             "title": "Unitamount"
           },
+          "variantName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantname"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+            },
+            "title": "Variants",
+            "type": "array"
+          },
           "visibility": {
             "default": "public",
             "enum": [
@@ -1528,6 +1554,17 @@
             "title": "Stock",
             "type": "integer"
           },
+          "variantId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantid"
+          },
           "volumeMl": {
             "anyOf": [
               {
@@ -1666,6 +1703,13 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantItem"
+            },
+            "title": "Variants",
+            "type": "array"
           },
           "volumeOptions": {
             "items": {
@@ -1811,6 +1855,13 @@
             "title": "Title",
             "type": "string"
           },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantItem"
+            },
+            "title": "Variants",
+            "type": "array"
+          },
           "volumeOptions": {
             "items": {
               "type": "string"
@@ -1889,6 +1940,131 @@
           "originalTitle"
         ],
         "title": "CatalogReferenceVariant",
+        "type": "object"
+      },
+      "CatalogVariantCreateRequest": {
+        "properties": {
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "name": {
+            "default": "기본",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "packCount": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Packcount",
+            "type": "integer"
+          },
+          "unit": {
+            "enum": [
+              "ml",
+              "L",
+              "g",
+              "kg",
+              "팩"
+            ],
+            "title": "Unit",
+            "type": "string",
+            "x-enum-varnames": [
+              "ml",
+              "L",
+              "g",
+              "kg",
+              "pack"
+            ]
+          },
+          "unitAmount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Unitamount",
+            "type": "number"
+          }
+        },
+        "required": [
+          "unitAmount",
+          "unit"
+        ],
+        "title": "CatalogVariantCreateRequest",
+        "type": "object"
+      },
+      "CatalogVariantItem": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "optionLabel": {
+            "title": "Optionlabel",
+            "type": "string"
+          },
+          "packCount": {
+            "title": "Packcount",
+            "type": "integer"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "unitAmount": {
+            "title": "Unitamount",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "optionLabel",
+          "unitAmount",
+          "unit",
+          "packCount"
+        ],
+        "title": "CatalogVariantItem",
+        "type": "object"
+      },
+      "CatalogVariantsCreateRequest": {
+        "properties": {
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Variants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "variants"
+        ],
+        "title": "CatalogVariantsCreateRequest",
         "type": "object"
       },
       "CheckoutResponse": {
@@ -2494,6 +2670,17 @@
             ],
             "title": "Unitamount"
           },
+          "variantId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantid"
+          },
           "volumeMl": {
             "anyOf": [
               {
@@ -2624,6 +2811,18 @@
       },
       "SellerCardDraftCreateRequest": {
         "properties": {
+          "catalogProductId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogproductid"
+          },
           "category": {
             "maxLength": 120,
             "minLength": 1,
@@ -2761,6 +2960,26 @@
               }
             ],
             "title": "Unitamount"
+          },
+          "variantName": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantname"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+            },
+            "maxItems": 30,
+            "title": "Variants",
+            "type": "array"
           },
           "visibility": {
             "default": "public",
@@ -2913,6 +3132,18 @@
               }
             ],
             "title": "Unitamount"
+          },
+          "variantName": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantname"
           },
           "visibility": {
             "anyOf": [
@@ -3423,6 +3654,18 @@
               }
             ],
             "title": "Unitamount"
+          },
+          "variantId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantid"
           },
           "volumeMl": {
             "anyOf": [
@@ -4867,6 +5110,126 @@
           }
         ],
         "summary": "Delete Admin Catalog",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/products/{catalog_id}/variants": {
+      "post": {
+        "operationId": "create_admin_catalog_variant_admin_catalog_products__catalog_id__variants_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "catalog_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Catalog Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogVariantItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Catalog Variant",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/products/{catalog_id}/variants/batch": {
+      "post": {
+        "operationId": "create_admin_catalog_variants_admin_catalog_products__catalog_id__variants_batch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "catalog_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Catalog Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogVariantsCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogVariantItem"
+                  },
+                  "title": "Response Create Admin Catalog Variants Admin Catalog Products  Catalog Id  Variants Batch Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Catalog Variants",
         "tags": [
           "admin"
         ]

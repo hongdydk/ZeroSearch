@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.seller import SellerSummary
+from app.schemas.catalog_variant import CatalogVariantItem
 
 PriceUnit = Literal["ml", "credits"]
 
@@ -19,6 +20,7 @@ class CatalogProductListItem(BaseModel):
     description: str | None = None
     image_url: str | None = Field(default=None, alias="imageUrl")
     volume_options: list[str] = Field(default_factory=list, alias="volumeOptions")
+    variants: list[CatalogVariantItem] = Field(default_factory=list)
     offer_count: int = Field(alias="offerCount")
     median_unit_price: float | None = Field(default=None, alias="medianUnitPrice")
     median_price_credits: int | None = Field(default=None, alias="medianPriceCredits")
@@ -47,6 +49,7 @@ class CatalogProductListResponse(BaseModel):
 
 class CatalogOfferItem(BaseModel):
     id: str
+    variant_id: str | None = Field(default=None, alias="variantId")
     option_label: str | None = Field(default=None, alias="optionLabel")
     flavor: str | None = None
     volume_ml: int | None = Field(default=None, alias="volumeMl")
@@ -82,6 +85,7 @@ class CatalogProductDetailResponse(BaseModel):
     description: str | None = None
     image_url: str | None = Field(default=None, alias="imageUrl")
     volume_options: list[str] = Field(default_factory=list, alias="volumeOptions")
+    variants: list[CatalogVariantItem] = Field(default_factory=list)
     offer_count: int = Field(alias="offerCount")
     offers: list[CatalogOfferItem]
     reference_variants: list[CatalogReferenceVariant] = Field(

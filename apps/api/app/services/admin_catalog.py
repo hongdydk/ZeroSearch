@@ -10,6 +10,7 @@ from app.models import CartItem, CatalogProduct, Product
 from app.schemas.admin import AdminCatalogCreateRequest, AdminCatalogProductItem
 from app.services.catalog_l1 import apply_auto_l1_tags, set_l1_tags
 from app.services.catalog_products import _aggregate_offers, _catalog_search_filter
+from app.services.catalog_variants import add_catalog_variant
 from app.services.catalog_remerge import resolve_catalog_product
 
 
@@ -155,6 +156,8 @@ def create_admin_catalog_product(db: Session, payload: AdminCatalogCreateRequest
         else:
             apply_auto_l1_tags(existing, only_if_empty=True)
         db.flush()
+        for variant in payload.variants:
+            add_catalog_variant(db, existing, variant)
         offer_total = db.scalar(
             select(func.count()).select_from(Product).where(Product.catalog_product_id == existing.id)
         ) or 0
@@ -189,6 +192,8 @@ def create_admin_catalog_product(db: Session, payload: AdminCatalogCreateRequest
             status_code=status.HTTP_409_CONFLICT,
             detail="같은 회사·종류·품목 카드가 있습니다.",
         ) from exc
+    for variant in payload.variants:
+        add_catalog_variant(db, catalog, variant)
     return _catalog_item(catalog, 0, 0)
 
 

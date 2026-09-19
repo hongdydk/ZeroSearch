@@ -5,7 +5,7 @@ from __future__ import annotations
 from sqlalchemy import and_, delete, or_, select, update
 from sqlalchemy.orm import Session
 
-from app.models import CartItem, CatalogIntakeDraft, CatalogProduct, OrderItem, Product
+from app.models import CartItem, CatalogIntakeDraft, CatalogProduct, CatalogVariant, OrderItem, Product
 
 # PR #36 auto-seed identity only. Title-only or other manufacturers are left alone.
 PR36_DEMO_CATALOG_KEYS: tuple[tuple[str, str], ...] = (
@@ -29,6 +29,7 @@ def delete_catalog_and_offers(db: Session, catalog: CatalogProduct) -> None:
     if offer_ids:
         db.execute(delete(CartItem).where(CartItem.product_id.in_(offer_ids)))
         db.execute(delete(Product).where(Product.catalog_product_id == catalog.id))
+    db.execute(delete(CatalogVariant).where(CatalogVariant.catalog_product_id == catalog.id))
     db.delete(catalog)
 
 

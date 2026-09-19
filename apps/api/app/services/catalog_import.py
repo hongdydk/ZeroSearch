@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 
 from app.models import CatalogProduct, CatalogProductAlias, Product
 from app.services.catalog_identity import canonicalize_csv_rows
+from app.services.catalog_variants import rehome_catalog_variants
 
 BATCH = 500
 
@@ -106,6 +107,7 @@ def _apply_explicit_category_overrides(db: Session, corrected_rows: list[dict]) 
                 own_alias.canonical_id = target.id
             if not target.image_url and stale.image_url:
                 target.image_url = stale.image_url
+            rehome_catalog_variants(db, stale.id, target.id)
             db.delete(stale)
             db.flush()
             remerged += 1

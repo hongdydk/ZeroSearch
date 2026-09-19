@@ -29,6 +29,7 @@ def _product_response(product: Product) -> ProductResponse:
         image_url=product.image_url,
         status=product.status,  # type: ignore[arg-type]
         catalog_product_id=str(product.catalog_product_id),
+        variant_id=str(product.variant_id) if product.variant_id else None,
         option_label=product.option_label,
         volume_ml=product.volume_ml,
         unit_amount=float(product.unit_amount) if product.unit_amount is not None else None,
@@ -189,29 +190,35 @@ def _resolve_catalog_product(
 
 def create_seller_product(db: Session, seller: Seller, payload: SellerProductCreateRequest) -> Product:
     catalog = _resolve_catalog_product(db, payload)
+    variant = None
+    if payload.variant_id:
+        from app.services.catalog_variants import require_catalog_variant
+
+        variant = require_catalog_variant(db, catalog.id, payload.variant_id)
     units = resolve_offer_units(
-        option_label=payload.option_label,
-        unit_amount=payload.unit_amount,
-        unit=payload.unit,
-        pack_count=payload.pack_count,
-        volume_ml=payload.volume_ml,
+        option_label=None if variant else payload.option_label,
+        unit_amount=float(variant.unit_amount) if variant else payload.unit_amount,
+        unit=variant.unit if variant else payload.unit,
+        pack_count=variant.pack_count if variant else payload.pack_count,
+        volume_ml=None if variant else payload.volume_ml,
     )
     product = Product(
         seller_id=seller.id,
         catalog_product_id=catalog.id,
-        title=catalog.title,
+        variant_id=variant.id if variant else None,
+        title=(f"{catalog.title} · {variant.name} · {units.option_label}"[:200] if variant else catalog.title),
         description=payload.description,
         price_credits=payload.price_credits or 0,
         stock=payload.stock or 0,
         category=catalog.category,
-        image_url=payload.image_url or catalog.image_url,
+        image_url=payload.image_url or (variant.image_url if variant else None) or catalog.image_url,
         status="draft",
         option_label=units.option_label,
         volume_ml=units.volume_ml,
         unit_amount=units.unit_amount,
         unit=units.unit,
         pack_count=units.pack_count,
-        flavor=payload.flavor,
+        flavor=None if variant else payload.flavor,
     )
     db.add(product)
     db.flush()
@@ -220,6 +227,11 @@ def create_seller_product(db: Session, seller: Seller, payload: SellerProductCre
 
 
 def _apply_seller_product_update(product: Product, payload: SellerProductUpdateRequest) -> None:
+    if product.variant_id and any(
+        value is not None
+        for value in (payload.option_label, payload.unit_amount, payload.unit, payload.pack_count, payload.volume_ml, payload.flavor)
+    ):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="상품 옵션은 변경할 수 없습니다. 새 오퍼를 등록하세요.")
     if payload.status is not None:
         if payload.status == "published" and product.status == "draft":
             raise HTTPException(

@@ -305,17 +305,19 @@ class ApiClient {
     int? volumeMlMin,
     int? volumeMlMax,
   }) async {
-    final data = await _generatedCall(
-      () => _generated
-          .getCatalogProductsApi()
-          .getCatalogProductByIdCatalogProductsCatalogIdGet(
-            catalogId: id,
-            flavor: flavor,
-            volumeMlMin: volumeMlMin,
-            volumeMlMax: volumeMlMax,
-          ),
-    );
-    return catalogProductDetailFromGenerated(data);
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'catalog-products/$id',
+        queryParameters: {
+          if (flavor != null) 'flavor': flavor,
+          if (volumeMlMin != null) 'volumeMlMin': volumeMlMin,
+          if (volumeMlMax != null) 'volumeMlMax': volumeMlMax,
+        },
+      );
+      return CatalogProductDetailModel.fromJson(response.data ?? const {});
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<ProductModel> product(String id) async {
@@ -900,6 +902,7 @@ class ApiClient {
     String? description,
     String status = 'draft',
     String? catalogProductId,
+    String? variantId,
     String? optionLabel,
     int? volumeMl,
     double? unitAmount,
@@ -919,6 +922,7 @@ class ApiClient {
           if (stock != null) 'stock': stock,
           if (description != null && description.isNotEmpty) 'description': description,
           if (catalogProductId != null) 'catalogProductId': catalogProductId,
+          if (variantId != null) 'variantId': variantId,
           if (optionLabel != null && optionLabel.isNotEmpty) 'optionLabel': optionLabel,
           if (volumeMl != null) 'volumeMl': volumeMl,
           if (unitAmount != null) 'unitAmount': unitAmount,
@@ -1020,6 +1024,9 @@ class ApiClient {
     required String manufacturer,
     required String title,
     required String category,
+    String? catalogProductId,
+    String? variantName,
+    List<Map<String, dynamic>> variants = const [],
     String? optionLabel,
     int? priceCredits,
     int? stock,
@@ -1039,6 +1046,9 @@ class ApiClient {
           'manufacturer': manufacturer,
           'title': title,
           'category': category,
+          if (catalogProductId != null) 'catalogProductId': catalogProductId,
+          if (variantName != null) 'variantName': variantName,
+          if (variants.isNotEmpty) 'variants': variants,
           if (optionLabel != null && optionLabel.isNotEmpty) 'optionLabel': optionLabel,
           if (priceCredits != null) 'priceCredits': priceCredits,
           if (stock != null) 'stock': stock,
@@ -1332,6 +1342,7 @@ class ApiClient {
     String? description,
     String? imageUrl,
     List<String> volumeOptions = const [],
+    List<Map<String, dynamic>> variants = const [],
     String priceUnit = 'credits',
   }) async {
     try {
@@ -1345,12 +1356,31 @@ class ApiClient {
             'description': description,
           if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
           'volumeOptions': volumeOptions,
+          'variants': variants,
           'priceUnit': priceUnit,
         },
       );
       final data = response.data;
       if (data == null) throw ApiException('응답 데이터가 없습니다.');
       return AdminCatalogProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<List<CatalogVariantModel>> adminAddCatalogVariants(
+    String catalogId,
+    List<Map<String, dynamic>> variants,
+  ) async {
+    try {
+      final response = await _dio.post<List<dynamic>>(
+        'admin/catalog/products/$catalogId/variants/batch',
+        data: {'variants': variants},
+      );
+      return (response.data ?? const [])
+          .whereType<Map>()
+          .map((row) => CatalogVariantModel.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }

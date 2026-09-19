@@ -5,6 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.catalog_product import PriceUnit
+from app.schemas.catalog_variant import CatalogVariantCreateRequest
 from app.schemas.seller import DailySalesItem
 
 
@@ -161,6 +162,7 @@ class AdminCatalogCreateRequest(BaseModel):
     l1_tags: list[str] | None = Field(default=None, alias="l1Tags")
     storage: str | None = None
     volume_options: list[str] = Field(default_factory=list, alias="volumeOptions")
+    variants: list[CatalogVariantCreateRequest] = Field(default_factory=list, max_length=30)
 
     model_config = {"populate_by_name": True}
 

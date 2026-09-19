@@ -2,6 +2,7 @@ from app.models.address import ShippingAddress
 from app.models.cart import CartItem
 from app.models.catalog_intake import CatalogIntakeDraft
 from app.models.catalog_product import CatalogProduct, CatalogProductAlias
+from app.models.catalog_variant import CatalogVariant
 from app.models.credit import CreditTransaction, CreditWallet
 from app.models.membership import MembershipPlan, Subscription
 from app.models.order import Order, OrderItem
@@ -18,6 +19,7 @@ __all__ = [
     "SellerModerationEvent",
     "CatalogProduct",
     "CatalogProductAlias",
+    "CatalogVariant",
     "CatalogIntakeDraft",
     "CreditWallet",
     "CreditTransaction",
