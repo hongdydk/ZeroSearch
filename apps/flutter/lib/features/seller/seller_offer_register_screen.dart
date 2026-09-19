@@ -10,6 +10,7 @@ import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/portal_workspace.dart';
 import '../../shared/widgets/product_image.dart';
 import 'seller_offer_format.dart';
+import 'seller_visibility_row.dart';
 
 class SellerOfferRegisterScreen extends ConsumerStatefulWidget {
   const SellerOfferRegisterScreen({super.key, this.missingItem = false});
@@ -46,6 +47,7 @@ class _SellerOfferRegisterScreenState
   bool _customUnit = false;
   String? _selectedOption;
   String _unit = 'ml';
+  bool _public = true;
 
   @override
   void initState() {
@@ -184,6 +186,7 @@ class _SellerOfferRegisterScreenState
           if (!mounted) return;
           setState(() {
             _createdDraft = draft;
+            _public = draft.isPublic;
             _step2 = false;
           });
         } else {
@@ -236,6 +239,7 @@ class _SellerOfferRegisterScreenState
             _createdDraft!.id,
             priceCredits: price,
             stock: stock,
+            visibility: _public ? 'public' : 'hidden',
           );
         }
         if (!mounted) return;
@@ -569,6 +573,10 @@ class _SellerOfferRegisterScreenState
                 controller: _stock,
                 decoration: const InputDecoration(labelText: '재고'),
                 keyboardType: TextInputType.number,
+              ),
+              SellerVisibilityRow(
+                isPublic: _public,
+                onChanged: (value) => setState(() => _public = value),
               ),
               const SizedBox(height: 12),
               FilledButton(

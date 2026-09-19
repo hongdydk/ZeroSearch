@@ -39,10 +39,12 @@ ProductModel _offer({
 }
 
 class _SellerApi extends ApiClient {
-  _SellerApi(this.items) : super(tokenReader: () async => 'tok');
+  _SellerApi(this.items, {this.drafts = const []}) : super(tokenReader: () async => 'tok');
 
   List<ProductModel> items;
+  List<IntakeDraftModel> drafts;
   Map<String, Object?>? lastPatch;
+  Map<String, Object?>? lastDraftPatch;
   String? lastDeleteId;
   int patchCalls = 0;
 
@@ -50,7 +52,49 @@ class _SellerApi extends ApiClient {
   Future<List<ProductModel>> sellerProducts() async => items;
 
   @override
-  Future<List<IntakeDraftModel>> sellerCardDrafts() async => const [];
+  Future<List<IntakeDraftModel>> sellerCardDrafts() async => drafts;
+
+  @override
+  Future<IntakeDraftModel> sellerUpdateCardDraft(
+    String draftId, {
+    int? priceCredits,
+    int? stock,
+    String? imageUrl,
+    String? flavor,
+    String? optionLabel,
+    double? unitAmount,
+    String? unit,
+    int? packCount,
+    String? visibility,
+  }) async {
+    lastDraftPatch = {
+      'id': draftId,
+      'priceCredits': priceCredits,
+      'stock': stock,
+      'visibility': visibility,
+    };
+    drafts = [
+      for (final row in drafts)
+        if (row.id == draftId)
+          IntakeDraftModel(
+            id: row.id,
+            kind: row.kind,
+            status: row.status,
+            sellerId: row.sellerId,
+            shopName: row.shopName,
+            title: row.title,
+            category: row.category,
+            priceCredits: priceCredits ?? row.priceCredits,
+            stock: stock ?? row.stock,
+            manufacturer: row.manufacturer,
+            optionLabel: row.optionLabel,
+            visibility: visibility ?? row.visibility,
+          )
+        else
+          row,
+    ];
+    return drafts.firstWhere((row) => row.id == draftId);
+  }
 
   @override
   Future<ProductModel> sellerUpdateProduct(
@@ -226,5 +270,63 @@ void main() {
 
     expect(api.patchCalls, 1);
     expect(api.lastPatch?['status'], 'archived');
+  });
+
+  testWidgets('card draft price dialog defaults public and saves hidden', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = _SellerApi(
+      [_offer()],
+      drafts: [
+        IntakeDraftModel(
+          id: 'd1',
+          kind: 'card',
+          status: 'pending',
+          sellerId: 's1',
+          shopName: '입점마트',
+          title: '떡갈비',
+          category: '축산가공',
+          priceCredits: 0,
+          stock: 0,
+          manufacturer: '매일',
+          optionLabel: '500g',
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: AppTheme.web(),
+          home: const Scaffold(body: SellerProductsScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('매일 떡갈비'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('가시성'), findsOneWidget);
+    expect(find.text('공개'), findsWidgets);
+    expect(find.text('비공개'), findsNothing);
+
+    await tester.enterText(find.byType(TextField).at(0), '4800');
+    await tester.enterText(find.byType(TextField).at(1), '10');
+    await tester.tap(find.byType(Switch));
+    await tester.pump();
+    expect(find.text('비공개'), findsOneWidget);
+
+    await tester.tap(find.text('저장'));
+    await tester.pumpAndSettle();
+
+    expect(api.lastDraftPatch?['priceCredits'], 4800);
+    expect(api.lastDraftPatch?['stock'], 10);
+    expect(api.lastDraftPatch?['visibility'], 'hidden');
   });
 }

@@ -11,6 +11,7 @@ from app.schemas.seller import OfferUnit
 
 IntakeKind = Literal["offer", "card"]
 IntakeDraftStatus = Literal["pending", "attached", "promoted"]
+OfferVisibility = Literal["public", "hidden"]
 
 
 class SellerCardDraftCreateRequest(BaseModel):
@@ -27,6 +28,7 @@ class SellerCardDraftCreateRequest(BaseModel):
     description: str | None = None
     price_credits: int | None = Field(default=None, alias="priceCredits", ge=0)
     stock: int | None = Field(default=None, ge=0)
+    visibility: OfferVisibility = "public"
 
     model_config = {"populate_by_name": True}
 
@@ -42,6 +44,7 @@ class SellerCardDraftUpdateRequest(BaseModel):
     description: str | None = None
     price_credits: int | None = Field(default=None, alias="priceCredits", gt=0)
     stock: int | None = Field(default=None, ge=0)
+    visibility: OfferVisibility | None = None
 
     model_config = {"populate_by_name": True}
 
@@ -66,6 +69,7 @@ class CatalogIntakeItem(BaseModel):
     description: str | None = None
     price_credits: int = Field(alias="priceCredits")
     stock: int
+    visibility: OfferVisibility = "public"
     created_at: datetime | None = Field(default=None, alias="createdAt")
     suggested_l1_tags: list[dict] = Field(default_factory=list, alias="suggestedL1Tags")
     l1_tags: list[str] = Field(default_factory=list, alias="l1Tags")

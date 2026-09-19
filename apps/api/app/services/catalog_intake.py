@@ -20,6 +20,15 @@ from app.services.guest_l1 import infer_l1_tags, suggestions_payload
 from app.services.offer_units import resolve_offer_units
 
 
+def _offer_status_for_visibility(visibility: str | None) -> str:
+    """MD 승격 뒤 오퍼 노출. hidden이면 숨김이며, 검수 게이트를 건너뛰지 않는다."""
+    return "archived" if visibility == "hidden" else "published"
+
+
+def _draft_visibility(value: str | None) -> str:
+    return value if value in ("public", "hidden") else "public"
+
+
 def _now() -> datetime:
     return datetime.now(UTC)
 
@@ -67,6 +76,7 @@ def card_draft_to_item(draft: CatalogIntakeDraft) -> CatalogIntakeItem:
         description=draft.description,
         price_credits=draft.price_credits,
         stock=draft.stock,
+        visibility=_draft_visibility(getattr(draft, "visibility", None)),
         created_at=draft.created_at,
         suggested_l1_tags=suggested,
         l1_tags=tags,
@@ -106,6 +116,7 @@ def _offer_item(product: Product) -> CatalogIntakeItem:
         description=product.description,
         price_credits=product.price_credits,
         stock=product.stock,
+        visibility="hidden" if product.status == "archived" else "public",
         created_at=product.created_at,
         suggested_l1_tags=suggested,
         l1_tags=tags,
@@ -138,6 +149,7 @@ def create_card_draft(
         description=payload.description,
         price_credits=payload.price_credits or 0,
         stock=payload.stock or 0,
+        visibility=_draft_visibility(payload.visibility),
     )
     db.add(draft)
     db.flush()
@@ -177,6 +189,8 @@ def update_card_draft(
         draft.price_credits = payload.price_credits
     if payload.stock is not None:
         draft.stock = payload.stock
+    if payload.visibility is not None:
+        draft.visibility = payload.visibility
     unit_touched = any(
         value is not None
         for value in (payload.option_label, payload.unit_amount, payload.unit, payload.pack_count, payload.volume_ml)
@@ -292,6 +306,7 @@ def _publish_offer(
     unit: str | None,
     pack_count: int,
     flavor: str | None,
+    visibility: str = "public",
 ) -> Product:
     _append_volume_option(catalog, option_label)
     product = Product(
@@ -303,7 +318,7 @@ def _publish_offer(
         stock=stock,
         category=catalog.category,
         image_url=image_url or catalog.image_url,
-        status="published",
+        status=_offer_status_for_visibility(visibility),
         option_label=option_label,
         volume_ml=volume_ml,
         unit_amount=unit_amount,
@@ -365,6 +380,7 @@ def attach_intake_draft(
         unit=draft.unit,
         pack_count=draft.pack_count or 1,
         flavor=draft.flavor,
+        visibility=_draft_visibility(getattr(draft, "visibility", None)),
     )
     draft.status = "attached"
     draft.catalog_product_id = catalog.id
@@ -442,6 +458,7 @@ def promote_card_draft(
         unit=draft.unit,
         pack_count=draft.pack_count or 1,
         flavor=draft.flavor,
+        visibility=_draft_visibility(getattr(draft, "visibility", None)),
     )
     draft.status = "promoted"
     draft.catalog_product_id = catalog.id

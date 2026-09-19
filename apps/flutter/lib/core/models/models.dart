@@ -918,6 +918,7 @@ class IntakeDraftModel {
     this.description,
     this.suggestedL1Tags = const [],
     this.l1Tags = const [],
+    this.visibility = 'public',
   });
 
   factory IntakeDraftModel.fromJson(Map<String, dynamic> json) {
@@ -955,6 +956,7 @@ class IntakeDraftModel {
       l1Tags: (json['l1Tags'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
+      visibility: json['visibility'] as String? ?? 'public',
     );
   }
 
@@ -979,11 +981,13 @@ class IntakeDraftModel {
   final String? description;
   final List<({String tag, String confidence})> suggestedL1Tags;
   final List<String> l1Tags;
+  final String visibility;
 
   bool get isCard => kind == 'card';
   bool get isOffer => kind == 'offer';
   bool get isPending => status == 'pending';
   bool get hasSellablePrice => priceCredits > 0;
+  bool get isPublic => visibility != 'hidden';
 
   String get cardTitle {
     final maker = manufacturer.trim();

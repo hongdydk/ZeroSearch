@@ -1294,6 +1294,15 @@
             ],
             "title": "Unitamount"
           },
+          "visibility": {
+            "default": "public",
+            "enum": [
+              "public",
+              "hidden"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          },
           "volumeMl": {
             "anyOf": [
               {
@@ -2635,6 +2644,15 @@
             ],
             "title": "Unitamount"
           },
+          "visibility": {
+            "default": "public",
+            "enum": [
+              "public",
+              "hidden"
+            ],
+            "title": "Visibility",
+            "type": "string"
+          },
           "volumeMl": {
             "anyOf": [
               {
@@ -2770,6 +2788,21 @@
               }
             ],
             "title": "Unitamount"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "enum": [
+                  "public",
+                  "hidden"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visibility"
           },
           "volumeMl": {
             "anyOf": [

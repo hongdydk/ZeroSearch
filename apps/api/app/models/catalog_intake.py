@@ -20,6 +20,10 @@ class CatalogIntakeDraft(Base):
         ),
         CheckConstraint("price_credits >= 0", name="ck_catalog_intake_drafts_price_nonnegative"),
         CheckConstraint("pack_count >= 1", name="ck_catalog_intake_drafts_pack_count_positive"),
+        CheckConstraint(
+            "visibility IN ('public', 'hidden')",
+            name="ck_catalog_intake_drafts_visibility",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
@@ -40,6 +44,9 @@ class CatalogIntakeDraft(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price_credits: Mapped[int] = mapped_column(Integer, nullable=False, default=0, server_default="0")
     stock: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    visibility: Mapped[str] = mapped_column(
+        String(20), nullable=False, default="public", server_default="public"
+    )
     catalog_product_id: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("catalog_products.id"), nullable=True, index=True
     )
