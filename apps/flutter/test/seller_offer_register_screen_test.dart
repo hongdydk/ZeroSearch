@@ -256,7 +256,7 @@ void main() {
       routes: [
         GoRoute(
           path: '/seller/products',
-          builder: (_, _) => const SellerProductsScreen(),
+          builder: (_, _) => const Scaffold(body: SellerProductsScreen()),
         ),
         GoRoute(
           path: '/seller/products/new',
