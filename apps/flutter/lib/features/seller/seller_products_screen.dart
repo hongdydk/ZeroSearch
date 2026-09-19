@@ -202,7 +202,6 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
       ),
     );
     final text = controller.text.trim();
-    controller.dispose();
     if (ok != true || !mounted) return;
     final price = int.tryParse(text);
     if (price == null || price <= 0) {
