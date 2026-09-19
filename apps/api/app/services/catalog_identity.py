@@ -860,11 +860,10 @@ def collapse_axis_facets(rows: Iterable[tuple[str, str]]) -> tuple[list[dict], l
         label = parsed.canonical_title or name
         menu = menus.get((company, item))
         if menu is None:
+            # 회사+품목 한 장이 메뉴 한 칸. 맛만 다른 행을 카드 수로 세지 않는다.
             menus[(company, item)] = {"name": label, "count": 1}
-        else:
-            menu["count"] += 1
-            if len(label) < len(menu["name"]):
-                menu["name"] = label
+        elif len(label) < len(menu["name"]):
+            menu["name"] = label
     for brand in brands.values():
         brand["name"] = max(brand["freq"], key=lambda key: (brand["freq"][key], len(key), key))
         brand["count"] = len(brand["items"])

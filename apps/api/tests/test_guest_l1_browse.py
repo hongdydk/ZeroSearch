@@ -12,8 +12,12 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from app.models import CatalogProduct, Product, Seller, User
 from app.services.catalog_l1 import apply_auto_l1_tags, list_l1_facets
-from app.services.catalog_products import list_catalog_offers, list_catalog_products
-from app.services.guest_l1 import TAG_WATER
+from app.services.catalog_products import (
+    get_catalog_product,
+    list_catalog_offers,
+    list_catalog_products,
+)
+from app.services.guest_l1 import TAG_CAN, TAG_WATER
 
 
 def _catalog(**kwargs) -> CatalogProduct:
@@ -266,6 +270,84 @@ def test_pg_seller_axis_lists_one_card_per_offer_and_stays_l1_scoped():
         truncated = list_catalog_offers(db, l1_tag="생수")
         assert truncated.items == []
         assert truncated.total == 0
+    finally:
+        db.rollback()
+        db.close()
+        engine.dispose()
+
+
+def test_pg_menu_and_brand_axes_share_one_flavor_card_and_aggregate_offers():
+    db, engine = _pg_session()
+    try:
+        stamp = uuid.uuid4().hex[:8]
+        maker = f"테스트돌{stamp}"
+        peach = _catalog(
+            title=f"{stamp}후룻볼 복숭아 4입 100%주스",
+            manufacturer=maker,
+            l1_tags=[TAG_CAN],
+            category="과일통조림",
+        )
+        tropical = _catalog(
+            title=f"{stamp}후룻볼 트로피칼 4입 100%주스",
+            manufacturer=maker,
+            l1_tags=[TAG_CAN],
+            category="과일통조림",
+        )
+        other = _catalog(
+            title=f"{stamp}쁘띠첼워터젤리사과",
+            manufacturer=f"테스트씨제이{stamp}",
+            l1_tags=[TAG_CAN],
+            category="젤리",
+        )
+        leak = _catalog(
+            title=f"{stamp}후룻볼 복숭아 4입 100%주스",
+            manufacturer=maker,
+            l1_tags=[],
+            category="필터",
+        )
+        seller = _pg_user_seller(db, shop_name=f"과일마트-{stamp}")
+        db.add_all([peach, tropical, other, leak])
+        db.flush()
+        peach_offer = _pg_offer(peach, seller, price_credits=3000)
+        peach_offer.flavor = "복숭아"
+        tropical_offer = _pg_offer(tropical, seller, price_credits=3200)
+        tropical_offer.flavor = "트로피칼"
+        db.add_all([peach_offer, tropical_offer])
+        db.flush()
+
+        facets = list_l1_facets(db, l1_tag=TAG_CAN)
+        stamped_menus = [
+            row["name"]
+            for row in facets["menus"]
+            if stamp in (row["name"] or "").replace(" ", "")
+        ]
+        fruit_menus = [name for name in stamped_menus if "후룻볼" in name.replace(" ", "")]
+        assert len(fruit_menus) == 1
+        assert all("복숭아" not in name for name in fruit_menus)
+        assert all("트로피칼" not in name for name in fruit_menus)
+        assert all(row["count"] == 1 for row in facets["menus"] if row["name"] in fruit_menus)
+
+        brand_list = list_catalog_products(db, l1_tag=TAG_CAN, brand=maker)
+        menu_list = list_catalog_products(db, l1_tag=TAG_CAN, menu=fruit_menus[0])
+        our_brand = [item for item in brand_list.items if item.manufacturer == maker]
+        our_menu = [item for item in menu_list.items if item.manufacturer == maker]
+        assert len(our_brand) == 1
+        assert our_brand[0].id in {str(peach.id), str(tropical.id)}
+        assert [item.id for item in our_menu] == [item.id for item in our_brand]
+        assert our_brand[0].offer_count == 2
+        assert str(leak.id) not in {item.id for item in brand_list.items}
+        assert str(other.id) not in {item.id for item in our_brand}
+
+        detail = get_catalog_product(db, peach.id)
+        assert {offer.id for offer in detail.offers} == {
+            str(peach_offer.id),
+            str(tropical_offer.id),
+        }
+        tropical_detail = get_catalog_product(db, tropical.id)
+        assert {offer.id for offer in tropical_detail.offers} == {
+            str(peach_offer.id),
+            str(tropical_offer.id),
+        }
     finally:
         db.rollback()
         db.close()

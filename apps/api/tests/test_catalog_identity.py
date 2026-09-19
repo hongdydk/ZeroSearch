@@ -514,6 +514,8 @@ def test_axis_facets_collapse_flavor_variants_to_one_menu():
     )
     assert len(brands) == 2
     assert len(menus) == 2
+    assert all(row["count"] == 1 for row in menus)
+    assert all(row["count"] == 1 for row in brands)
     menu_names = " ".join(row["name"] for row in menus)
     assert "후룻볼" in menu_names.replace(" ", "")
     assert "쁘띠첼" in menu_names.replace(" ", "")

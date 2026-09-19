@@ -64,6 +64,8 @@ L1_TAG_MARKER="$CACHE_DIR/l1-tags-${L1_TAGGER_VERSION}.done"
 if [[ "$IMPORT_AIHUB_CATALOG" != "1" ]]; then
   echo "skip full AI-Hub catalog import/remerge (IMPORT_AIHUB_CATALOG!=1; curated-100 MVP)"
 else
+  # Opt-in must actually import even if a prior v5 hash/marker exists.
+  FORCE_CATALOG_IMPORT=1
 
 # One-time production rollout: back up first, inspect the dry-run, then apply.
 # The marker makes subsequent deployments idempotent.
