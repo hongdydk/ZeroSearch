@@ -26,10 +26,8 @@ class _SellerOfferRegisterScreenState
     extends ConsumerState<SellerOfferRegisterScreen>
     with AsyncBusyState {
   late bool _missing;
-  bool _step2 = false;
   CatalogProductModel? _catalog;
   ProductModel? _createdProduct;
-  IntakeDraftModel? _createdDraft;
 
   final _search = TextEditingController();
   final _manufacturer = TextEditingController();
@@ -53,6 +51,7 @@ class _SellerOfferRegisterScreenState
   void initState() {
     super.initState();
     _missing = widget.missingItem;
+    if (_missing) _customUnit = true;
   }
 
   @override
@@ -172,7 +171,25 @@ class _SellerOfferRegisterScreenState
         final api = ref.read(apiClientProvider);
         final image = _imageUrl.text.trim();
         if (_missing) {
-          final draft = await api.sellerCreateCardDraft(
+          final priceText = _price.text.trim();
+          final stockText = _stock.text.trim();
+          final price = int.tryParse(priceText);
+          final stock = int.tryParse(stockText);
+          if (priceText.isNotEmpty && (price == null || price < 0)) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('가격을 숫자로 입력하세요.')),
+            );
+            return;
+          }
+          if (stockText.isNotEmpty && (stock == null || stock < 0)) {
+            if (!mounted) return;
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('재고를 숫자로 입력하세요.')),
+            );
+            return;
+          }
+          await api.sellerCreateCardDraft(
             manufacturer: _manufacturer.text.trim(),
             title: _title.text.trim(),
             category: _category.text.trim(),
@@ -182,13 +199,13 @@ class _SellerOfferRegisterScreenState
             packCount: units.pack,
             flavor: _flavor.text.trim().isEmpty ? null : _flavor.text.trim(),
             imageUrl: image.isEmpty ? null : image,
+            priceCredits: price != null && price > 0 ? price : null,
+            stock: stock,
+            visibility: _public ? 'public' : 'hidden',
           );
           if (!mounted) return;
-          setState(() {
-            _createdDraft = draft;
-            _public = draft.isPublic;
-            _step2 = false;
-          });
+          context.go('/seller/products');
+          return;
         } else {
           final catalog = _catalog!;
           final created = await api.sellerCreateProduct(
@@ -205,45 +222,8 @@ class _SellerOfferRegisterScreenState
           if (!mounted) return;
           setState(() {
             _createdProduct = created;
-            _step2 = false;
           });
         }
-      } on ApiException catch (e) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
-      }
-    });
-  }
-
-  Future<void> _submitPrice() async {
-    if (isBusy('price')) return;
-    final price = int.tryParse(_price.text.trim());
-    final stock = int.tryParse(_stock.text.trim());
-    if (price == null || price <= 0 || stock == null || stock < 0) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('가격과 재고를 숫자로 입력하세요.')),
-      );
-      return;
-    }
-    await runBusy('price', () async {
-      try {
-        final api = ref.read(apiClientProvider);
-        if (_createdProduct != null) {
-          await api.sellerUpdateProduct(
-            _createdProduct!.id,
-            priceCredits: price,
-            stock: stock,
-          );
-        } else if (_createdDraft != null) {
-          await api.sellerUpdateCardDraft(
-            _createdDraft!.id,
-            priceCredits: price,
-            stock: stock,
-            visibility: _public ? 'public' : 'hidden',
-          );
-        }
-        if (!mounted) return;
-        context.go('/seller/products');
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -255,16 +235,13 @@ class _SellerOfferRegisterScreenState
 
   void _continuePrice() {
     final product = _createdProduct;
-    if (product != null) {
-      context.go('/seller/products/${product.id}');
-      return;
-    }
-    setState(() => _step2 = true);
+    if (product == null) return;
+    context.go('/seller/products/${product.id}');
   }
 
   @override
   Widget build(BuildContext context) {
-    final created = _createdProduct != null || _createdDraft != null;
+    final created = _createdProduct != null;
     return PortalWorkspaceScaffold(
       role: PortalWorkspaceRole.seller,
       activePath: '/seller/products',
@@ -285,11 +262,13 @@ class _SellerOfferRegisterScreenState
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          '1단계: 품목과 용량만 만듭니다. 가격·재고는 다음에서 붙일 수 있습니다. MD 검수 전에는 공개되지 않습니다.',
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        const SizedBox(height: 12),
+        if (!_missing) ...[
+          Text(
+            '1단계: 품목과 용량만 만듭니다. 가격·재고는 다음에서 붙일 수 있습니다. MD 검수 전에는 공개되지 않습니다.',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          const SizedBox(height: 12),
+        ],
         SegmentedButton<bool>(
           segments: const [
             ButtonSegment(value: false, label: Text('있는 품목')),
@@ -301,61 +280,64 @@ class _SellerOfferRegisterScreenState
               _missing = value.first;
               _catalog = null;
               _selectedOption = null;
+              if (_missing) _customUnit = true;
             });
           },
         ),
         const SizedBox(height: 14),
-        if (_missing) _buildMissingCard() else _buildCatalogCard(),
-        const SizedBox(height: 14),
-        PortalSection(title: '용량·묶음', child: _buildUnits()),
-        const SizedBox(height: 14),
-        PortalSection(
-          title: '맛·사진 (선택)',
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-            child: Column(
-              children: [
-                TextField(
-                  controller: _flavor,
-                  decoration: const InputDecoration(labelText: '맛 (선택)'),
-                ),
-                TextField(
-                  controller: _imageUrl,
-                  decoration: const InputDecoration(
-                    labelText: '사진 URL (선택)',
-                    hintText: '파일을 올리거나 주소를 붙여 넣습니다',
+        if (_missing) _buildMissingCard() else ...[
+          _buildCatalogCard(),
+          const SizedBox(height: 14),
+          PortalSection(title: '용량·묶음', child: _buildUnits()),
+          const SizedBox(height: 14),
+          PortalSection(
+            title: '맛·사진 (선택)',
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+              child: Column(
+                children: [
+                  TextField(
+                    controller: _flavor,
+                    decoration: const InputDecoration(labelText: '맛 (선택)'),
                   ),
-                ),
-                const SizedBox(height: 8),
-                Align(
-                  alignment: Alignment.centerLeft,
-                  child: OutlinedButton.icon(
-                    onPressed: isBusy('photo') ? null : _pickImage,
-                    icon: isBusy('photo')
-                        ? busyProgress()
-                        : const Icon(Icons.photo_outlined),
-                    label: Text(isBusy('photo') ? '올리는 중…' : '사진 파일 올리기'),
-                  ),
-                ),
-                if (_imageUrl.text.trim().isNotEmpty) ...[
-                  const SizedBox(height: 8),
-                  SizedBox(
-                    height: 96,
-                    child: ProductImage(
-                      imageUrl: _imageUrl.text.trim(),
-                      title: '미리보기',
+                  TextField(
+                    controller: _imageUrl,
+                    decoration: const InputDecoration(
+                      labelText: '사진 URL (선택)',
+                      hintText: '파일을 올리거나 주소를 붙여 넣습니다',
                     ),
                   ),
+                  const SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: OutlinedButton.icon(
+                      onPressed: isBusy('photo') ? null : _pickImage,
+                      icon: isBusy('photo')
+                          ? busyProgress()
+                          : const Icon(Icons.photo_outlined),
+                      label: Text(isBusy('photo') ? '올리는 중…' : '사진 파일 올리기'),
+                    ),
+                  ),
+                  if (_imageUrl.text.trim().isNotEmpty) ...[
+                    const SizedBox(height: 8),
+                    SizedBox(
+                      height: 96,
+                      child: ProductImage(
+                        imageUrl: _imageUrl.text.trim(),
+                        title: '미리보기',
+                      ),
+                    ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
-        ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: isBusy('create') ? null : _submitIdentity,
-          child: isBusy('create') ? busyProgress() : const Text('오퍼 초안 만들기'),
-        ),
+          const SizedBox(height: 16),
+          FilledButton(
+            onPressed: isBusy('create') ? null : _submitIdentity,
+            child: isBusy('create') ? busyProgress() : const Text('오퍼 초안 만들기'),
+          ),
+        ],
       ],
     );
   }
@@ -444,20 +426,99 @@ class _SellerOfferRegisterScreenState
               '공개 목록에 바로 올라가지 않습니다. MD가 기존 카드에 붙이거나 새 카드로 승격합니다.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
+            const SizedBox(height: 8),
             TextField(
               controller: _manufacturer,
               decoration: const InputDecoration(labelText: '회사'),
             ),
+            const SizedBox(height: 8),
             TextField(
               controller: _title,
               decoration: const InputDecoration(labelText: '품목명'),
             ),
+            const SizedBox(height: 8),
             TextField(
               controller: _category,
               decoration: const InputDecoration(
                 labelText: '종류 (짐작)',
                 hintText: '생수, 떡갈비',
               ),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _imageUrl,
+              decoration: const InputDecoration(labelText: '대표 사진 URL'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _flavor,
+              decoration: const InputDecoration(labelText: '맛 (선택)'),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _amount,
+              decoration: const InputDecoration(labelText: '용량·팩'),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              onChanged: (_) => setState(() {}),
+            ),
+            Row(
+              children: [
+                DropdownButton<String>(
+                  value: sellerOfferUnits.contains(_unit) ? _unit : 'ml',
+                  items: [
+                    for (final unit in sellerOfferUnits)
+                      DropdownMenuItem(value: unit, child: Text(unit)),
+                  ],
+                  onChanged: (value) {
+                    if (value == null) return;
+                    setState(() => _unit = value);
+                  },
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: TextField(
+                    controller: _pack,
+                    decoration: const InputDecoration(
+                      labelText: '들이 개수',
+                      hintText: '낱개는 1',
+                    ),
+                    keyboardType: TextInputType.number,
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _price,
+              decoration: const InputDecoration(labelText: '가격(원)'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _stock,
+              decoration: const InputDecoration(labelText: '재고'),
+              keyboardType: TextInputType.number,
+            ),
+            const SizedBox(height: 8),
+            SellerVisibilityRow(
+              isPublic: _public,
+              onChanged: (value) => setState(() => _public = value),
+            ),
+            const SizedBox(height: 16),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                TextButton(
+                  onPressed: isBusy('create') ? null : _goList,
+                  child: const Text('취소'),
+                ),
+                const SizedBox(width: 8),
+                FilledButton(
+                  onPressed: isBusy('create') ? null : _submitIdentity,
+                  child: isBusy('create') ? busyProgress() : const Text('초안 제출'),
+                ),
+              ],
             ),
           ],
         ),
@@ -552,42 +613,9 @@ class _SellerOfferRegisterScreenState
   }
 
   Widget _buildCreated() {
-    final title = _createdProduct?.title ?? _createdDraft?.cardTitle ?? '오퍼';
-    final option = _createdProduct != null
-        ? sellerOfferOptionLabel(_createdProduct!)
-        : (_createdDraft?.optionLabel ?? '');
-    if (_step2 && _createdDraft != null) {
-      return PortalSection(
-        title: '2단계 가격·재고',
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-          child: Column(
-            children: [
-              Text('$title · $option', style: Theme.of(context).textTheme.bodySmall),
-              TextField(
-                controller: _price,
-                decoration: const InputDecoration(labelText: '가격(원)'),
-                keyboardType: TextInputType.number,
-              ),
-              TextField(
-                controller: _stock,
-                decoration: const InputDecoration(labelText: '재고'),
-                keyboardType: TextInputType.number,
-              ),
-              SellerVisibilityRow(
-                isPublic: _public,
-                onChanged: (value) => setState(() => _public = value),
-              ),
-              const SizedBox(height: 12),
-              FilledButton(
-                onPressed: isBusy('price') ? null : _submitPrice,
-                child: isBusy('price') ? busyProgress() : const Text('가격·재고 저장'),
-              ),
-            ],
-          ),
-        ),
-      );
-    }
+    final product = _createdProduct!;
+    final title = product.title;
+    final option = sellerOfferOptionLabel(product);
     return PortalSection(
       title: '초안이 만들어졌습니다',
       child: Padding(

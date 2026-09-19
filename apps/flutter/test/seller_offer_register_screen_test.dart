@@ -122,6 +122,8 @@ class _RegisterApi extends ApiClient {
       'unitAmount': unitAmount,
       'unit': unit,
       'packCount': packCount,
+      'priceCredits': priceCredits,
+      'stock': stock,
       'visibility': visibility,
     };
     createdDraft = IntakeDraftModel(
@@ -242,10 +244,10 @@ void main() {
     expect(find.text('나중에'), findsOneWidget);
   });
 
-  testWidgets('missing card draft price step defaults public and saves hidden', (
+  testWidgets('missing card draft form shows visibility under stock and submits', (
     tester,
   ) async {
-    tester.view.physicalSize = const Size(1200, 1200);
+    tester.view.physicalSize = const Size(1200, 1400);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -278,36 +280,37 @@ void main() {
       find.text('공개 목록에 바로 올라가지 않습니다. MD가 기존 카드에 붙이거나 새 카드로 승격합니다.'),
       findsOneWidget,
     );
-
-    await tester.enterText(find.byType(TextField).at(0), '매일');
-    await tester.enterText(find.byType(TextField).at(1), '떡갈비');
-    await tester.enterText(find.byType(TextField).at(2), '축산가공');
-    await tester.enterText(find.byType(TextField).at(3), '500');
-    await tester.ensureVisible(find.text('오퍼 초안 만들기'));
-    await tester.tap(find.text('오퍼 초안 만들기'));
-    await tester.pumpAndSettle();
-
-    expect(api.lastDraftCreate?['visibility'], isNull);
-    await tester.tap(find.text('이어서 가격·재고'));
-    await tester.pumpAndSettle();
-
     expect(find.text('가시성'), findsOneWidget);
     expect(find.text('공개'), findsOneWidget);
     expect(find.text('비공개'), findsNothing);
+    expect(find.text('초안 제출'), findsOneWidget);
+    expect(find.text('취소'), findsOneWidget);
+    expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
 
-    await tester.enterText(find.byType(TextField).at(0), '4800');
-    await tester.enterText(find.byType(TextField).at(1), '10');
+    Finder labeled(String label) => find.byWidgetPredicate(
+      (w) => w is TextField && w.decoration?.labelText == label,
+    );
+
+    await tester.enterText(labeled('회사'), '매일');
+    await tester.enterText(labeled('품목명'), '떡갈비');
+    await tester.enterText(labeled('종류 (짐작)'), '축산가공');
+    await tester.enterText(labeled('용량·팩'), '500');
+    await tester.enterText(labeled('가격(원)'), '4800');
+    await tester.enterText(labeled('재고'), '10');
+    await tester.ensureVisible(find.byType(Switch));
     await tester.tap(find.byType(Switch));
     await tester.pump();
 
     expect(find.text('비공개'), findsOneWidget);
     expect(find.text('공개'), findsNothing);
 
-    await tester.tap(find.text('가격·재고 저장'));
+    await tester.ensureVisible(find.text('초안 제출'));
+    await tester.tap(find.text('초안 제출'));
     await tester.pumpAndSettle();
 
-    expect(api.lastDraftUpdate?['priceCredits'], 4800);
-    expect(api.lastDraftUpdate?['stock'], 10);
-    expect(api.lastDraftUpdate?['visibility'], 'hidden');
+    expect(api.lastDraftCreate?['visibility'], 'hidden');
+    expect(api.lastDraftCreate?['unitAmount'], 500);
+    expect(api.lastDraftCreate?['priceCredits'], 4800);
+    expect(api.lastDraftCreate?['stock'], 10);
   });
 }
