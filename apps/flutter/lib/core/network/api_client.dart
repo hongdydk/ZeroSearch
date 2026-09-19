@@ -1333,6 +1333,9 @@ class ApiClient {
     required String title,
     required String category,
     String? description,
+    String? imageUrl,
+    List<String> volumeOptions = const [],
+    String priceUnit = 'credits',
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -1343,6 +1346,9 @@ class ApiClient {
           'category': category,
           if (description != null && description.isNotEmpty)
             'description': description,
+          if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+          'volumeOptions': volumeOptions,
+          'priceUnit': priceUnit,
         },
       );
       final data = response.data;

@@ -470,12 +470,18 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
     required String title,
     required String category,
     String? description,
+    String? imageUrl,
+    List<String> volumeOptions = const [],
+    String priceUnit = 'credits',
   }) async {
     await _api.adminCreateCatalogProduct(
       manufacturer: manufacturer,
       title: title,
       category: category,
       description: description,
+      imageUrl: imageUrl,
+      volumeOptions: volumeOptions,
+      priceUnit: priceUnit,
     );
     await loadCatalogItems(force: true, offset: 0);
   }

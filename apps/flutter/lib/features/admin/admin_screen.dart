@@ -17,6 +17,7 @@ import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/portal_workspace.dart';
 import 'admin_dashboard.dart';
 import '../seller/sales_stats_panel.dart';
+import '../seller/seller_offer_format.dart';
 
 export 'admin_dashboard.dart' show AdminSection;
 
@@ -1737,6 +1738,11 @@ class _AdminCatalogCreateDialogState
   final _manufacturer = TextEditingController();
   final _title = TextEditingController();
   final _category = TextEditingController();
+  final _imageUrl = TextEditingController();
+  final _amount = TextEditingController();
+  final _pack = TextEditingController(text: '1');
+  final _volumeOptions = <String>[];
+  String _unit = 'ml';
   String? _error;
 
   @override
@@ -1744,7 +1750,26 @@ class _AdminCatalogCreateDialogState
     _manufacturer.dispose();
     _title.dispose();
     _category.dispose();
+    _imageUrl.dispose();
+    _amount.dispose();
+    _pack.dispose();
     super.dispose();
+  }
+
+  void _addVolumeOption() {
+    final amount = double.tryParse(_amount.text.trim());
+    final pack = int.tryParse(_pack.text.trim());
+    if (amount == null || amount <= 0 || pack == null || pack < 1) {
+      setState(() => _error = '용량은 0보다 크게, 들이 개수는 1개 이상으로 입력하세요.');
+      return;
+    }
+    final label = formatSellerUnitLabel(amount: amount, unit: _unit, packCount: pack);
+    setState(() {
+      if (!_volumeOptions.contains(label)) _volumeOptions.add(label);
+      _amount.clear();
+      _pack.text = '1';
+      _error = null;
+    });
   }
 
   Future<void> _submit() async {
@@ -1755,12 +1780,26 @@ class _AdminCatalogCreateDialogState
       setState(() => _error = '회사·품목명·종류를 모두 적으세요.');
       return;
     }
+    if (_amount.text.trim().isNotEmpty) {
+      setState(() => _error = '입력한 용량은 먼저 옵션 추가를 누르세요.');
+      return;
+    }
+    final priceUnit = _volumeOptions.isNotEmpty &&
+            _volumeOptions.every((label) {
+              final unit = parseSellerUnitLabel(label)?.unit;
+              return unit == 'ml' || unit == 'L';
+            })
+        ? 'ml'
+        : 'credits';
     await runBusy('create', () async {
       try {
         await ref.read(adminDashboardProvider.notifier).addCatalogItem(
               manufacturer: manufacturer,
               title: title,
               category: category,
+              imageUrl: _imageUrl.text.trim(),
+              volumeOptions: _volumeOptions,
+              priceUnit: priceUnit,
             );
         if (mounted) Navigator.pop(context, true);
       } on ApiException catch (e) {
@@ -1776,7 +1815,7 @@ class _AdminCatalogCreateDialogState
       title: const Text('대표 카드 추가'),
       content: SizedBox(
         width: 420,
-        child: Column(
+        child: SingleChildScrollView(child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             TextField(
@@ -1791,12 +1830,60 @@ class _AdminCatalogCreateDialogState
               controller: _category,
               decoration: const InputDecoration(labelText: '종류(소분류)'),
             ),
+            TextField(
+              controller: _imageUrl,
+              decoration: const InputDecoration(labelText: '대표 사진 URL (선택)'),
+            ),
+            const SizedBox(height: 12),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _amount,
+                  decoration: const InputDecoration(labelText: '용량·팩 (선택)'),
+                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                ),
+              ),
+              const SizedBox(width: 8),
+              DropdownButton<String>(
+                value: _unit,
+                items: [
+                  for (final unit in sellerOfferUnits)
+                    DropdownMenuItem(value: unit, child: Text(unit)),
+                ],
+                onChanged: (value) {
+                  if (value != null) setState(() => _unit = value);
+                },
+              ),
+            ]),
+            TextField(
+              controller: _pack,
+              decoration: const InputDecoration(labelText: '들이 개수', hintText: '낱개는 1'),
+              keyboardType: TextInputType.number,
+            ),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: busy ? null : _addVolumeOption,
+                child: const Text('옵션 추가'),
+              ),
+            ),
+            if (_volumeOptions.isNotEmpty)
+              Wrap(
+                spacing: 8,
+                children: [
+                  for (final option in _volumeOptions)
+                    InputChip(
+                      label: Text(option),
+                      onDeleted: busy ? null : () => setState(() => _volumeOptions.remove(option)),
+                    ),
+                ],
+              ),
             if (_error != null) ...[
               const SizedBox(height: 8),
               Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
           ],
-        ),
+        )),
       ),
       actions: [
         TextButton(
