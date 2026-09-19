@@ -18,6 +18,7 @@ SellerType = Literal["platform", "merchant"]
 
 ProductStatus = Literal["draft", "published", "archived"]
 
+# Wire value "팩" stays Korean; dart-dio gets identifier `pack` via export_openapi.py.
 OfferUnit = Literal["ml", "L", "g", "kg", "팩"]
 
 FulfillmentStatus = Literal["paid", "preparing", "shipped", "delivered"]
