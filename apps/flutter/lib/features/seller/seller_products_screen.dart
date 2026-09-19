@@ -545,7 +545,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
       activePath: '/seller/products',
       child: PortalPage(
         eyebrow: '판매자 센터',
-        title: '내 오퍼',
+        title: '내 카탈로그',
         trailing: Wrap(
           spacing: 8,
           children: [
