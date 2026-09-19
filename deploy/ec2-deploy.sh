@@ -43,17 +43,27 @@ for attempt in $(seq 1 "$MAX_ATTEMPTS"); do
 done
 
 # CSV unchanged AND same normalization rule → skip upsert.
-# FORCE_CATALOG_IMPORT=1 forces re-import.
+# Full AI-Hub upsert/retag is paused (curated ~100 MVP). Do not set these to 1
+# until a confirmed seed replace is requested. FORCE_CATALOG_IMPORT still only
+# applies when IMPORT_AIHUB_CATALOG=1.
 CACHE_DIR="$DEPLOY_DIR/.cache"
 HASH_FILE="$CACHE_DIR/aihub-catalog.sha256"
+IMPORT_AIHUB_CATALOG="${IMPORT_AIHUB_CATALOG:-0}"
+APPLY_L1_TAG_BACKFILL="${APPLY_L1_TAG_BACKFILL:-0}"
 FORCE_CATALOG_IMPORT="${FORCE_CATALOG_IMPORT:-0}"
 # Keep in sync with app.services.catalog_identity.NORMALIZATION_VERSION
+# Do not bump: a new fingerprint would reimport the full AI-Hub CSV.
 CATALOG_NORM_VERSION="${CATALOG_NORM_VERSION:-v5}"
 REMERGE_MARKER="$CACHE_DIR/catalog-remerge-${CATALOG_NORM_VERSION}.done"
 VOLUME_TITLE_REPAIR_MARKER="$CACHE_DIR/catalog-volume-title-repair-${CATALOG_NORM_VERSION}.done"
-# Keep in sync with app.services.guest_l1.TAGGER_VERSION
-L1_TAGGER_VERSION="${L1_TAGGER_VERSION:-v4}"
+# Keep in sync with app.services.guest_l1.TAGGER_VERSION for *optional* backfill.
+# Do not bump: a new marker would force-retag the whole catalog.
+L1_TAGGER_VERSION="${L1_TAGGER_VERSION:-v3}"
 L1_TAG_MARKER="$CACHE_DIR/l1-tags-${L1_TAGGER_VERSION}.done"
+
+if [[ "$IMPORT_AIHUB_CATALOG" != "1" ]]; then
+  echo "skip full AI-Hub catalog import/remerge (IMPORT_AIHUB_CATALOG!=1; curated-100 MVP)"
+else
 
 # One-time production rollout: back up first, inspect the dry-run, then apply.
 # The marker makes subsequent deployments idempotent.
@@ -114,12 +124,16 @@ else
   echo "skip catalog import — missing $CATALOG_CSV" >&2
 fi
 
+fi
+
 # 그린에이드 생활용품이 '에이드' 키워드로 생수/음료에 붙던 태그를 다시 추론한다.
-if [[ ! -f "$L1_TAG_MARKER" ]]; then
+if [[ "$APPLY_L1_TAG_BACKFILL" == "1" && ! -f "$L1_TAG_MARKER" ]]; then
   mkdir -p "$CACHE_DIR"
   echo "re-applying guest L1 tags (tagger=$L1_TAGGER_VERSION)"
   docker compose -f docker-compose.prod.yml --env-file .env.prod run --rm \
     api python -m scripts.backfill_l1_tags --force
   echo "$L1_TAGGER_VERSION" > "$L1_TAG_MARKER"
   echo "guest L1 retag applied"
+else
+  echo "skip catalog L1/L2 backfill (APPLY_L1_TAG_BACKFILL!=1)"
 fi

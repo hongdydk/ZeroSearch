@@ -16,7 +16,7 @@ from app.schemas.catalog_product import (
     CatalogReferenceVariant,
 )
 from app.schemas.seller import SellerSummary
-from app.services.catalog_identity import card_identity_key
+from app.services.catalog_identity import card_identity_key, matches_brand_axis, matches_menu_axis
 from app.services.catalog_l1 import l1_tag_filter, l2_tag_filter
 from app.services.catalog_remerge import resolve_catalog_product
 
@@ -173,10 +173,6 @@ def _catalog_search_filter(
         filters.append(l2_tag_filter(l1_tag, l2_tag))
     if storage in {"상온", "냉장", "냉동"}:
         filters.append(CatalogProduct.storage == storage)
-    if brand:
-        filters.append(CatalogProduct.manufacturer == brand)
-    if menu:
-        filters.append(CatalogProduct.title == menu)
     return filters
 
 
@@ -271,6 +267,22 @@ def list_catalog_offers(
         brand=brand,
         menu=menu,
     )
+    scoped_ids = [
+        row.id
+        for row in db.execute(
+            select(
+                CatalogProduct.id,
+                CatalogProduct.manufacturer,
+                CatalogProduct.title,
+            ).where(*catalog_filters)
+        ).all()
+        if matches_brand_axis(row.manufacturer or "", brand or "")
+        and matches_menu_axis(row.manufacturer or "", row.title, menu or "")
+    ]
+    if brand or menu:
+        if not scoped_ids:
+            return CatalogOfferListResult(items=[], total=0)
+        catalog_filters = [CatalogProduct.id.in_(scoped_ids)]
     offer_filters = _public_offer_filters(
         flavor=flavor, volume_ml_min=volume_ml_min, volume_ml_max=volume_ml_max
     )
@@ -360,7 +372,12 @@ def list_catalog_products(
         id_stmt = id_stmt.where(has_offers)
 
     id_stmt = id_stmt.order_by(CatalogProduct.manufacturer, CatalogProduct.title)
-    identity_rows = db.execute(id_stmt).all()
+    identity_rows = [
+        row
+        for row in db.execute(id_stmt).all()
+        if matches_brand_axis(row.manufacturer or "", brand or "")
+        and matches_menu_axis(row.manufacturer or "", row.title, menu or "")
+    ]
     if not identity_rows:
         return CatalogListResult(items=[], total=0, available_flavors=[], has_volume_min_2000=False)
 

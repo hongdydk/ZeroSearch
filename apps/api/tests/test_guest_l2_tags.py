@@ -218,3 +218,13 @@ def test_small_cup_jin_ramen_is_cup_not_bag():
     ).tags
     assert "컵·용기면" in tags
     assert "봉지라면" not in tags
+
+
+def test_hatban_cupban_is_fried_rice_not_white_rice():
+    tags = infer_l2_tags(
+        title="햇반컵반김치날치알밥",
+        manufacturer="CJ제일제당",
+        l1_tags=["즉석밥/볶음밥"],
+    ).tags
+    assert "볶음밥·컵밥" in tags
+    assert "흰밥·잡곡밥" not in tags

@@ -227,6 +227,8 @@ _HIGH: dict[str, dict[str, tuple[str, ...]]] = {
             "스포츠음료",
             "포카리",
             "게토레이",
+            "파워에이드",
+            "아쿠아리우스",
             "스파클링",
         ),
         _WATER_JUICE: ("주스", "과채음료", "착즙", "juice"),
@@ -323,7 +325,7 @@ _HIGH: dict[str, dict[str, tuple[str, ...]]] = {
     },
     TAG_RICE: {
         _RICE_WHITE: ("햇반", "즉석밥", "백미밥", "잡곡밥", "현미밥"),
-        _RICE_FRIED: ("볶음밥", "컵밥", "덮밥", "비빔밥"),
+        _RICE_FRIED: ("볶음밥", "컵밥", "컵반", "덮밥", "비빔밥"),
         _RICE_BALL: ("주먹밥", "삼각김밥"),
     },
     TAG_PORRIDGE: {
@@ -492,6 +494,8 @@ def _dispatch_l2(
         _infer_dairy(haystack, conf)
     elif l1 == TAG_WATER:
         _infer_water(haystack, conf, raw_title=title)
+    elif l1 == TAG_RICE:
+        _infer_rice(haystack, conf)
     else:
         _scan_high(haystack, l1, conf)
 
@@ -712,6 +716,8 @@ def _infer_water(haystack: str, conf: dict[str, Confidence], *, raw_title: str =
     ):
         rtd = True
     other = _any_keyword(haystack, _HIGH[TAG_WATER][_WATER_OTHER])
+    if other and (juice or spark or trad or rtd):
+        other = False
     specific = juice or spark or trad or rtd or other
     if juice:
         _add(conf, _WATER_JUICE, "high")
@@ -725,6 +731,18 @@ def _infer_water(haystack: str, conf: dict[str, Confidence], *, raw_title: str =
         _add(conf, _WATER_OTHER, "high")
     if _plain_water(haystack) and not specific:
         _add(conf, _WATER_SAENGSU, "high")
+
+
+def _infer_rice(haystack: str, conf: dict[str, Confidence]) -> None:
+    fried = _any_keyword(haystack, _HIGH[TAG_RICE][_RICE_FRIED])
+    white = _any_keyword(haystack, _HIGH[TAG_RICE][_RICE_WHITE])
+    ball = _any_keyword(haystack, _HIGH[TAG_RICE][_RICE_BALL])
+    if fried:
+        _add(conf, _RICE_FRIED, "high")
+    elif white:
+        _add(conf, _RICE_WHITE, "high")
+    if ball:
+        _add(conf, _RICE_BALL, "high")
 
 
 def _infer_dairy(haystack: str, conf: dict[str, Confidence]) -> None:

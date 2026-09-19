@@ -2,7 +2,10 @@ from app.services.catalog_identity import (
     HIGH_CONFIDENCE,
     canonicalize_csv_rows,
     card_identity_key,
+    collapse_axis_facets,
     cluster_parsed_titles,
+    matches_brand_axis,
+    matches_menu_axis,
     parse_catalog_title,
 )
 
@@ -165,8 +168,8 @@ def test_parse_collapses_duplicated_trailing_token():
         category="일반생수",
         title="롯데제주사랑감귤500ML",
     )
-    assert repeated.canonical_title == "롯데제주사랑감귤"
-    assert short.canonical_title == "롯데제주사랑감귤"
+    assert repeated.canonical_title == "제주사랑감귤"
+    assert short.canonical_title == "제주사랑감귤"
     assert repeated.base_key == short.base_key
     assert "1.2L" in repeated.volumes
     assert "500ML" in short.volumes
@@ -199,7 +202,7 @@ def test_cluster_merges_same_maker_gamtul_near_duplicates_across_categories():
     lotte = [g for g in groups if g.manufacturer == "롯데칠성음료"]
     assert len(lotte) == 1
     assert len(lotte[0].members) == 4
-    assert lotte[0].canonical_title == "롯데제주사랑감귤"
+    assert lotte[0].canonical_title == "제주사랑감귤"
     assert set(lotte[0].volume_options) >= {"1.2L", "1.8L", "1.5L", "500ML"}
 
 
@@ -382,3 +385,137 @@ def test_card_identity_key_unifies_volume_spellings():
     assert card_identity_key(maker, "제주삼다수1L") == card_identity_key(maker, "제주삼다수1리터")
     assert card_identity_key(maker, "제주삼다수1L") == card_identity_key(maker, "제주삼다수1000ml")
     assert card_identity_key(maker, "제주삼다수1L") != card_identity_key("농심", "제주삼다수1리터")
+
+
+def test_strip_brand_paren_and_dangling_maker_token():
+    parsed = parse_catalog_title(
+        manufacturer="롯데칠성음료",
+        category="커피음료",
+        title="롯데)레쓰비190ml",
+    )
+    assert parsed.canonical_title == "레쓰비"
+    no_paren = parse_catalog_title(
+        manufacturer="롯데칠성음료",
+        category="커피음료",
+        title="롯데레쓰비175ML",
+    )
+    assert no_paren.canonical_title == "레쓰비"
+
+
+def test_card_identity_collapses_letsbe_brand_prefix_noise():
+    assert card_identity_key("롯데칠성음료", "롯데)레쓰비190ml") == card_identity_key(
+        "롯데칠성음료", "롯데레쓰비175ML"
+    )
+    lotte_en = parse_catalog_title(
+        manufacturer="롯데칠성",
+        category="커피음료",
+        title="LOTTE레쓰비 마일드 커피150ML",
+    )
+    assert "레쓰비" in lotte_en.canonical_title.replace(" ", "")
+    assert card_identity_key("롯데칠성음료", "롯데)레쓰비190ml")[0] == card_identity_key(
+        "롯데칠성", "LOTTE레쓰비 마일드 커피150ML"
+    )[0]
+    kko = parse_catalog_title(
+        manufacturer="롯데제과", category="스낵", title="롯데)꼬깔콘매콤달콤72G"
+    )
+    assert kko.canonical_title.startswith("꼬깔콘")
+    assert card_identity_key("롯데제과", "롯데)꼬깔콘매콤달콤72G") != card_identity_key(
+        "롯데칠성음료", "롯데)레쓰비190ml"
+    )
+
+
+def test_card_identity_collapses_flavor_tokens_in_title():
+    maker = "농심"
+    assert card_identity_key(maker, "농심)프링글스버터캬라멜110G") == card_identity_key(
+        maker, "프링글스양파맛 53G"
+    )
+    assert card_identity_key(maker, "프링글스양파맛 53G") != card_identity_key(
+        maker, "농심감자깡75G"
+    )
+
+
+def test_card_identity_unifies_chilsung_maker_spellings():
+    assert card_identity_key("롯데칠성음료", "롯데레쓰비마일드커피240ML") == card_identity_key(
+        "롯데칠성", "LOTTE레쓰비 마일드 커피150ML"
+    )
+
+
+def test_card_identity_collapses_letsbe_asia_trip_prefix_noise():
+    assert card_identity_key("롯데칠성음료", "롯데)레쓰비아시아트립쏠트커피240ML") == card_identity_key(
+        "롯데칠성음료", "레쓰비아시아트립쏠트커피240ML"
+    )
+
+
+def test_card_identity_collapses_dole_fruitbowl_flavors():
+    maker = "Dole 코리아"
+    assert card_identity_key(maker, "Dole 후룻볼 트로피칼 4입 100%주스") == card_identity_key(
+        maker, "Dole 후룻볼 복숭아 4입 100%주스"
+    )
+    parsed = parse_catalog_title(
+        manufacturer=maker,
+        category="과일통조림",
+        title="Dole 후룻볼 복숭아 4입 100%주스",
+    )
+    assert "복숭아" in parsed.flavors or "트로피칼" not in parsed.canonical_title.replace(" ", "")
+    assert "후룻볼" in parsed.canonical_title.replace(" ", "")
+
+
+def test_card_identity_collapses_petitchel_water_jelly_flavors():
+    assert card_identity_key("CJ제일제당", "CJ 쁘띠첼워터젤리사과 130ML") == card_identity_key(
+        "씨제이제일제당", "씨제이쁘띠첼워터젤리포도"
+    )
+
+
+def test_card_identity_keeps_fruit_juice_when_fruit_is_the_item():
+    assert card_identity_key("델몬트", "델몬트사과주스") != card_identity_key(
+        "델몬트", "델몬트포도주스"
+    )
+
+
+def test_card_identity_keeps_bare_fruit_juice_when_remainder_is_type_noun():
+    apple = parse_catalog_title(
+        manufacturer="농심",
+        category="과일음료",
+        title="사과주스",
+    )
+    grape = parse_catalog_title(
+        manufacturer="농심",
+        category="과일음료",
+        title="포도주스",
+    )
+    assert "사과" in apple.canonical_title.replace(" ", "")
+    assert "포도" in grape.canonical_title.replace(" ", "")
+    assert apple.canonical_title != grape.canonical_title
+
+
+def test_menu_axis_matches_flavor_variant_titles():
+    maker = "Dole 코리아"
+    peach = "Dole 후룻볼 복숭아 4입 100%주스"
+    tropical = "Dole 후룻볼 트로피칼 4입 100%주스"
+    assert matches_menu_axis(maker, peach, tropical)
+    assert matches_menu_axis(maker, tropical, peach)
+    assert matches_menu_axis(maker, peach, "후룻볼")
+    assert not matches_menu_axis(maker, peach, "쁘띠첼워터젤리")
+
+
+def test_brand_axis_matches_chilsung_spellings():
+    assert matches_brand_axis("롯데칠성음료", "롯데칠성")
+    assert not matches_brand_axis("롯데제과", "롯데칠성음료")
+
+
+def test_axis_facets_collapse_flavor_variants_to_one_menu():
+    brands, menus = collapse_axis_facets(
+        [
+            ("Dole 코리아", "Dole 후룻볼 복숭아 4입 100%주스"),
+            ("Dole 코리아", "Dole 후룻볼 트로피칼 4입 100%주스"),
+            ("CJ제일제당", "CJ 쁘띠첼워터젤리사과 130ML"),
+            ("씨제이제일제당", "씨제이쁘띠첼워터젤리포도"),
+        ]
+    )
+    assert len(brands) == 2
+    assert len(menus) == 2
+    menu_names = " ".join(row["name"] for row in menus)
+    assert "후룻볼" in menu_names.replace(" ", "")
+    assert "쁘띠첼" in menu_names.replace(" ", "")
+    assert all("복숭아" not in row["name"] for row in menus)
+    assert all("트로피칼" not in row["name"] for row in menus)

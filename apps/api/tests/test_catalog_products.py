@@ -544,6 +544,48 @@ def test_pick_identity_keeps_unique_zero_offer_card():
     ) == [only]
 
 
+def test_pick_identity_collapses_flavor_variants_on_same_company_item():
+    peach = uuid.uuid4()
+    tropical = uuid.uuid4()
+    apple = uuid.uuid4()
+    grape = uuid.uuid4()
+    survivors = pick_identity_survivor_ids(
+        [
+            CatalogIdentityRow(
+                id=peach,
+                manufacturer="Dole 코리아",
+                title="Dole 후룻볼 복숭아 4입 100%주스",
+                offer_count=0,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=tropical,
+                manufacturer="Dole 코리아",
+                title="Dole 후룻볼 트로피칼 4입 100%주스",
+                offer_count=1,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=apple,
+                manufacturer="CJ제일제당",
+                title="CJ 쁘띠첼워터젤리사과 130ML",
+                offer_count=0,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=grape,
+                manufacturer="씨제이제일제당",
+                title="씨제이쁘띠첼워터젤리포도",
+                offer_count=0,
+                created_at=None,
+            ),
+        ]
+    )
+    assert tropical in survivors
+    assert len(survivors) == 2
+    assert len({apple, grape} & set(survivors)) == 1
+
+
 def test_offer_filter_facets_do_not_leak_water_flavors_into_sikhye():
     flavors, has_volume = offer_filter_facets(
         [None, None, ""],
