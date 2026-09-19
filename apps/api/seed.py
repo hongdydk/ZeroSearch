@@ -3,20 +3,22 @@
 Run: `cd apps/api && python -m alembic upgrade head && python seed.py`
 
 Optional DummyJSON demo catalog (after seed): ``python -m scripts.import_dummyjson_catalog``
+
+PR #36 제주삼다수·레쓰비 두 장 자동 시드는 제거했다. API 기동·``ensure_catalog_seed`` 는
+그 카드를 다시 심지 않는다. 이미 들어간 행은
+``python -m scripts.purge_pr36_demo_cards --apply`` 또는 alembic 018.
 """
 
 import argparse
 
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.attributes import flag_modified
 
 from app.config import get_settings
 from app.database import SessionLocal
 from app.deps import hash_password
-from app.models import CartItem, CatalogProduct, MembershipPlan, Product, Seller, User
-from app.services.catalog_l1 import apply_auto_l1_tags, backfill_l1_tags, set_l1_tags, set_l2_tags
-from app.services.offer_units import resolve_offer_units
+from app.models import CatalogProduct, MembershipPlan, Product, Seller, User
+from app.services.catalog_l1 import apply_auto_l1_tags, backfill_l1_tags
 from app.services.sellers import ensure_platform_seller
 
 # Optional local demo — not auto-seeded (images are /images/* paths; use import_dummyjson or add CDN URLs).
@@ -78,48 +80,6 @@ MEMBERSHIP_PLANS = [
 MERCHANT_SHOP = {"shop_name": "청정마트", "slug": "clean-mart"}
 MERCHANT_SEED_EMAIL = "merchant-seed@local.dev"
 MERCHANT_SEED_PASSWORD = "merchant-seed-dev"
-
-# Simple mall demo — company+item = one card; size/flavor live on offers.
-# Auto-seeded. Does not import AI-Hub or the old multi-L1 guest list.
-SIMPLE_DEMO_CATALOGS = [
-    {
-        "title": "제주삼다수",
-        "manufacturer": "제주특별자치도개발공사",
-        "category": "일반생수",
-        "category_major": "음료",
-        "category_mid": "생수",
-        "description": "제주삼다수 생수",
-        "price_unit": "ml",
-        "image_url": "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fit=crop&w=400&q=80",
-        "search_keywords": ["물", "생수", "제주", "삼다수"],
-        "volume_options": ["500ml", "1L", "2L"],
-        "l1_tags": ["생수/음료"],
-        "l2_tags": ["생수"],
-        "offers": [
-            {"option_label": "500ml", "price_credits": 800, "stock": 80},
-            {"option_label": "1L", "price_credits": 1100, "stock": 60},
-            {"option_label": "2L", "price_credits": 1400, "stock": 70},
-        ],
-    },
-    {
-        "title": "레쓰비",
-        "manufacturer": "롯데칠성음료",
-        "category": "커피음료",
-        "category_major": "음료",
-        "category_mid": "커피음료",
-        "description": "롯데칠성 레쓰비 캔커피",
-        "price_unit": "ml",
-        "image_url": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=400&q=80",
-        "search_keywords": ["레쓰비", "캔커피", "커피음료", "롯데칠성"],
-        "volume_options": ["240ml"],
-        "l1_tags": ["생수/음료"],
-        "l2_tags": ["병·캔 커피·차"],
-        "offers": [
-            {"option_label": "240ml", "flavor": "오리지널", "price_credits": 900, "stock": 50},
-            {"option_label": "240ml", "flavor": "마일드", "price_credits": 900, "stock": 50},
-        ],
-    },
-]
 
 
 def ensure_admin_user(db: Session) -> User | None:
@@ -219,71 +179,8 @@ def _ensure_catalog(db: Session, data: dict) -> CatalogProduct:
             catalog.storage = data.get("storage")
         if data.get("image_url") and not catalog.image_url:
             catalog.image_url = data.get("image_url")
-        if data.get("search_keywords") and not catalog.search_keywords:
-            catalog.search_keywords = data.get("search_keywords")
-    wanted_vols = list(data.get("volume_options") or [])
-    if wanted_vols:
-        merged = list(dict.fromkeys([*(catalog.volume_options or []), *wanted_vols]))
-        if merged != list(catalog.volume_options or []):
-            catalog.volume_options = merged
-            flag_modified(catalog, "volume_options")
     apply_auto_l1_tags(catalog, only_if_empty=True)
-    if data.get("l1_tags"):
-        set_l1_tags(catalog, list(data["l1_tags"]))
-    if data.get("l2_tags"):
-        set_l2_tags(catalog, list(data["l2_tags"]))
     return catalog
-
-
-def _ensure_demo_offer(
-    db: Session,
-    catalog: CatalogProduct,
-    seller: Seller,
-    *,
-    option_label: str,
-    price_credits: int,
-    volume_ml: int | None = None,
-    flavor: str | None = None,
-    stock: int = 40,
-) -> None:
-    flavor_name = (flavor or "").strip() or None
-    units = resolve_offer_units(
-        option_label=option_label,
-        volume_ml=volume_ml,
-        required=False,
-    )
-    label = units.option_label or option_label
-    existing_stmt = select(Product).where(
-        Product.catalog_product_id == catalog.id,
-        Product.seller_id == seller.id,
-        Product.option_label == label,
-    )
-    if flavor_name:
-        existing_stmt = existing_stmt.where(Product.flavor == flavor_name)
-    else:
-        existing_stmt = existing_stmt.where(Product.flavor.is_(None))
-    existing = db.scalar(existing_stmt)
-    if existing is not None:
-        return
-    db.add(
-        Product(
-            seller_id=seller.id,
-            catalog_product_id=catalog.id,
-            title=catalog.title,
-            description=catalog.description,
-            price_credits=price_credits,
-            stock=stock,
-            category=catalog.category,
-            image_url=catalog.image_url,
-            status="published",
-            option_label=label,
-            volume_ml=units.volume_ml,
-            unit_amount=units.unit_amount,
-            unit=units.unit,
-            pack_count=units.pack_count,
-            flavor=flavor_name,
-        )
-    )
 
 
 def seed_beverage_demo(db: Session) -> None:
@@ -330,22 +227,6 @@ def seed_beverage_demo(db: Session) -> None:
     db.flush()
 
 
-def _ensure_simple_demo(db: Session, platform_seller: Seller) -> None:
-    for data in SIMPLE_DEMO_CATALOGS:
-        catalog = _ensure_catalog(db, data)
-        for offer in data.get("offers") or []:
-            _ensure_demo_offer(
-                db,
-                catalog,
-                platform_seller,
-                option_label=offer["option_label"],
-                price_credits=offer["price_credits"],
-                flavor=offer.get("flavor"),
-                stock=offer.get("stock", 40),
-            )
-    db.flush()
-
-
 def ensure_catalog_seed(db: Session) -> None:
     admin_user = db.scalar(select(User).where(User.is_admin.is_(True)))
     if admin_user is None:
@@ -367,7 +248,6 @@ def ensure_catalog_seed(db: Session) -> None:
         for data in MEMBERSHIP_PLANS:
             db.add(MembershipPlan(**data))
 
-    _ensure_simple_demo(db, platform_seller)
     backfill_l1_tags(db, only_if_empty=True)
     db.flush()
 
