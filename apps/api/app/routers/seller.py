@@ -24,7 +24,7 @@ from app.schemas.catalog_intake import (
     SellerCardDraftUpdateRequest,
 )
 from app.schemas.catalog_product import CatalogProductListResponse
-from app.schemas.product import ProductResponse, SellerProductListResponse
+from app.schemas.product import ProductResponse, SellerProductBulkResponse, SellerProductListResponse
 
 from app.schemas.seller import (
 
@@ -39,6 +39,8 @@ from app.schemas.seller import (
     SellerOrderItemResponse,
 
     SellerOrderItemStatusUpdate,
+
+    SellerProductBulkRequest,
 
     SellerProductCreateRequest,
 
@@ -62,6 +64,8 @@ from app.services.catalog_products import search_seller_catalog_products
 from app.services.products import (
 
     archive_seller_product,
+
+    bulk_update_seller_products,
 
     create_seller_product,
 
@@ -234,6 +238,22 @@ def seller_list_products(
 
         counts=counts,
 
+    )
+
+
+@router.post("/products/bulk", response_model=SellerProductBulkResponse)
+def seller_bulk_update_products(
+    payload: SellerProductBulkRequest,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> SellerProductBulkResponse:
+    updated, failed = bulk_update_seller_products(db, seller, payload)
+    db.commit()
+    return SellerProductBulkResponse(
+        updated=[product_to_response(p) for p in updated],
+        failed=failed,
+        success_count=len(updated),
+        fail_count=len(failed),
     )
 
 

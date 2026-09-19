@@ -125,4 +125,25 @@ void main() {
       '이 검색·조건에 맞는 오퍼가 없습니다.',
     );
   });
+
+  test('bulk summary reports success and first failure', () {
+    expect(
+      sellerOfferBulkSummary(successCount: 3, failDetails: const []),
+      '3건을 적용했습니다.',
+    );
+    expect(
+      sellerOfferBulkSummary(
+        successCount: 2,
+        failDetails: const ['검수 전에는 공개할 수 없습니다.'],
+      ),
+      '2건 적용, 1건 실패. 검수 전에는 공개할 수 없습니다.',
+    );
+    expect(
+      sellerOfferBulkSummary(
+        successCount: 0,
+        failDetails: const ['상품을 찾을 수 없습니다.'],
+      ),
+      '적용하지 못했습니다. 상품을 찾을 수 없습니다.',
+    );
+  });
 }

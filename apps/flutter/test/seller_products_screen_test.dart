@@ -48,8 +48,11 @@ class _SellerApi extends ApiClient {
   Map<String, Object?>? lastDraftPatch;
   Map<String, Object?>? lastListQuery;
   String? lastDeleteId;
+  Map<String, Object?>? lastBulk;
   int patchCalls = 0;
   int listCalls = 0;
+  int bulkCalls = 0;
+  SellerProductBulkResult? nextBulkResult;
 
   SellerProductCounts _countsFor(List<ProductModel> rows) {
     return SellerProductCounts(
@@ -189,6 +192,39 @@ class _SellerApi extends ApiClient {
           row,
     ];
     return items.firstWhere((row) => row.id == productId);
+  }
+
+  @override
+  Future<SellerProductBulkResult> sellerBulkUpdateProducts({
+    required List<String> ids,
+    int? priceCredits,
+    int? stock,
+    String? status,
+  }) async {
+    bulkCalls += 1;
+    lastBulk = {
+      'ids': List<String>.from(ids),
+      'priceCredits': priceCredits,
+      'stock': stock,
+      'status': status,
+    };
+    if (nextBulkResult != null) return nextBulkResult!;
+    items = [
+      for (final row in items)
+        if (ids.contains(row.id))
+          row.copyWith(
+            priceCredits: priceCredits,
+            stock: stock,
+            status: status,
+          )
+        else
+          row,
+    ];
+    final updated = items.where((row) => ids.contains(row.id)).toList();
+    return SellerProductBulkResult(
+      updated: updated,
+      successCount: updated.length,
+    );
   }
 
   @override
@@ -488,5 +524,169 @@ void main() {
     await tester.pumpAndSettle();
     expect(api.lastListQuery?['sort'], 'price');
     expect(api.lastListQuery?['offset'], 0);
+  });
+
+  testWidgets('list bulk sold out confirms once and posts selected ids', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = _SellerApi([
+      _offer(),
+      _offer(id: 'p2', optionLabel: '2L × 6', flavor: null, priceCredits: 9800),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: AppTheme.web(),
+          home: const Scaffold(body: SellerProductsScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('select-offer-p1')));
+    await tester.tap(find.byKey(const ValueKey('select-offer-p2')));
+    await tester.pump();
+    expect(find.text('2건 선택'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '품절'));
+    await tester.pumpAndSettle();
+    expect(find.text('2건의 재고를 0으로 바꿀까요?'), findsOneWidget);
+
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(api.bulkCalls, 0);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '품절'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('적용'));
+    await tester.pumpAndSettle();
+
+    expect(api.bulkCalls, 1);
+    expect(api.lastBulk?['stock'], 0);
+    expect(api.lastBulk?['ids'], ['p1', 'p2']);
+    expect(find.text('2건을 적용했습니다.'), findsOneWidget);
+  });
+
+  testWidgets('list bulk hide uses page selection and keeps search paging', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 2400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = _SellerApi([
+      for (var i = 0; i < 21; i++)
+        _offer(
+          id: 'p$i',
+          optionLabel: '500ml × $i',
+          flavor: null,
+          priceCredits: 1000 + i,
+          stock: i,
+        ),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: AppTheme.web(),
+          home: const Scaffold(body: SellerProductsScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('select-offer-page')));
+    await tester.pump();
+    expect(find.text('20건 선택'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('다음'));
+    await tester.tap(find.text('다음'));
+    await tester.pumpAndSettle();
+    expect(api.lastListQuery?['offset'], 20);
+    expect(find.text('20건 선택'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('select-offer-p20')));
+    await tester.pump();
+    expect(find.text('21건 선택'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, '숨김'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('적용'));
+    await tester.pumpAndSettle();
+
+    expect(api.bulkCalls, 1);
+    expect(api.lastBulk?['status'], 'archived');
+    final ids = api.lastBulk?['ids'] as List<String>;
+    expect(ids, containsAll(['p0', 'p19', 'p20']));
+    expect(ids, hasLength(21));
+  });
+
+  testWidgets('list bulk price and unhide show success fail summary', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = _SellerApi([
+      _offer(),
+      _offer(id: 'p2', status: 'draft', optionLabel: '2L × 6', flavor: null),
+    ]);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: AppTheme.web(),
+          home: const Scaffold(body: SellerProductsScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('select-offer-p1')));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, '가격'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.byWidgetPredicate(
+        (w) => w is TextField && w.decoration?.labelText == '가격(원)',
+      ),
+      '7700',
+    );
+    await tester.tap(find.text('적용'));
+    await tester.pumpAndSettle();
+    expect(api.lastBulk?['priceCredits'], 7700);
+    expect(api.lastBulk?['ids'], ['p1']);
+
+    api.nextBulkResult = const SellerProductBulkResult(
+      successCount: 1,
+      failCount: 1,
+      failed: [
+        SellerProductBulkFailure(
+          id: 'p2',
+          detail: '검수 전에는 공개할 수 없습니다.',
+        ),
+      ],
+    );
+    await tester.tap(find.byKey(const ValueKey('select-offer-p1')));
+    await tester.tap(find.byKey(const ValueKey('select-offer-p2')));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(OutlinedButton, '숨김 해제'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('적용'));
+    await tester.pumpAndSettle();
+    expect(api.lastBulk?['status'], 'published');
+    expect(
+      find.text('1건 적용, 1건 실패. 검수 전에는 공개할 수 없습니다.'),
+      findsOneWidget,
+    );
   });
 }

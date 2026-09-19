@@ -171,6 +171,15 @@ class SellerProductUpdateRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class SellerProductBulkRequest(BaseModel):
+    ids: list[UUID] = Field(min_length=1, max_length=100)
+    price_credits: int | None = Field(default=None, alias="priceCredits", gt=0)
+    stock: int | None = Field(default=None, ge=0)
+    status: ProductStatus | None = None
+
+    model_config = {"populate_by_name": True}
+
+
 class SellerImageUploadResponse(BaseModel):
 
     image_url: str = Field(alias="imageUrl")

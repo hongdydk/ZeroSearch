@@ -9,9 +9,10 @@ from fastapi import HTTPException
 from app.deps import require_active_seller
 from app.models import Product, Seller
 from app.schemas.product import SellerProductCounts
-from app.schemas.seller import SellerProductUpdateRequest
+from app.schemas.seller import SellerProductBulkRequest, SellerProductUpdateRequest
 from app.services.products import (
     archive_seller_product,
+    bulk_update_seller_products,
     list_seller_products,
     product_to_response,
     update_seller_product,
@@ -183,6 +184,71 @@ def test_patch_still_blocks_self_publish_from_draft():
     assert product.status == "draft"
 
 
+def test_bulk_sets_price_stock_and_hide_for_owned_ids():
+    seller = _seller()
+    first = _product(seller, price_credits=12000, stock=4)
+    second = _product(seller, price_credits=8000, stock=9, status="published")
+    db = MagicMock()
+    unique = MagicMock()
+    unique.all.return_value = [first, second]
+    db.scalars.return_value.unique.return_value = unique
+    updated, failed = bulk_update_seller_products(
+        db,
+        seller,
+        SellerProductBulkRequest(ids=[first.id, second.id], priceCredits=5500, stock=0),
+    )
+    assert failed == []
+    assert [row.id for row in updated] == [first.id, second.id]
+    assert first.price_credits == 5500
+    assert second.price_credits == 5500
+    assert first.stock == 0
+    assert second.stock == 0
+
+    unique.all.return_value = [first, second]
+    hidden, hide_failed = bulk_update_seller_products(
+        db,
+        seller,
+        SellerProductBulkRequest(ids=[first.id, second.id], status="archived"),
+    )
+    assert hide_failed == []
+    assert [row.status for row in hidden] == ["archived", "archived"]
+
+
+def test_bulk_records_missing_and_blocks_draft_unhide():
+    seller = _seller()
+    visible = _product(seller, status="archived")
+    draft = _product(seller, status="draft")
+    missing = uuid.uuid4()
+    db = MagicMock()
+    unique = MagicMock()
+    unique.all.return_value = [visible, draft]
+    db.scalars.return_value.unique.return_value = unique
+    updated, failed = bulk_update_seller_products(
+        db,
+        seller,
+        SellerProductBulkRequest(ids=[visible.id, missing, draft.id], status="published"),
+    )
+    assert [row.id for row in updated] == [visible.id]
+    assert visible.status == "published"
+    assert draft.status == "draft"
+    assert {row.id: row.detail for row in failed} == {
+        str(missing): "상품을 찾을 수 없습니다.",
+        str(draft.id): "검수 전에는 공개할 수 없습니다.",
+    }
+
+
+def test_bulk_requires_an_action():
+    seller = _seller()
+    with pytest.raises(HTTPException) as exc:
+        bulk_update_seller_products(
+            MagicMock(),
+            seller,
+            SellerProductBulkRequest(ids=[uuid.uuid4()]),
+        )
+    assert exc.value.status_code == 400
+    assert "가격" in exc.value.detail
+
+
 def test_delete_soft_archives_offer():
     seller = _seller()
     product = _product(seller, status="published")
@@ -280,6 +346,69 @@ def test_seller_patch_route_hide_price_stock(client):
     assert body["status"] == "archived"
     assert body["optionLabel"] == "500ml × 20"
     assert body["packCount"] == 1
+
+
+def test_seller_bulk_route_returns_partial_summary(client):
+    user = make_user()
+    seller = _seller(user_id=user.id)
+    product = _product(seller, price_credits=3000, stock=0)
+    override_current_user(user)
+    override_db(MagicMock())
+    from app.schemas.product import SellerProductBulkFailure
+    from main import app
+
+    app.dependency_overrides[require_active_seller] = lambda: seller
+    try:
+        with patch(
+            "app.routers.seller.bulk_update_seller_products",
+            return_value=(
+                [product],
+                [SellerProductBulkFailure(id=str(uuid.uuid4()), detail="상품을 찾을 수 없습니다.")],
+            ),
+        ) as mock_bulk:
+            response = client.post(
+                "/seller/products/bulk",
+                json={"ids": [str(product.id), str(uuid.uuid4())], "stock": 0},
+                headers={"Authorization": "Bearer fake"},
+            )
+    finally:
+        app.dependency_overrides.pop(require_active_seller, None)
+
+    assert response.status_code == 200
+    mock_bulk.assert_called_once()
+    payload = mock_bulk.call_args.args[2]
+    assert payload.stock == 0
+    body = response.json()
+    assert body["successCount"] == 1
+    assert body["failCount"] == 1
+    assert body["updated"][0]["stock"] == 0
+    assert body["failed"][0]["detail"] == "상품을 찾을 수 없습니다."
+
+
+def test_seller_bulk_route_rejects_empty_action(client):
+    user = make_user()
+    seller = _seller(user_id=user.id)
+    product_id = uuid.uuid4()
+    override_current_user(user)
+    override_db(MagicMock())
+    from main import app
+
+    app.dependency_overrides[require_active_seller] = lambda: seller
+    try:
+        with patch(
+            "app.routers.seller.bulk_update_seller_products",
+            side_effect=HTTPException(status_code=400, detail="가격, 재고, 숨김 중 하나를 지정하세요."),
+        ):
+            response = client.post(
+                "/seller/products/bulk",
+                json={"ids": [str(product_id)]},
+                headers={"Authorization": "Bearer fake"},
+            )
+    finally:
+        app.dependency_overrides.pop(require_active_seller, None)
+
+    assert response.status_code == 400
+    assert "가격" in response.json()["detail"]
 
 
 def test_create_without_price_derives_per_unit_volume(client):

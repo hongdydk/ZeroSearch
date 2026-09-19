@@ -34,6 +34,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
   String _filter = 'all';
   String _sort = 'newest';
   String _appliedQuery = '';
+  final Set<String> _selectedIds = <String>{};
 
   @override
   void initState() {
@@ -137,6 +138,235 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     if (offset < 0 || offset == _offset) return;
     setState(() => _offset = offset);
     _load(silent: true);
+  }
+
+  void _toggleSelected(String id, bool selected) {
+    setState(() {
+      if (selected) {
+        _selectedIds.add(id);
+      } else {
+        _selectedIds.remove(id);
+      }
+    });
+  }
+
+  Future<bool> _confirmBulk(String title, String body) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(body),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('적용'),
+          ),
+        ],
+      ),
+    );
+    return ok == true;
+  }
+
+  Future<void> _bulkSetPrice() async {
+    if (_selectedIds.isEmpty) return;
+    final controller = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('가격 일괄'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('${_selectedIds.length}건의 가격을 같은 값으로 바꿉니다.'),
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(labelText: '가격(원)'),
+              keyboardType: TextInputType.number,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('취소'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('적용'),
+          ),
+        ],
+      ),
+    );
+    final text = controller.text.trim();
+    controller.dispose();
+    if (ok != true || !mounted) return;
+    final price = int.tryParse(text);
+    if (price == null || price <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('가격을 숫자로 입력하세요.')),
+      );
+      return;
+    }
+    await _applyBulk(priceCredits: price);
+  }
+
+  Future<void> _bulkSoldOut() async {
+    if (_selectedIds.isEmpty) return;
+    final ok = await _confirmBulk(
+      '품절',
+      '${_selectedIds.length}건의 재고를 0으로 바꿀까요?',
+    );
+    if (!ok || !mounted) return;
+    await _applyBulk(stock: 0);
+  }
+
+  Future<void> _bulkHide() async {
+    if (_selectedIds.isEmpty) return;
+    final ok = await _confirmBulk('숨김', '${_selectedIds.length}건을 숨길까요?');
+    if (!ok || !mounted) return;
+    await _applyBulk(status: 'archived');
+  }
+
+  Future<void> _bulkUnhide() async {
+    if (_selectedIds.isEmpty) return;
+    final ok = await _confirmBulk(
+      '숨김 해제',
+      '${_selectedIds.length}건의 숨김을 해제할까요?',
+    );
+    if (!ok || !mounted) return;
+    await _applyBulk(status: 'published');
+  }
+
+  Future<void> _applyBulk({
+    int? priceCredits,
+    int? stock,
+    String? status,
+  }) async {
+    if (_selectedIds.isEmpty || isBusy('bulk')) return;
+    final ids = _selectedIds.toList();
+    if (ids.length > 100) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('한 번에 100건까지 적용할 수 있습니다.')),
+      );
+      return;
+    }
+    await runBusy('bulk', () async {
+      try {
+        final result = await ref.read(apiClientProvider).sellerBulkUpdateProducts(
+          ids: ids,
+          priceCredits: priceCredits,
+          stock: stock,
+          status: status,
+        );
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              sellerOfferBulkSummary(
+                successCount: result.successCount,
+                failDetails: [for (final row in result.failed) row.detail],
+              ),
+            ),
+          ),
+        );
+        setState(_selectedIds.clear);
+        await _load(silent: true);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
+  }
+
+  Widget _buildBulkBar() {
+    final pageIds = _products.map((p) => p.id).toSet();
+    final selectedOnPage = pageIds.intersection(_selectedIds);
+    final bool? pageValue;
+    if (pageIds.isEmpty || selectedOnPage.isEmpty) {
+      pageValue = false;
+    } else if (selectedOnPage.length == pageIds.length) {
+      pageValue = true;
+    } else {
+      pageValue = null;
+    }
+    final selectedCount = _selectedIds.length;
+    final bulkBusy = isBusy('bulk');
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Checkbox(
+                    key: const ValueKey('select-offer-page'),
+                    tristate: true,
+                    value: pageValue,
+                    onChanged: bulkBusy
+                        ? null
+                        : (_) {
+                            setState(() {
+                              if (pageValue == true) {
+                                _selectedIds.removeAll(pageIds);
+                              } else {
+                                _selectedIds.addAll(pageIds);
+                              }
+                            });
+                          },
+                  ),
+                  const Text('이 페이지'),
+                ],
+              ),
+              if (selectedCount > 0) Text('$selectedCount건 선택'),
+              if (selectedCount > 0)
+                TextButton(
+                  onPressed: bulkBusy
+                      ? null
+                      : () => setState(_selectedIds.clear),
+                  child: const Text('선택 해제'),
+                ),
+            ],
+          ),
+          if (selectedCount > 0) ...[
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                FilledButton(
+                  onPressed: bulkBusy ? null : _bulkSetPrice,
+                  child: const Text('가격'),
+                ),
+                OutlinedButton(
+                  onPressed: bulkBusy ? null : _bulkSoldOut,
+                  child: const Text('품절'),
+                ),
+                OutlinedButton(
+                  onPressed: bulkBusy ? null : _bulkHide,
+                  child: const Text('숨김'),
+                ),
+                OutlinedButton(
+                  onPressed: bulkBusy ? null : _bulkUnhide,
+                  child: const Text('숨김 해제'),
+                ),
+              ],
+            ),
+          ],
+        ],
+      ),
+    );
   }
 
   Future<void> _openRegister({bool missing = false}) async {
@@ -473,12 +703,18 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                     )
                   : Column(
                       children: [
+                        _buildBulkBar(),
                         for (final product in _products)
                           ListTile(
-                            leading: Icon(
-                              product.stock <= 0
-                                  ? Icons.inventory_outlined
-                                  : Icons.inventory_2_outlined,
+                            leading: Checkbox(
+                              key: ValueKey('select-offer-${product.id}'),
+                              value: _selectedIds.contains(product.id),
+                              onChanged: isBusy('bulk')
+                                  ? null
+                                  : (value) => _toggleSelected(
+                                      product.id,
+                                      value ?? false,
+                                    ),
                             ),
                             title: Text(product.title),
                             subtitle: Text(sellerOfferRowSubtitle(product)),

@@ -3014,6 +3014,117 @@
         "title": "SellerOrderItemStatusUpdate",
         "type": "object"
       },
+      "SellerProductBulkFailure": {
+        "properties": {
+          "detail": {
+            "title": "Detail",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "detail"
+        ],
+        "title": "SellerProductBulkFailure",
+        "type": "object"
+      },
+      "SellerProductBulkRequest": {
+        "properties": {
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          },
+          "priceCredits": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pricecredits"
+          },
+          "status": {
+            "anyOf": [
+              {
+                "enum": [
+                  "draft",
+                  "published",
+                  "archived"
+                ],
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Status"
+          },
+          "stock": {
+            "anyOf": [
+              {
+                "minimum": 0.0,
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stock"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "SellerProductBulkRequest",
+        "type": "object"
+      },
+      "SellerProductBulkResponse": {
+        "properties": {
+          "failCount": {
+            "title": "Failcount",
+            "type": "integer"
+          },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/SellerProductBulkFailure"
+            },
+            "title": "Failed",
+            "type": "array"
+          },
+          "successCount": {
+            "title": "Successcount",
+            "type": "integer"
+          },
+          "updated": {
+            "items": {
+              "$ref": "#/components/schemas/ProductResponse"
+            },
+            "title": "Updated",
+            "type": "array"
+          }
+        },
+        "required": [
+          "updated",
+          "failed",
+          "successCount",
+          "failCount"
+        ],
+        "title": "SellerProductBulkResponse",
+        "type": "object"
+      },
       "SellerProductCounts": {
         "properties": {
           "all": {
@@ -7862,6 +7973,52 @@
           }
         ],
         "summary": "Seller Create Product",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/products/bulk": {
+      "post": {
+        "operationId": "seller_bulk_update_products_seller_products_bulk_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerProductBulkRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerProductBulkResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Bulk Update Products",
         "tags": [
           "seller"
         ]

@@ -959,6 +959,28 @@ class ApiClient {
     }
   }
 
+  Future<SellerProductBulkResult> sellerBulkUpdateProducts({
+    required List<String> ids,
+    int? priceCredits,
+    int? stock,
+    String? status,
+  }) async {
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'seller/products/bulk',
+        data: {
+          'ids': ids,
+          if (priceCredits != null) 'priceCredits': priceCredits,
+          if (stock != null) 'stock': stock,
+          if (status != null) 'status': status,
+        },
+      );
+      return SellerProductBulkResult.fromJson(response.data ?? const {});
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<void> sellerDeleteProduct(String productId) async {
     try {
       await _dio.delete<void>('seller/products/$productId');

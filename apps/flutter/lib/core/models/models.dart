@@ -174,6 +174,55 @@ class SellerProductListPage {
   final SellerProductCounts counts;
 }
 
+class SellerProductBulkFailure {
+  const SellerProductBulkFailure({required this.id, required this.detail});
+
+  factory SellerProductBulkFailure.fromJson(Map<String, dynamic> json) {
+    return SellerProductBulkFailure(
+      id: json['id'] as String? ?? '',
+      detail: json['detail'] as String? ?? '',
+    );
+  }
+
+  final String id;
+  final String detail;
+}
+
+class SellerProductBulkResult {
+  const SellerProductBulkResult({
+    this.updated = const [],
+    this.failed = const [],
+    this.successCount = 0,
+    this.failCount = 0,
+  });
+
+  factory SellerProductBulkResult.fromJson(Map<String, dynamic> json) {
+    final rawUpdated = json['updated'] as List<dynamic>? ?? [];
+    final rawFailed = json['failed'] as List<dynamic>? ?? [];
+    return SellerProductBulkResult(
+      updated: rawUpdated
+          .whereType<Map>()
+          .map((e) => ProductModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
+      failed: rawFailed
+          .whereType<Map>()
+          .map(
+            (e) => SellerProductBulkFailure.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
+          .toList(),
+      successCount: json['successCount'] as int? ?? 0,
+      failCount: json['failCount'] as int? ?? 0,
+    );
+  }
+
+  final List<ProductModel> updated;
+  final List<SellerProductBulkFailure> failed;
+  final int successCount;
+  final int failCount;
+}
+
 class CatalogProductSearchPage {
   const CatalogProductSearchPage({
     required this.items,

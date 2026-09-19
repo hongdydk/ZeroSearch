@@ -5,10 +5,11 @@ from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.models import CatalogProduct, Product, Seller
-from app.schemas.product import ProductResponse, SellerProductCounts
+from app.schemas.product import ProductResponse, SellerProductBulkFailure, SellerProductCounts
 from app.schemas.seller import (
     SellerOfferFilter,
     SellerOfferSort,
+    SellerProductBulkRequest,
     SellerProductCreateRequest,
     SellerProductUpdateRequest,
     SellerSummary,
@@ -218,10 +219,13 @@ def create_seller_product(db: Session, seller: Seller, payload: SellerProductCre
     return product
 
 
-def update_seller_product(
-    db: Session, seller: Seller, product_id: UUID, payload: SellerProductUpdateRequest
-) -> Product:
-    product = get_seller_product(db, seller, product_id)
+def _apply_seller_product_update(product: Product, payload: SellerProductUpdateRequest) -> None:
+    if payload.status is not None:
+        if payload.status == "published" and product.status == "draft":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="검수 전에는 공개할 수 없습니다.",
+            )
     if payload.title is not None:
         product.title = payload.title
     if payload.description is not None:
@@ -235,11 +239,6 @@ def update_seller_product(
     if payload.image_url is not None:
         product.image_url = payload.image_url
     if payload.status is not None:
-        if payload.status == "published" and product.status == "draft":
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="검수 전에는 공개할 수 없습니다.",
-            )
         product.status = payload.status
     if payload.flavor is not None:
         product.flavor = payload.flavor
@@ -262,8 +261,55 @@ def update_seller_product(
         product.unit_amount = units.unit_amount
         product.unit = units.unit
         product.pack_count = units.pack_count
+
+
+def update_seller_product(
+    db: Session, seller: Seller, product_id: UUID, payload: SellerProductUpdateRequest
+) -> Product:
+    product = get_seller_product(db, seller, product_id)
+    _apply_seller_product_update(product, payload)
     db.flush()
     return product
+
+
+def bulk_update_seller_products(
+    db: Session, seller: Seller, payload: SellerProductBulkRequest
+) -> tuple[list[Product], list[SellerProductBulkFailure]]:
+    if payload.price_credits is None and payload.stock is None and payload.status is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="가격, 재고, 숨김 중 하나를 지정하세요.",
+        )
+    ids = list(dict.fromkeys(payload.ids))
+    products = db.scalars(
+        select(Product)
+        .where(Product.seller_id == seller.id, Product.id.in_(ids))
+        .options(joinedload(Product.seller))
+    ).unique().all()
+    by_id = {product.id: product for product in products}
+    patch = SellerProductUpdateRequest(
+        price_credits=payload.price_credits,
+        stock=payload.stock,
+        status=payload.status,
+    )
+    updated: list[Product] = []
+    failed: list[SellerProductBulkFailure] = []
+    for product_id in ids:
+        product = by_id.get(product_id)
+        if product is None:
+            failed.append(
+                SellerProductBulkFailure(id=str(product_id), detail="상품을 찾을 수 없습니다.")
+            )
+            continue
+        try:
+            _apply_seller_product_update(product, patch)
+        except HTTPException as exc:
+            detail = exc.detail if isinstance(exc.detail, str) else "적용할 수 없습니다."
+            failed.append(SellerProductBulkFailure(id=str(product_id), detail=detail))
+            continue
+        updated.append(product)
+    db.flush()
+    return updated, failed
 
 
 def archive_seller_product(db: Session, seller: Seller, product_id: UUID) -> None:

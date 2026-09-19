@@ -104,6 +104,19 @@ String sellerOffersEmptyCopy({
   return '이 검색·조건에 맞는 오퍼가 없습니다.';
 }
 
+String sellerOfferBulkSummary({
+  required int successCount,
+  required List<String> failDetails,
+}) {
+  if (failDetails.isEmpty) {
+    return '$successCount건을 적용했습니다.';
+  }
+  if (successCount == 0) {
+    return '적용하지 못했습니다. ${failDetails.first}';
+  }
+  return '$successCount건 적용, ${failDetails.length}건 실패. ${failDetails.first}';
+}
+
 String sellerOfferReviewLabel(ProductModel product) {
   return switch (product.status) {
     'draft' when !product.hasSellablePrice => '가격 미입력',
