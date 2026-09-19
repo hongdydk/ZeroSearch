@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
@@ -582,7 +583,7 @@ class _AdminScreenState extends ConsumerState<AdminScreen> with AsyncBusyState {
             .read(apiClientProvider)
             .adminDownloadCatalogCsv(template: template);
         final blob = web.Blob(
-          <web.BlobPart>[bytes.toJS].toJS,
+          <web.BlobPart>[Uint8List.fromList(bytes).toJS].toJS,
           web.BlobPropertyBag(type: 'text/csv;charset=utf-8'),
         );
         final url = web.URL.createObjectURL(blob);

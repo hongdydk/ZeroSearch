@@ -51,7 +51,7 @@ def test_admin_catalog_import(client):
     override_db(mock_db)
 
     with patch(
-        "app.routers.admin.import_catalog_csv",
+        "app.routers.admin.import_admin_catalog_csv",
         return_value={"source_rows": 2, "upserted": 2},
     ) as mock_import:
         response = client.post(
@@ -90,7 +90,7 @@ def test_admin_catalog_import_text(client):
     csv = "대분류,중분류,소분류,품목명,제조사,용량\n김,김치류,김치,나박김치,(주)거풍,100g\n"
 
     with patch(
-        "app.routers.admin.import_catalog_csv",
+        "app.routers.admin.import_admin_catalog_csv",
         return_value={"source_rows": 1, "upserted": 1},
     ) as mock_import:
         response = client.post(
@@ -124,7 +124,7 @@ def test_admin_catalog_import_job(client):
         patch("app.services.catalog_import_jobs.threading.Thread", _ImmediateThread),
         patch("app.services.catalog_import_jobs.SessionLocal", return_value=mock_db),
         patch(
-            "app.services.catalog_import_jobs.import_catalog_csv",
+            "app.services.catalog_import_jobs.import_admin_catalog_csv",
             return_value={"source_rows": 1, "upserted": 1},
         ),
     ):
