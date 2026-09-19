@@ -1,5 +1,6 @@
 import uuid
 from datetime import UTC, datetime
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -7,6 +8,7 @@ from fastapi import HTTPException
 
 from app.deps import require_active_seller
 from app.models import Product, Seller
+from app.schemas.product import SellerProductCounts
 from app.schemas.seller import SellerProductUpdateRequest
 from app.services.products import (
     archive_seller_product,
@@ -64,20 +66,64 @@ def test_product_to_response_keeps_option_fields():
     assert body["catalogProductId"] == str(product.catalog_product_id)
 
 
-def test_list_seller_products_includes_archived():
-    seen: dict[str, object] = {}
+def _empty_counts_row(**kwargs) -> SimpleNamespace:
+    row = SimpleNamespace(all_count=0, published=0, pending=0, sold_out=0, hidden=0)
+    for key, value in kwargs.items():
+        setattr(row, key, value)
+    return row
+
+
+def _mock_list_db(items: list[Product] | None = None, counts: SimpleNamespace | None = None) -> MagicMock:
     db = MagicMock()
+    db.execute.return_value.one.return_value = counts or _empty_counts_row()
+    unique = MagicMock()
+    unique.all.return_value = items or []
+    db.scalars.return_value.unique.return_value = unique
+    return db
 
-    def _scalars(stmt):
-        seen["stmt"] = stmt
-        result = MagicMock()
-        result.all.return_value = []
-        return result
 
-    db.scalars.side_effect = _scalars
+def test_list_seller_products_includes_archived():
+    db = _mock_list_db()
     list_seller_products(db, _seller())
-    sql = str(seen["stmt"])
+    sql = str(db.scalars.call_args.args[0])
     assert "archived" not in sql.lower()
+
+
+def test_list_seller_products_search_sort_paginates_and_counts():
+    seller = _seller()
+    product = _product(seller, price_credits=3000, stock=2)
+    counts = _empty_counts_row(all_count=4, published=1, pending=2, sold_out=0, hidden=1)
+    db = _mock_list_db([product], counts)
+    items, total, body = list_seller_products(
+        db,
+        seller,
+        q="백산",
+        offer_filter="published",
+        sort="price",
+        offset=20,
+        limit=10,
+    )
+    assert items == [product]
+    assert total == 1
+    assert body.published == 1
+    assert body.pending == 2
+    assert body.hidden == 1
+    count_sql = str(db.execute.call_args.args[0]).lower()
+    assert "title" in count_sql
+    assert "option_label" in count_sql
+    list_sql = str(db.scalars.call_args.args[0]).lower()
+    assert "price_credits" in list_sql
+    assert "offset" in list_sql or "limit" in list_sql
+
+
+def test_list_seller_products_sorts_stock_and_filters_pending():
+    db = _mock_list_db(counts=_empty_counts_row(all_count=3, pending=3))
+    _, total, counts = list_seller_products(db, _seller(), offer_filter="pending", sort="stock")
+    assert total == 3
+    assert counts.pending == 3
+    sql = str(db.scalars.call_args.args[0]).lower()
+    assert "stock" in sql
+    assert "status" in sql
 
 
 def test_patch_price_and_stock():
@@ -153,18 +199,54 @@ def test_seller_list_route_returns_hidden_option_fields(client):
     override_db(MagicMock())
     from main import app
 
+    counts = SellerProductCounts(all=1, published=0, pending=0, sold_out=0, hidden=1)
     app.dependency_overrides[require_active_seller] = lambda: seller
     try:
-        with patch("app.routers.seller.list_seller_products", return_value=[hidden]):
-            response = client.get("/seller/products", headers={"Authorization": "Bearer fake"})
+        with patch(
+            "app.routers.seller.list_seller_products",
+            return_value=([hidden], 1, counts),
+        ):
+            response = client.get(
+                "/seller/products",
+                params={"q": "자몽", "filter": "hidden", "sort": "newest", "offset": 0, "limit": 20},
+                headers={"Authorization": "Bearer fake"},
+            )
     finally:
         app.dependency_overrides.pop(require_active_seller, None)
 
     assert response.status_code == 200
-    row = response.json()[0]
+    body = response.json()
+    row = body["items"][0]
+    assert body["total"] == 1
+    assert body["counts"]["hidden"] == 1
+    assert body["counts"]["published"] == 0
     assert row["status"] == "archived"
     assert row["optionLabel"] == "2L × 6"
     assert row["flavor"] == "자몽"
+
+
+def test_seller_get_product_route(client):
+    user = make_user()
+    seller = _seller(user_id=user.id)
+    product = _product(seller, option_label="2L × 6")
+    override_current_user(user)
+    override_db(MagicMock())
+    from main import app
+
+    app.dependency_overrides[require_active_seller] = lambda: seller
+    try:
+        with patch("app.routers.seller.get_seller_product", return_value=product):
+            response = client.get(
+                f"/seller/products/{product.id}",
+                headers={"Authorization": "Bearer fake"},
+            )
+    finally:
+        app.dependency_overrides.pop(require_active_seller, None)
+
+    assert response.status_code == 200
+    body = response.json()
+    assert body["id"] == str(product.id)
+    assert body["optionLabel"] == "2L × 6"
 
 
 def test_seller_patch_route_hide_price_stock(client):

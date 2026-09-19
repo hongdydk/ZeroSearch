@@ -21,7 +21,7 @@ class SellerScreen extends ConsumerStatefulWidget {
 class _SellerScreenState extends ConsumerState<SellerScreen> {
   final _shopController = TextEditingController();
   SellerModel? _seller;
-  List<ProductModel> _products = [];
+  SellerProductCounts _offerCounts = const SellerProductCounts();
   List<SellerOrderItemModel> _orders = [];
   List<SellerModerationEventModel> _notices = [];
   bool _loading = true;
@@ -59,7 +59,7 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
       });
       if (seller?.status != 'active') {
         setState(() {
-          _products = [];
+          _offerCounts = const SellerProductCounts();
           _orders = [];
           _metricsLoading = false;
         });
@@ -67,12 +67,12 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
       }
       setState(() => _metricsLoading = true);
       final results = await Future.wait([
-        api.sellerProducts(),
+        api.sellerProducts(limit: 1),
         api.sellerOrders(),
       ]);
       if (!mounted) return;
       setState(() {
-        _products = results[0] as List<ProductModel>;
+        _offerCounts = (results[0] as SellerProductListPage).counts;
         _orders = results[1] as List<SellerOrderItemModel>;
         _metricsLoading = false;
       });
@@ -153,12 +153,8 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
       );
     }
 
-    final published = _products
-        .where((item) => item.status == 'published')
-        .length;
-    final soldOut = _products
-        .where((item) => item.status == 'published' && item.stock <= 0)
-        .length;
+    final published = _offerCounts.published;
+    final soldOut = _offerCounts.soldOut;
     final needsAction = _orders
         .where((item) => item.fulfillmentStatus == 'paid')
         .length;
@@ -208,7 +204,7 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
                 PortalMetricCard(
                   label: '공개 오퍼',
                   value: '$published',
-                  hint: '전체 ${_products.length}개',
+                  hint: '전체 ${_offerCounts.all}개',
                 ),
                 PortalMetricCard(
                   label: '품절 오퍼',

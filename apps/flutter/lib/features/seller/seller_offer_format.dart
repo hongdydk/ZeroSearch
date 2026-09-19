@@ -80,15 +80,28 @@ String sellerOfferStatusLabel(ProductModel product) {
 
 bool sellerOfferIsHidden(ProductModel product) => product.status == 'archived';
 
+bool sellerOfferIsPublic(ProductModel product) =>
+    product.status == 'published' && product.stock > 0;
+
 bool sellerOfferMatchesFilter(ProductModel product, String filter) {
   return switch (filter) {
-    'published' => product.status == 'published' && product.stock > 0,
+    'published' => sellerOfferIsPublic(product),
     'sold_out' =>
       product.stock <= 0 && product.status == 'published',
     'pending' => product.status == 'draft',
     'hidden' => product.status == 'archived',
     _ => true,
   };
+}
+
+String sellerOffersEmptyCopy({
+  required bool hasAnyOffers,
+  required bool hasQuery,
+}) {
+  if (!hasAnyOffers && !hasQuery) {
+    return '아직 등록한 오퍼가 없습니다. 오퍼 등록으로 시작하세요.';
+  }
+  return '이 검색·조건에 맞는 오퍼가 없습니다.';
 }
 
 String sellerOfferReviewLabel(ProductModel product) {

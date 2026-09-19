@@ -2624,7 +2624,14 @@
                   "kg",
                   "팩"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-enum-varnames": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "pack"
+                ]
               },
               {
                 "type": "null"
@@ -2769,7 +2776,14 @@
                   "kg",
                   "팩"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-enum-varnames": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "pack"
+                ]
               },
               {
                 "type": "null"
@@ -3000,6 +3014,39 @@
         "title": "SellerOrderItemStatusUpdate",
         "type": "object"
       },
+      "SellerProductCounts": {
+        "properties": {
+          "all": {
+            "title": "All",
+            "type": "integer"
+          },
+          "hidden": {
+            "title": "Hidden",
+            "type": "integer"
+          },
+          "pending": {
+            "title": "Pending",
+            "type": "integer"
+          },
+          "published": {
+            "title": "Published",
+            "type": "integer"
+          },
+          "soldOut": {
+            "title": "Soldout",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "all",
+          "published",
+          "pending",
+          "soldOut",
+          "hidden"
+        ],
+        "title": "SellerProductCounts",
+        "type": "object"
+      },
       "SellerProductCreateRequest": {
         "properties": {
           "catalogProductId": {
@@ -3128,7 +3175,14 @@
                   "kg",
                   "팩"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-enum-varnames": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "pack"
+                ]
               },
               {
                 "type": "null"
@@ -3166,6 +3220,31 @@
           "category"
         ],
         "title": "SellerProductCreateRequest",
+        "type": "object"
+      },
+      "SellerProductListResponse": {
+        "properties": {
+          "counts": {
+            "$ref": "#/components/schemas/SellerProductCounts"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ProductResponse"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total",
+          "counts"
+        ],
+        "title": "SellerProductListResponse",
         "type": "object"
       },
       "SellerProductUpdateRequest": {
@@ -3305,7 +3384,14 @@
                   "kg",
                   "팩"
                 ],
-                "type": "string"
+                "type": "string",
+                "x-enum-varnames": [
+                  "ml",
+                  "L",
+                  "g",
+                  "kg",
+                  "pack"
+                ]
               },
               {
                 "type": "null"
@@ -7631,20 +7717,99 @@
     "/seller/products": {
       "get": {
         "operationId": "seller_list_products_seller_products_get",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "default": "all",
+              "enum": [
+                "all",
+                "published",
+                "pending",
+                "sold_out",
+                "hidden"
+              ],
+              "title": "Filter",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "default": "newest",
+              "enum": [
+                "newest",
+                "price",
+                "stock"
+              ],
+              "title": "Sort",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 20,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "content": {
               "application/json": {
                 "schema": {
-                  "items": {
-                    "$ref": "#/components/schemas/ProductResponse"
-                  },
-                  "title": "Response Seller List Products Seller Products Get",
-                  "type": "array"
+                  "$ref": "#/components/schemas/SellerProductListResponse"
                 }
               }
             },
             "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
           }
         },
         "security": [
@@ -7738,6 +7903,52 @@
           }
         ],
         "summary": "Seller Delete Product",
+        "tags": [
+          "seller"
+        ]
+      },
+      "get": {
+        "operationId": "seller_get_product_seller_products__product_id__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "product_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Product Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProductResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Get Product",
         "tags": [
           "seller"
         ]

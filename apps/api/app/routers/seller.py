@@ -24,11 +24,15 @@ from app.schemas.catalog_intake import (
     SellerCardDraftUpdateRequest,
 )
 from app.schemas.catalog_product import CatalogProductListResponse
-from app.schemas.product import ProductResponse
+from app.schemas.product import ProductResponse, SellerProductListResponse
 
 from app.schemas.seller import (
 
     SellerApplyRequest,
+
+    SellerOfferFilter,
+
+    SellerOfferSort,
 
     SellerOrderItemListResponse,
 
@@ -60,6 +64,8 @@ from app.services.products import (
     archive_seller_product,
 
     create_seller_product,
+
+    get_seller_product,
 
     list_seller_products,
 
@@ -182,7 +188,7 @@ def seller_search_catalog_products(
 
 
 
-@router.get("/products", response_model=list[ProductResponse])
+@router.get("/products", response_model=SellerProductListResponse)
 
 def seller_list_products(
 
@@ -190,11 +196,55 @@ def seller_list_products(
 
     seller: Annotated[Seller, Depends(require_active_seller)],
 
-) -> list[ProductResponse]:
+    q: Annotated[str | None, Query()] = None,
 
-    products = list_seller_products(db, seller)
+    offer_filter: Annotated[SellerOfferFilter, Query(alias="filter")] = "all",
 
-    return [product_to_response(p) for p in products]
+    sort: Annotated[SellerOfferSort, Query()] = "newest",
+
+    offset: Annotated[int, Query(ge=0)] = 0,
+
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+
+) -> SellerProductListResponse:
+
+    products, total, counts = list_seller_products(
+
+        db,
+
+        seller,
+
+        q=q,
+
+        offer_filter=offer_filter,
+
+        sort=sort,
+
+        offset=offset,
+
+        limit=limit,
+
+    )
+
+    return SellerProductListResponse(
+
+        items=[product_to_response(p) for p in products],
+
+        total=total,
+
+        counts=counts,
+
+    )
+
+
+@router.get("/products/{product_id}", response_model=ProductResponse)
+def seller_get_product(
+    product_id: UUID,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> ProductResponse:
+    product = get_seller_product(db, seller, product_id)
+    return product_to_response(product)
 
 
 

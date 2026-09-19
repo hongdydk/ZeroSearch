@@ -42,6 +42,8 @@ class _SellerOfferRegisterScreenState
 
   List<CatalogProductModel> _hits = [];
   bool _searching = false;
+  bool _didSearch = false;
+  int _catalogTotal = 0;
   bool _customUnit = false;
   String? _selectedOption;
   String _unit = 'ml';
@@ -86,14 +88,23 @@ class _SellerOfferRegisterScreenState
     });
   }
 
-  Future<void> _searchCatalog() async {
+  Future<void> _searchCatalog({bool nextPage = false}) async {
     final q = _search.text.trim();
     if (q.isEmpty || _searching) return;
     setState(() => _searching = true);
     try {
-      final items = await ref.read(apiClientProvider).sellerSearchCatalog(q: q);
+      final offset = nextPage ? _hits.length : 0;
+      final page = await ref.read(apiClientProvider).sellerSearchCatalog(
+        q: q,
+        offset: offset,
+        limit: 30,
+      );
       if (!mounted) return;
-      setState(() => _hits = items);
+      setState(() {
+        _didSearch = true;
+        _catalogTotal = page.total;
+        _hits = nextPage ? [..._hits, ...page.items] : page.items;
+      });
     } on ApiException catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -204,7 +215,7 @@ class _SellerOfferRegisterScreenState
             visibility: _public ? 'public' : 'hidden',
           );
           if (!mounted) return;
-          context.go('/seller/products');
+          _goList();
           return;
         } else {
           final catalog = _catalog!;
@@ -231,7 +242,22 @@ class _SellerOfferRegisterScreenState
     });
   }
 
-  void _goList() => context.go('/seller/products');
+  void _goList() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      context.go('/seller/products');
+    }
+  }
+
+  void _openMissingDraft() {
+    setState(() {
+      _missing = true;
+      _customUnit = true;
+      _catalog = null;
+      _selectedOption = null;
+    });
+  }
 
   void _continuePrice() {
     final product = _createdProduct;
@@ -388,6 +414,20 @@ class _SellerOfferRegisterScreenState
                 ),
               ),
               if (_searching) const LinearProgressIndicator(minHeight: 2),
+              if (_didSearch && !_searching && _hits.isEmpty)
+                Padding(
+                  padding: const EdgeInsets.only(top: 12),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('검색 결과가 없습니다. 카탈로그에 없으면 없는 품목 초안으로 요청하세요.'),
+                      TextButton(
+                        onPressed: _openMissingDraft,
+                        child: const Text('없는 품목 초안 만들기'),
+                      ),
+                    ],
+                  ),
+                ),
               for (final item in _hits)
                 ListTile(
                   title: Text(item.cardTitle),
@@ -401,12 +441,21 @@ class _SellerOfferRegisterScreenState
                   onTap: () => setState(() {
                     _catalog = item;
                     _hits = [];
+                    _didSearch = false;
                     if (item.volumeOptions.isNotEmpty) {
                       _applyOption(item.volumeOptions.first);
                     } else {
                       _customUnit = true;
                     }
                   }),
+                ),
+              if (_hits.isNotEmpty && _hits.length < _catalogTotal)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: _searching ? null : () => _searchCatalog(nextPage: true),
+                    child: const Text('다음 페이지'),
+                  ),
                 ),
             ],
           ],

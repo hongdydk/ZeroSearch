@@ -726,7 +726,7 @@ class ApiClient {
     return sellerModelFromGenerated(data)!;
   }
 
-  Future<List<CatalogProductModel>> sellerSearchCatalog({
+  Future<CatalogProductSearchPage> sellerSearchCatalog({
     String? q,
     String? category,
     int offset = 0,
@@ -743,12 +743,15 @@ class ApiClient {
         },
       );
       final items = response.data?['items'] as List<dynamic>? ?? [];
-      return items
-          .whereType<Map>()
-          .map(
-            (e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)),
-          )
-          .toList();
+      return CatalogProductSearchPage(
+        items: items
+            .whereType<Map>()
+            .map(
+              (e) => CatalogProductModel.fromJson(Map<String, dynamic>.from(e)),
+            )
+            .toList(),
+        total: response.data?['total'] as int? ?? items.length,
+      );
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }
@@ -840,14 +843,38 @@ class ApiClient {
     }
   }
 
-  Future<List<ProductModel>> sellerProducts() async {
+  Future<SellerProductListPage> sellerProducts({
+    String? q,
+    String? filter,
+    String? sort,
+    int offset = 0,
+    int limit = 20,
+  }) async {
     try {
-      final response = await _dio.get<List<dynamic>>('seller/products');
-      final items = response.data ?? [];
-      return items
-          .whereType<Map>()
-          .map((e) => ProductModel.fromJson(Map<String, dynamic>.from(e)))
-          .toList();
+      final response = await _dio.get<Map<String, dynamic>>(
+        'seller/products',
+        queryParameters: {
+          if (q != null && q.isNotEmpty) 'q': q,
+          if (filter != null && filter.isNotEmpty) 'filter': filter,
+          if (sort != null && sort.isNotEmpty) 'sort': sort,
+          'offset': offset,
+          'limit': limit,
+        },
+      );
+      return SellerProductListPage.fromJson(response.data ?? const {});
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<ProductModel> sellerProduct(String productId) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'seller/products/$productId',
+      );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return ProductModel.fromJson(data);
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }

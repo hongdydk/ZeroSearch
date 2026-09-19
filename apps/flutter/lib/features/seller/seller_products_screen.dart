@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -23,16 +21,30 @@ class SellerProductsScreen extends ConsumerStatefulWidget {
 
 class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     with AsyncBusyState {
+  static const _pageSize = 20;
+
+  final _search = TextEditingController();
   List<ProductModel> _products = [];
   List<IntakeDraftModel> _cardDrafts = [];
+  SellerProductCounts _counts = const SellerProductCounts();
+  int _total = 0;
+  int _offset = 0;
   bool _loading = true;
   bool _reloading = false;
   String _filter = 'all';
+  String _sort = 'newest';
+  String _appliedQuery = '';
 
   @override
   void initState() {
     super.initState();
     _load();
+  }
+
+  @override
+  void dispose() {
+    _search.dispose();
+    super.dispose();
   }
 
   Future<void> _load({bool silent = false}) async {
@@ -48,8 +60,6 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     }
     try {
       final api = ref.read(apiClientProvider);
-      late final List<ProductModel> items;
-      var drafts = <IntakeDraftModel>[];
       final draftsFuture = () async {
         try {
           return await api.sellerCardDrafts();
@@ -58,14 +68,22 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
         }
       }();
       final results = await Future.wait([
-        api.sellerProducts(),
+        api.sellerProducts(
+          q: _appliedQuery.isEmpty ? null : _appliedQuery,
+          filter: _filter,
+          sort: _sort,
+          offset: _offset,
+          limit: _pageSize,
+        ),
         draftsFuture,
       ]);
-      items = results[0] as List<ProductModel>;
-      drafts = results[1] as List<IntakeDraftModel>;
+      final page = results[0] as SellerProductListPage;
+      final drafts = results[1] as List<IntakeDraftModel>;
       if (!mounted) return;
       setState(() {
-        _products = items;
+        _products = page.items;
+        _total = page.total;
+        _counts = page.counts;
         _cardDrafts = drafts;
       });
     } on ApiException catch (e) {
@@ -82,6 +100,43 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
         });
       }
     }
+  }
+
+  void _applySearch() {
+    final next = _search.text.trim();
+    if (next == _appliedQuery && _offset == 0) {
+      _load(silent: true);
+      return;
+    }
+    setState(() {
+      _appliedQuery = next;
+      _offset = 0;
+    });
+    _load(silent: true);
+  }
+
+  void _setFilter(String filter) {
+    if (_filter == filter) return;
+    setState(() {
+      _filter = filter;
+      _offset = 0;
+    });
+    _load(silent: true);
+  }
+
+  void _setSort(String sort) {
+    if (_sort == sort) return;
+    setState(() {
+      _sort = sort;
+      _offset = 0;
+    });
+    _load(silent: true);
+  }
+
+  void _goPage(int offset) {
+    if (offset < 0 || offset == _offset) return;
+    setState(() => _offset = offset);
+    _load(silent: true);
   }
 
   Future<void> _openRegister({bool missing = false}) async {
@@ -195,6 +250,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
               if (row.id == updated.id) updated else row,
           ];
         });
+        await _load(silent: true);
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(
@@ -238,6 +294,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                 row,
           ];
         });
+        await _load(silent: true);
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(
@@ -254,11 +311,11 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
 
   @override
   Widget build(BuildContext context) {
-    final pendingOffers = _products.where((p) => p.status == 'draft').toList();
     final pendingCards = _cardDrafts.where((d) => d.isPending).toList();
-    final filtered = _products
-        .where((product) => sellerOfferMatchesFilter(product, _filter))
-        .toList();
+    final emptyCopy = sellerOffersEmptyCopy(
+      hasAnyOffers: _filter != 'all' || _appliedQuery.isNotEmpty || _total > 0,
+      hasQuery: _appliedQuery.isNotEmpty || _filter != 'all',
+    );
     return PortalWorkspaceScaffold(
       role: PortalWorkspaceRole.seller,
       activePath: '/seller/products',
@@ -268,6 +325,11 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
         trailing: Wrap(
           spacing: 8,
           children: [
+            IconButton(
+              tooltip: '새로고침',
+              onPressed: () => _load(silent: true),
+              icon: const Icon(Icons.refresh),
+            ),
             OutlinedButton.icon(
               onPressed: () => _openRegister(missing: true),
               icon: const Icon(Icons.playlist_add_outlined),
@@ -283,38 +345,77 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Wrap(
+            Material(
+              type: MaterialType.transparency,
+              child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                SizedBox(
+                  width: 280,
+                  child: TextField(
+                    controller: _search,
+                    decoration: const InputDecoration(
+                      labelText: '제목·용량 검색',
+                      hintText: '백산수, 500ml',
+                    ),
+                    onSubmitted: (_) => _applySearch(),
+                  ),
+                ),
+                FilledButton(
+                  onPressed: _applySearch,
+                  child: const Text('검색'),
+                ),
+                DropdownButton<String>(
+                  value: _sort,
+                  onChanged: (value) {
+                    if (value == null) return;
+                    _setSort(value);
+                  },
+                  items: const [
+                    DropdownMenuItem(value: 'newest', child: Text('최신순')),
+                    DropdownMenuItem(value: 'price', child: Text('가격순')),
+                    DropdownMenuItem(value: 'stock', child: Text('재고순')),
+                  ],
+                ),
+              ],
+            ),
+            ),
+            const SizedBox(height: 12),
+            Material(
+              type: MaterialType.transparency,
+              child: Wrap(
               spacing: 8,
               runSpacing: 8,
               children: [
                 _OfferFilterChip(
-                  label: '전체 ${_products.length}',
+                  label: '전체 ${_counts.all}',
                   selected: _filter == 'all',
-                  onSelected: () => setState(() => _filter = 'all'),
+                  onSelected: () => _setFilter('all'),
                 ),
                 _OfferFilterChip(
-                  label:
-                      '공개 ${_products.where((p) => p.status == 'published' && p.stock > 0).length}',
+                  label: '공개 ${_counts.published}',
                   selected: _filter == 'published',
-                  onSelected: () => setState(() => _filter = 'published'),
+                  onSelected: () => _setFilter('published'),
                 ),
                 _OfferFilterChip(
-                  label: '검수 대기 ${pendingOffers.length}',
+                  label: '검수 대기 ${_counts.pending}',
                   selected: _filter == 'pending',
-                  onSelected: () => setState(() => _filter = 'pending'),
+                  onSelected: () => _setFilter('pending'),
                 ),
                 _OfferFilterChip(
-                  label: '품절 ${_products.where((p) => p.stock <= 0 && p.status == 'published').length}',
+                  label: '품절 ${_counts.soldOut}',
                   selected: _filter == 'sold_out',
-                  onSelected: () => setState(() => _filter = 'sold_out'),
+                  onSelected: () => _setFilter('sold_out'),
                 ),
                 _OfferFilterChip(
-                  label:
-                      '숨김 ${_products.where(sellerOfferIsHidden).length}',
+                  label: '숨김 ${_counts.hidden}',
                   selected: _filter == 'hidden',
-                  onSelected: () => setState(() => _filter = 'hidden'),
+                  onSelected: () => _setFilter('hidden'),
                 ),
               ],
+            ),
             ),
             const SizedBox(height: 14),
             if (_reloading) ...[
@@ -323,6 +424,11 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
             ],
             PortalSection(
               title: '카드 초안 ${pendingCards.length}건',
+              trailing: IconButton(
+                tooltip: '검수 상태 새로고침',
+                onPressed: () => _load(silent: true),
+                icon: const Icon(Icons.refresh),
+              ),
               child: pendingCards.isEmpty
                   ? const Padding(
                       padding: EdgeInsets.all(22),
@@ -360,14 +466,14 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                       padding: EdgeInsets.all(32),
                       child: Center(child: CircularProgressIndicator()),
                     )
-                  : filtered.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.all(22),
-                      child: Text('이 조건에 맞는 오퍼가 없습니다.'),
+                  : _products.isEmpty
+                  ? Padding(
+                      padding: const EdgeInsets.all(22),
+                      child: Text(emptyCopy),
                     )
                   : Column(
                       children: [
-                        for (final product in filtered)
+                        for (final product in _products)
                           ListTile(
                             leading: Icon(
                               product.stock <= 0
@@ -411,6 +517,33 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                                       child: Text('삭제'),
                                     ),
                                   ],
+                                ),
+                              ],
+                            ),
+                          ),
+                        if (_total > _products.length || _offset > 0)
+                          Padding(
+                            padding: const EdgeInsets.fromLTRB(8, 8, 8, 12),
+                            child: Row(
+                              children: [
+                                Text(
+                                  '${_offset + 1}–${_offset + _products.length} / $_total',
+                                ),
+                                const Spacer(),
+                                TextButton(
+                                  onPressed: _offset > 0
+                                      ? () => _goPage(
+                                          (_offset - _pageSize).clamp(0, _offset),
+                                        )
+                                      : null,
+                                  child: const Text('이전'),
+                                ),
+                                TextButton(
+                                  onPressed:
+                                      _offset + _products.length < _total
+                                      ? () => _goPage(_offset + _pageSize)
+                                      : null,
+                                  child: const Text('다음'),
                                 ),
                               ],
                             ),

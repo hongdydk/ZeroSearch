@@ -103,3 +103,21 @@ class ProductListResponse(BaseModel):
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
 
+class SellerProductCounts(BaseModel):
+    all: int
+    published: int
+    pending: int
+    sold_out: int = Field(alias="soldOut")
+    hidden: int
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class SellerProductListResponse(BaseModel):
+    items: list[ProductResponse]
+    total: int
+    counts: SellerProductCounts
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+

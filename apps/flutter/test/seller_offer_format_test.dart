@@ -107,11 +107,22 @@ void main() {
     expect(sellerOfferStatusLabel(hidden), '숨김');
   });
 
-  test('sold-out filter ignores archived offers', () {
-    final archivedEmpty = _product(status: 'archived', stock: 0);
-    final publishedEmpty = _product(status: 'published', stock: 0);
-    expect(sellerOfferMatchesFilter(archivedEmpty, 'sold_out'), isFalse);
-    expect(sellerOfferMatchesFilter(publishedEmpty, 'sold_out'), isTrue);
-    expect(sellerOfferMatchesFilter(archivedEmpty, 'hidden'), isTrue);
+  test('public chip excludes sold out and archived', () {
+    expect(sellerOfferIsPublic(_product(stock: 0)), isFalse);
+    expect(sellerOfferIsPublic(_product(stock: 1)), isTrue);
+    expect(sellerOfferIsPublic(_product(status: 'archived')), isFalse);
+    expect(sellerOfferMatchesFilter(_product(stock: 0), 'published'), isFalse);
+    expect(sellerOfferMatchesFilter(_product(stock: 1), 'published'), isTrue);
+  });
+
+  test('empty copy distinguishes first-time from search filter', () {
+    expect(
+      sellerOffersEmptyCopy(hasAnyOffers: false, hasQuery: false),
+      '아직 등록한 오퍼가 없습니다. 오퍼 등록으로 시작하세요.',
+    );
+    expect(
+      sellerOffersEmptyCopy(hasAnyOffers: true, hasQuery: true),
+      '이 검색·조건에 맞는 오퍼가 없습니다.',
+    );
   });
 }

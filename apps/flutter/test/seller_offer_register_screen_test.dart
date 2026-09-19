@@ -17,33 +17,49 @@ final _seller = SellerSummaryModel(
 );
 
 class _RegisterApi extends ApiClient {
-  _RegisterApi() : super(tokenReader: () async => 'tok');
+  _RegisterApi({
+    this.catalogHits,
+    this.catalogTotal,
+  }) : super(tokenReader: () async => 'tok');
 
   Map<String, Object?>? lastCreate;
   Map<String, Object?>? lastDraftCreate;
   Map<String, Object?>? lastDraftUpdate;
   ProductModel? created;
   IntakeDraftModel? createdDraft;
+  int searchCalls = 0;
+  int lastSearchOffset = 0;
+  List<CatalogProductModel>? catalogHits;
+  int? catalogTotal;
+
+  List<CatalogProductModel> get _defaultHits => [
+        CatalogProductModel(
+          id: 'c1',
+          title: '백산수',
+          category: '생수',
+          offerCount: 1,
+          priceUnit: 'ml',
+          displayPriceLabel: 'L당',
+          manufacturer: '농심',
+          volumeOptions: const ['2L', '500ml'],
+        ),
+      ];
 
   @override
-  Future<List<CatalogProductModel>> sellerSearchCatalog({
+  Future<CatalogProductSearchPage> sellerSearchCatalog({
     String? q,
     String? category,
     int offset = 0,
     int limit = 30,
   }) async {
-    return [
-      CatalogProductModel(
-        id: 'c1',
-        title: '백산수',
-        category: '생수',
-        offerCount: 1,
-        priceUnit: 'ml',
-        displayPriceLabel: 'L당',
-        manufacturer: '농심',
-        volumeOptions: const ['2L', '500ml'],
-      ),
-    ];
+    searchCalls += 1;
+    lastSearchOffset = offset;
+    final hits = catalogHits ?? _defaultHits;
+    final total = catalogTotal ?? hits.length;
+    return CatalogProductSearchPage(
+      items: hits.skip(offset).take(limit).toList(),
+      total: total,
+    );
   }
 
   @override
@@ -91,8 +107,20 @@ class _RegisterApi extends ApiClient {
   }
 
   @override
-  Future<List<ProductModel>> sellerProducts() async =>
-      created == null ? [] : [created!];
+  Future<SellerProductListPage> sellerProducts({
+    String? q,
+    String? filter,
+    String? sort,
+    int offset = 0,
+    int limit = 20,
+  }) async {
+    final items = created == null ? <ProductModel>[] : [created!];
+    return SellerProductListPage(
+      items: items,
+      total: items.length,
+      counts: SellerProductCounts(all: items.length, pending: items.length),
+    );
+  }
 
   @override
   Future<List<IntakeDraftModel>> sellerCardDrafts() async =>
@@ -312,5 +340,120 @@ void main() {
     expect(api.lastDraftCreate?['unitAmount'], 500);
     expect(api.lastDraftCreate?['priceCredits'], 4800);
     expect(api.lastDraftCreate?['stock'], 10);
+  });
+
+  testWidgets('catalog picker shows empty copy and missing-item link', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = _RegisterApi(catalogHits: const [], catalogTotal: 0);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: AppTheme.web(),
+          home: const Scaffold(body: SellerOfferRegisterScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '없는품목');
+    await tester.tap(find.text('검색'));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('검색 결과가 없습니다'), findsOneWidget);
+    await tester.tap(find.text('없는 품목 초안 만들기'));
+    await tester.pumpAndSettle();
+    expect(find.text('없는 품목 카드 초안'), findsOneWidget);
+  });
+
+  testWidgets('catalog picker loads next page when results are capped', (
+    tester,
+  ) async {
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final hits = [
+      for (var i = 0; i < 35; i++)
+        CatalogProductModel(
+          id: 'c$i',
+          title: '품목$i',
+          category: '생수',
+          offerCount: 0,
+          priceUnit: 'ml',
+          displayPriceLabel: 'L당',
+          manufacturer: '농심',
+        ),
+    ];
+    final api = _RegisterApi(catalogHits: hits, catalogTotal: 35);
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+        child: MaterialApp(
+          theme: AppTheme.web(),
+          home: const Scaffold(body: SellerOfferRegisterScreen()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.enterText(find.byType(TextField).first, '품목');
+    await tester.tap(find.text('검색'));
+    await tester.pumpAndSettle();
+    expect(api.lastSearchOffset, 0);
+    expect(find.text('농심 품목0'), findsOneWidget);
+    expect(find.text('다음 페이지'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('다음 페이지'));
+    await tester.tap(find.text('다음 페이지'));
+    await tester.pumpAndSettle();
+    expect(api.lastSearchOffset, 30);
+    expect(find.text('농심 품목30'), findsOneWidget);
+  });
+
+  testWidgets('missing item cancel pops without false', (tester) async {
+    tester.view.physicalSize = const Size(1200, 1400);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    final api = _RegisterApi();
+    final router = GoRouter(
+      initialLocation: '/seller/products',
+      routes: [
+        GoRoute(
+          path: '/seller/products',
+          builder: (_, _) => const Scaffold(body: SellerProductsScreen()),
+        ),
+        GoRoute(
+          path: '/seller/products/new',
+          builder: (_, _) => const SellerOfferRegisterScreen(missingItem: true),
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      ProviderScope(
+        overrides: [apiClientProvider.overrideWithValue(api)],
+        child: MaterialApp.router(theme: AppTheme.web(), routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('없는 품목'));
+    await tester.pumpAndSettle();
+    expect(find.text('없는 품목 카드 초안'), findsOneWidget);
+
+    await tester.ensureVisible(find.text('취소'));
+    await tester.tap(find.text('취소'));
+    await tester.pumpAndSettle();
+    expect(find.text('내 오퍼'), findsWidgets);
+    expect(find.text('없는 품목 카드 초안'), findsNothing);
   });
 }
