@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:built_value/serializer.dart';
@@ -774,13 +775,13 @@ class ApiClient {
   static const _importMaxBytes = 4 * 1024 * 1024;
   static const _importMaxRows = 20000;
 
-  Future<List<int>> adminDownloadCatalogCsv({required bool template}) async {
+  Future<Uint8List> adminDownloadCatalogCsv({required bool template}) async {
     try {
-      final response = await _dio.get<List<int>>(
+      final response = await _dio.get<Uint8List>(
         template ? 'admin/catalog/export/template' : 'admin/catalog/export',
         options: Options(responseType: ResponseType.bytes),
       );
-      return response.data ?? const [];
+      return response.data ?? Uint8List(0);
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }
