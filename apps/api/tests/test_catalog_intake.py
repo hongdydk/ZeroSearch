@@ -69,6 +69,7 @@ def _draft(seller: Seller, **kwargs) -> CatalogIntakeDraft:
         volume_ml=500,
         price_credits=4800,
         stock=12,
+        visibility="public",
         image_url="https://img.example/tteok.jpg",
     )
     draft.created_at = datetime.now(UTC)
@@ -265,6 +266,33 @@ def test_create_card_draft_does_not_insert_catalog_product():
     assert not any(isinstance(obj, Product) for obj in added)
     assert added[0].status == "pending"
     assert added[0].title == "떡갈비"
+    assert added[0].visibility == "public"
+
+
+def test_create_card_draft_hidden_stays_pending():
+    seller = _seller()
+    payload = SellerCardDraftCreateRequest(
+        manufacturer="매일",
+        title="떡갈비",
+        category="축산가공",
+        optionLabel="500g",
+        visibility="hidden",
+    )
+    added: list[object] = []
+    db = MagicMock()
+    db.add.side_effect = lambda obj: added.append(obj)
+    created = _draft(seller, visibility="hidden")
+    db.scalar.return_value = created
+
+    result = create_card_draft(db, seller, payload)
+
+    assert result is created
+    draft = added[0]
+    assert isinstance(draft, CatalogIntakeDraft)
+    assert draft.status == "pending"
+    assert draft.visibility == "hidden"
+    assert not any(isinstance(obj, CatalogProduct) for obj in added)
+    assert not any(isinstance(obj, Product) for obj in added)
 
 
 def test_create_card_draft_without_price_keeps_units():
@@ -308,6 +336,21 @@ def test_update_card_draft_attaches_price():
     )
     assert updated.price_credits == 4800
     assert updated.stock == 8
+    assert updated.status == "pending"
+
+
+def test_update_card_draft_visibility():
+    seller = _seller()
+    draft = _draft(seller)
+    db = MagicMock()
+    db.scalar.return_value = draft
+    updated = update_card_draft(
+        db,
+        seller,
+        draft.id,
+        SellerCardDraftUpdateRequest(visibility="hidden"),
+    )
+    assert updated.visibility == "hidden"
     assert updated.status == "pending"
 
 
@@ -393,6 +436,40 @@ def test_attach_card_draft_creates_published_offer_not_new_catalog():
     assert "500g" in (catalog.volume_options or [])
 
 
+def test_attach_hidden_card_draft_creates_archived_offer():
+    seller = _seller()
+    catalog = _catalog(title="농심 떡갈비", manufacturer="농심", category="축산가공", volume_options=[])
+    draft = _draft(seller, visibility="hidden")
+    db = MagicMock()
+    db.scalar.return_value = draft
+    added: list[object] = []
+
+    def _add(obj: object) -> None:
+        added.append(obj)
+        if isinstance(obj, Product) and getattr(obj, "id", None) is None:
+            obj.id = uuid.uuid4()
+
+    db.add.side_effect = _add
+    reviewer = make_user(is_admin=True)
+
+    with patch("app.services.catalog_intake.resolve_catalog_product", return_value=catalog):
+        item = attach_intake_draft(
+            db,
+            draft.id,
+            AdminAttachDraftRequest(kind="card", catalogProductId=str(catalog.id)),
+            reviewer,
+        )
+
+    products = [obj for obj in added if isinstance(obj, Product)]
+    catalogs = [obj for obj in added if isinstance(obj, CatalogProduct)]
+    assert catalogs == []
+    assert len(products) == 1
+    assert products[0].status == "archived"
+    assert draft.status == "attached"
+    assert item.status == "attached"
+    assert item.visibility == "hidden"
+
+
 def test_promote_card_draft_creates_catalog_and_published_offer():
     seller = _seller()
     draft = _draft(seller)
@@ -426,6 +503,38 @@ def test_promote_card_draft_creates_catalog_and_published_offer():
     assert products[0].catalog_product_id == catalogs[0].id
     assert draft.status == "promoted"
     assert item.status == "promoted"
+
+
+def test_promote_hidden_card_draft_creates_archived_offer():
+    seller = _seller()
+    draft = _draft(seller, visibility="hidden")
+    db = MagicMock()
+    db.scalar.side_effect = [draft, 0]
+    added: list[object] = []
+
+    def _add(obj: object) -> None:
+        added.append(obj)
+        if getattr(obj, "id", None) is None:
+            obj.id = uuid.uuid4()
+
+    db.add.side_effect = _add
+    reviewer = make_user(is_admin=True)
+
+    item = promote_card_draft(
+        db,
+        draft.id,
+        AdminPromoteDraftRequest(category="떡갈비", manufacturer="매일", title="떡갈비"),
+        reviewer,
+    )
+
+    catalogs = [obj for obj in added if isinstance(obj, CatalogProduct)]
+    products = [obj for obj in added if isinstance(obj, Product)]
+    assert len(catalogs) == 1
+    assert len(products) == 1
+    assert products[0].status == "archived"
+    assert draft.status == "promoted"
+    assert item.status == "promoted"
+    assert item.visibility == "hidden"
 
 
 def test_promote_doenjang_jjigae_auto_tags_soup_not_sauce():
@@ -514,6 +623,7 @@ def test_seller_create_card_draft_route(client):
     assert response.json()["kind"] == "card"
     assert response.json()["status"] == "pending"
     assert response.json()["title"] == "떡갈비"
+    assert response.json()["visibility"] == "public"
 
 
 def test_seller_create_product_router_stays_gated(client):

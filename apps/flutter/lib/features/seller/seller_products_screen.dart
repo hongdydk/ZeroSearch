@@ -11,6 +11,7 @@ import '../../core/providers/app_providers.dart';
 import '../../shared/widgets/async_busy.dart';
 import '../../shared/widgets/portal_workspace.dart';
 import 'seller_offer_format.dart';
+import 'seller_visibility_row.dart';
 
 class SellerProductsScreen extends ConsumerStatefulWidget {
   const SellerProductsScreen({super.key});
@@ -97,36 +98,43 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     final stock = TextEditingController(
       text: draft.hasSellablePrice ? draft.stock.toString() : '',
     );
+    var isPublic = draft.isPublic;
     final ok = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('가격·재고'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(draft.cardTitle),
-            TextField(
-              controller: price,
-              decoration: const InputDecoration(labelText: '가격(원)'),
-              keyboardType: TextInputType.number,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('가격·재고'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(draft.cardTitle),
+              TextField(
+                controller: price,
+                decoration: const InputDecoration(labelText: '가격(원)'),
+                keyboardType: TextInputType.number,
+              ),
+              TextField(
+                controller: stock,
+                decoration: const InputDecoration(labelText: '재고'),
+                keyboardType: TextInputType.number,
+              ),
+              SellerVisibilityRow(
+                isPublic: isPublic,
+                onChanged: (value) => setDialogState(() => isPublic = value),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('취소'),
             ),
-            TextField(
-              controller: stock,
-              decoration: const InputDecoration(labelText: '재고'),
-              keyboardType: TextInputType.number,
+            FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: const Text('저장'),
             ),
           ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('취소'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('저장'),
-          ),
-        ],
       ),
     );
     if (ok != true || !mounted) return;
@@ -143,6 +151,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
         draft.id,
         priceCredits: nextPrice,
         stock: nextStock,
+        visibility: isPublic ? 'public' : 'hidden',
       );
       if (!mounted) return;
       setState(() {

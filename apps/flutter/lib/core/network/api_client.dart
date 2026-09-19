@@ -969,6 +969,7 @@ class ApiClient {
     String? unit,
     int? packCount,
     String? description,
+    String? visibility,
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -988,6 +989,7 @@ class ApiClient {
           if (packCount != null) 'packCount': packCount,
           if (description != null && description.isNotEmpty)
             'description': description,
+          if (visibility != null) 'visibility': visibility,
         },
       );
       final data = response.data;
@@ -1008,6 +1010,7 @@ class ApiClient {
     double? unitAmount,
     String? unit,
     int? packCount,
+    String? visibility,
   }) async {
     try {
       final response = await _dio.patch<Map<String, dynamic>>(
@@ -1021,6 +1024,7 @@ class ApiClient {
           if (unitAmount != null) 'unitAmount': unitAmount,
           if (unit != null) 'unit': unit,
           if (packCount != null) 'packCount': packCount,
+          if (visibility != null) 'visibility': visibility,
         },
       );
       final data = response.data;
