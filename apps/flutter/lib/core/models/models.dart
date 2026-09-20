@@ -288,6 +288,9 @@ class SellerModel {
   final String slug;
   final String status;
   final String sellerType;
+  final String? storeDescription;
+  final String? storeLogoUrl;
+  final String? storeBannerUrl;
 }
 
 class SellerOrderItemModel {
@@ -1385,9 +1388,6 @@ class StorefrontModel {
   final String? storeLogoUrl;
   final String? storeBannerUrl;
   final int productCount;
-  final String? storeDescription;
-  final String? storeLogoUrl;
-  final String? storeBannerUrl;
 
   bool get isOfficial => sellerType == 'platform';
 }
