@@ -362,6 +362,7 @@ class AdminSellerModel {
     required this.userEmail,
     required this.status,
     required this.sellerType,
+    this.slug = '',
     this.warningCount = 0,
     this.lastModerationAction,
     this.lastModerationReason,
@@ -379,6 +380,7 @@ class AdminSellerModel {
       userEmail: json['userEmail'] as String? ?? '',
       status: json['status'] as String? ?? '',
       sellerType: json['sellerType'] as String? ?? 'merchant',
+      slug: json['slug'] as String? ?? '',
       warningCount: json['warningCount'] as int? ?? 0,
       lastModerationAction: json['lastModerationAction'] as String?,
       lastModerationReason: json['lastModerationReason'] as String?,
@@ -395,6 +397,7 @@ class AdminSellerModel {
   final String userEmail;
   final String status;
   final String sellerType;
+  final String slug;
   final int warningCount;
   final String? lastModerationAction;
   final String? lastModerationReason;
@@ -418,9 +421,15 @@ class AdminSellerModel {
       userEmail: userEmail,
       status: status ?? this.status,
       sellerType: sellerType,
+      slug: slug,
       warningCount: warningCount ?? this.warningCount,
       lastModerationAction: lastModerationAction ?? this.lastModerationAction,
       lastModerationReason: lastModerationReason ?? this.lastModerationReason,
+      offerCount: offerCount,
+      publishedOfferCount: publishedOfferCount,
+      soldOutOfferCount: soldOutOfferCount,
+      hiddenOfferCount: hiddenOfferCount,
+      pendingDraftCount: pendingDraftCount,
     );
   }
 }
