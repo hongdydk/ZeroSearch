@@ -151,6 +151,7 @@ def prepare_payment(
         snapshot.append(
             {
                 "productId": str(product.id),
+                "catalogProductId": str(product.catalog_product_id),
                 "sellerId": str(product.seller_id),
                 "title": product.title,
                 "qty": item.qty,

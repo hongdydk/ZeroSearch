@@ -39,8 +39,9 @@ class OrderItem(Base):
         UUID(as_uuid=True), ForeignKey("orders.id"), nullable=False, index=True
     )
     product_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("products.id"), nullable=False
+        UUID(as_uuid=True), nullable=False
     )
+    catalog_product_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), nullable=True)
     seller_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("sellers.id"), nullable=False, index=True
     )
@@ -50,5 +51,4 @@ class OrderItem(Base):
     fulfillment_status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="paid")
 
     order = relationship("Order", back_populates="items")
-    product = relationship("Product", back_populates="order_items")
     seller = relationship("Seller")

@@ -51,7 +51,7 @@ CartItemModel cartItemFromProduct(ProductModel product, int qty) {
     issueMessage = '품절된 상품입니다.';
   } else if (safeQty > product.stock) {
     issueCode = 'insufficient_stock';
-    issueMessage = '재고가 ${product.stock}개만 남았습니다.';
+    issueMessage = '요청한 수량을 준비하지 못했습니다.';
   }
   return CartItemModel(
     id: product.id,

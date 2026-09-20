@@ -216,6 +216,34 @@ class _SellerScreenState extends ConsumerState<SellerScreen> {
             ),
             const SizedBox(height: 18),
             PortalSection(
+              title: '판매자 사이트',
+              child: Padding(
+                padding: const EdgeInsets.all(12),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: [
+                    FilledButton.icon(
+                      onPressed: () => context.go('/seller/storefront'),
+                      icon: const Icon(Icons.storefront_outlined),
+                      label: const Text('사이트 꾸미기'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => context.go('/stores/${seller.slug}'),
+                      icon: const Icon(Icons.open_in_new),
+                      label: const Text('내 사이트 보기'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: () => context.go('/seller/products/new'),
+                      icon: const Icon(Icons.add_box_outlined),
+                      label: const Text('상품 등록'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+            PortalSection(
               title: '최근 주문',
               trailing: TextButton(
                 onPressed: () => context.go('/seller/orders'),

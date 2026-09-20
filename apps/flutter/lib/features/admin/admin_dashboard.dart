@@ -5,7 +5,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/fulfillment/fulfillment_labels.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_client.dart';
-import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
 
 enum AdminSection { home, stats, sellers, orders, catalog, users, tools }
@@ -179,6 +178,11 @@ class AdminDashboardState {
 
 class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
   final _orderInFlight = <String>{};
+  int _statsRequest = 0;
+  int _sellersRequest = 0;
+  int _usersRequest = 0;
+  int _catalogRequest = 0;
+  int _draftsRequest = 0;
   Timer? _userSearchTimer;
   Timer? _catalogSearchTimer;
 
@@ -195,12 +199,12 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
 
   Future<void> ensureSection(AdminSection? section) {
     return switch (section ?? AdminSection.home) {
-      AdminSection.home => Future.wait([loadStats(), loadSellers()]),
-      AdminSection.stats => loadStats(),
-      AdminSection.sellers => loadSellers(),
+      AdminSection.home => Future.wait([loadStats(force: true), loadSellers(force: true)]),
+      AdminSection.stats => loadStats(force: true),
+      AdminSection.sellers => loadSellers(force: true),
       AdminSection.orders => loadOrders(),
-      AdminSection.catalog => Future.wait([loadDrafts(), loadCatalogItems()]),
-      AdminSection.users => loadUsers(),
+      AdminSection.catalog => Future.wait([loadDrafts(force: true), loadCatalogItems(force: true)]),
+      AdminSection.users => loadUsers(force: true),
       AdminSection.tools => Future.value(),
     };
   }
@@ -218,24 +222,30 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
 
   Future<void> loadStats({bool force = false}) async {
     if (state.statsLoaded && !force) return;
+    final request = ++_statsRequest;
     state = state.copyWith(statsLoading: !state.statsLoaded);
     try {
       final stats = await _api.adminStats();
+      if (request != _statsRequest) return;
       state = state.copyWith(
         stats: stats,
         statsLoading: false,
         statsLoaded: true,
       );
     } catch (_) {
-      state = state.copyWith(statsLoading: false, statsLoaded: true);
+      if (request == _statsRequest) {
+        state = state.copyWith(statsLoading: false, statsLoaded: false);
+      }
     }
   }
 
   Future<void> loadSellers({bool force = false}) async {
     if (state.sellersLoaded && !force) return;
+    final request = ++_sellersRequest;
     state = state.copyWith(sellersLoading: !state.sellersLoaded);
     try {
       final all = await _api.adminSellers();
+      if (request != _sellersRequest) return;
       state = state.copyWith(
         sellers: all,
         pendingSellers: [
@@ -246,7 +256,9 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
         sellersLoaded: true,
       );
     } catch (_) {
-      state = state.copyWith(sellersLoading: false, sellersLoaded: true);
+      if (request == _sellersRequest) {
+        state = state.copyWith(sellersLoading: false, sellersLoaded: false);
+      }
     }
   }
 
@@ -264,22 +276,26 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
         ordersLoaded: true,
       );
     } catch (_) {
-      state = state.copyWith(ordersLoading: false, ordersLoaded: true);
+      state = state.copyWith(ordersLoading: false, ordersLoaded: false);
     }
   }
 
   Future<void> loadDrafts({bool force = false}) async {
     if (state.draftsLoaded && !force) return;
+    final request = ++_draftsRequest;
     state = state.copyWith(draftsLoading: !state.draftsLoaded);
     try {
       final drafts = await _api.adminCatalogDrafts();
+      if (request != _draftsRequest) return;
       state = state.copyWith(
         catalogDrafts: drafts,
         draftsLoading: false,
         draftsLoaded: true,
       );
     } catch (_) {
-      state = state.copyWith(draftsLoading: false, draftsLoaded: true);
+      if (request == _draftsRequest) {
+        state = state.copyWith(draftsLoading: false, draftsLoaded: false);
+      }
     }
   }
 
@@ -303,6 +319,7 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
         nextOffset == state.catalogOffset) {
       return;
     }
+    final request = ++_catalogRequest;
     state = state.copyWith(
       catalogItemsLoading: !state.catalogItemsLoaded || force,
       catalogQuery: nextQuery,
@@ -319,6 +336,7 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
         offset: nextOffset,
         limit: state.catalogLimit,
       );
+      if (request != _catalogRequest) return;
       state = state.copyWith(
         catalogItems: page.items,
         catalogTotal: page.total,
@@ -328,10 +346,9 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
         catalogItemsLoaded: true,
       );
     } catch (_) {
-      state = state.copyWith(
-        catalogItemsLoading: false,
-        catalogItemsLoaded: true,
-      );
+      if (request == _catalogRequest) {
+        state = state.copyWith(catalogItemsLoading: false, catalogItemsLoaded: false);
+      }
     }
   }
 
@@ -345,12 +362,14 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
   Future<void> loadUsers({bool force = false, String? q}) async {
     final query = q ?? state.userQuery;
     if (state.usersLoaded && !force && q == null) return;
+    final request = ++_usersRequest;
     state = state.copyWith(
       usersLoading: true,
       userQuery: query,
     );
     try {
       final users = await _api.adminUsers(q: query);
+      if (request != _usersRequest) return;
       final items = users['items'] as List<dynamic>? ?? [];
       state = state.copyWith(
         users: items,
@@ -365,7 +384,9 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
         },
       );
     } catch (_) {
-      state = state.copyWith(usersLoading: false, usersLoaded: true);
+      if (request == _usersRequest) {
+        state = state.copyWith(usersLoading: false, usersLoaded: false);
+      }
     }
   }
 
@@ -383,6 +404,7 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
   }
 
   Future<void> approveSeller(String sellerId) async {
+    ++_sellersRequest;
     final previousPending = state.pendingSellers;
     final previousSellers = state.sellers;
     final previousStats = state.stats;
@@ -399,9 +421,28 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
             seller,
       ],
       stats: _bumpPendingCount(previousStats, -1),
+      sellersLoading: false,
+      sellersLoaded: true,
     );
     try {
-      await _api.adminApproveSeller(sellerId);
+      final approved = await _api.adminApproveSeller(sellerId);
+      state = state.copyWith(
+        sellers: [
+          for (final seller in state.sellers)
+            if (seller.id == sellerId) approved else seller,
+        ],
+        pendingSellers: [
+          for (final seller in state.pendingSellers)
+            if (seller.id != sellerId) seller,
+        ],
+        sellersLoading: false,
+        sellersLoaded: true,
+      );
+      await Future.wait([
+        loadStats(force: true),
+        loadUsers(force: true),
+        loadCatalogItems(force: true),
+      ]);
     } catch (_) {
       state = state.copyWith(
         pendingSellers: previousPending,
@@ -417,6 +458,7 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
     Future<AdminSellerModel> Function(String id, String reason) request, {
     required String reason,
   }) async {
+    ++_sellersRequest;
     final previous = state.sellers;
     final previousPending = state.pendingSellers;
     try {
@@ -430,7 +472,14 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
           for (final seller in previousPending)
             if (seller.id != sellerId) seller,
         ],
+        sellersLoading: false,
+        sellersLoaded: true,
       );
+      await Future.wait([
+        loadStats(force: true),
+        loadUsers(force: true),
+        loadCatalogItems(force: true),
+      ]);
     } catch (_) {
       state = state.copyWith(sellers: previous, pendingSellers: previousPending);
       rethrow;
@@ -470,12 +519,20 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
     required String title,
     required String category,
     String? description,
+    String? imageUrl,
+    List<String> volumeOptions = const [],
+    List<Map<String, dynamic>> variants = const [],
+    String priceUnit = 'credits',
   }) async {
     await _api.adminCreateCatalogProduct(
       manufacturer: manufacturer,
       title: title,
       category: category,
       description: description,
+      imageUrl: imageUrl,
+      volumeOptions: volumeOptions,
+      variants: variants,
+      priceUnit: priceUnit,
     );
     await loadCatalogItems(force: true, offset: 0);
   }
@@ -537,11 +594,14 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
   }
 
   Future<void> removeDraft(String draftId) async {
+    ++_draftsRequest;
     state = state.copyWith(
       catalogDrafts: [
         for (final draft in state.catalogDrafts)
           if (draft.id != draftId) draft,
       ],
+      draftsLoading: false,
+      draftsLoaded: true,
     );
   }
 
@@ -552,7 +612,7 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
 
   Future<void> saveUser(String userId) async {
     final draft = state.userDrafts[userId] ?? const AdminUserRowDraft();
-    await _api.adminUpdateUser(
+    final updated = await _api.adminUpdateUser(
       userId,
       isAdmin: draft.isAdmin,
       isBuyer: draft.isBuyer,
@@ -560,25 +620,27 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
       displayName: draft.buyerName,
       sellerName: draft.sellerName,
     );
+    ++_usersRequest;
     state = state.copyWith(
       users: [
         for (final user in state.users)
           if (user is Map && user['id'] == userId)
-            {
-              ...Map<String, dynamic>.from(user),
-              'displayName': draft.buyerName,
-              'sellerName': draft.sellerName,
-              'isBuyer': draft.isBuyer,
-              'isSeller': draft.isSeller,
-              'isAdmin': draft.isAdmin,
-            }
+            updated
           else
             user,
       ],
+      userDrafts: {
+        ...state.userDrafts,
+        userId: adminUserDraftFromMap(updated),
+      },
+      usersLoading: false,
+      usersLoaded: true,
     );
+    await Future.wait([loadSellers(force: true), loadStats(force: true)]);
   }
 
   Future<void> deleteUser(String userId) async {
+    ++_usersRequest;
     final previousUsers = state.users;
     final previousDraft = state.userDrafts;
     state = state.copyWith(
@@ -590,9 +652,18 @@ class AdminDashboardNotifier extends Notifier<AdminDashboardState> {
         for (final entry in previousDraft.entries)
           if (entry.key != userId) entry.key: entry.value,
       },
+      usersLoading: false,
+      usersLoaded: true,
     );
     try {
       await _api.adminDeleteUser(userId);
+      await Future.wait([
+        loadSellers(force: true),
+        loadStats(force: true),
+        loadOrders(force: true),
+        loadDrafts(force: true),
+        loadCatalogItems(force: true),
+      ]);
     } catch (_) {
       state = state.copyWith(users: previousUsers, userDrafts: previousDraft);
       rethrow;

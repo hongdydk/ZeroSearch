@@ -5,6 +5,8 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.catalog_product import PriceUnit
+from app.schemas.catalog_variant import CatalogVariantCreateRequest
+from app.schemas.seller import DailySalesItem
 
 
 class AdminStatsResponse(BaseModel):
@@ -16,6 +18,11 @@ class AdminStatsResponse(BaseModel):
     sold_item_count: int = Field(alias="soldItemCount")
     sold_qty_sum: int = Field(alias="soldQtySum")
     sold_amount_sum: int = Field(alias="soldAmountSum")
+    paid_order_count: int = Field(default=0, alias="paidOrderCount")
+    sales_line_count: int = Field(default=0, alias="salesLineCount")
+    daily_sales: list[DailySalesItem] = Field(default_factory=list, alias="dailySales")
+    fulfillment_counts: dict[str, int] = Field(default_factory=dict, alias="fulfillmentCounts")
+    offer_counts: dict[str, int] = Field(default_factory=dict, alias="offerCounts")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
@@ -98,6 +105,11 @@ class AdminSellerItem(BaseModel):
     warning_count: int = Field(default=0, alias="warningCount")
     last_moderation_action: str | None = Field(default=None, alias="lastModerationAction")
     last_moderation_reason: str | None = Field(default=None, alias="lastModerationReason")
+    offer_count: int = Field(default=0, alias="offerCount")
+    published_offer_count: int = Field(default=0, alias="publishedOfferCount")
+    sold_out_offer_count: int = Field(default=0, alias="soldOutOfferCount")
+    hidden_offer_count: int = Field(default=0, alias="hiddenOfferCount")
+    pending_draft_count: int = Field(default=0, alias="pendingDraftCount")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
@@ -105,6 +117,8 @@ class AdminSellerItem(BaseModel):
 class AdminSellerListResponse(BaseModel):
     items: list[AdminSellerItem]
     total: int
+    offset: int = 0
+    limit: int = 30
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
@@ -129,6 +143,7 @@ class SellerModerationEventItem(BaseModel):
     reason: str
     created_at: datetime = Field(alias="createdAt")
     admin_email: str | None = Field(default=None, alias="adminEmail")
+    shop_name: str | None = Field(default=None, alias="shopName")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
@@ -155,6 +170,7 @@ class AdminCatalogCreateRequest(BaseModel):
     l1_tags: list[str] | None = Field(default=None, alias="l1Tags")
     storage: str | None = None
     volume_options: list[str] = Field(default_factory=list, alias="volumeOptions")
+    variants: list[CatalogVariantCreateRequest] = Field(default_factory=list, max_length=30)
 
     model_config = {"populate_by_name": True}
 

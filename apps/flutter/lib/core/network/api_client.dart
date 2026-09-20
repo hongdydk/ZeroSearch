@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:dio/dio.dart';
 import 'package:built_value/serializer.dart';
@@ -275,6 +276,30 @@ class ApiClient {
     }
   }
 
+  Future<List<StorefrontModel>> storefronts() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('stores');
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map((item) => StorefrontModel.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<StorefrontDetailModel> storefront(String slug) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('stores/$slug');
+      final data = response.data;
+      if (data == null) throw ApiException('판매자 사이트를 불러오지 못했습니다.');
+      return StorefrontDetailModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<GuestL1FacetsModel> guestL1Facets({
     String? l1Tag,
     String? l2Tag,
@@ -305,17 +330,19 @@ class ApiClient {
     int? volumeMlMin,
     int? volumeMlMax,
   }) async {
-    final data = await _generatedCall(
-      () => _generated
-          .getCatalogProductsApi()
-          .getCatalogProductByIdCatalogProductsCatalogIdGet(
-            catalogId: id,
-            flavor: flavor,
-            volumeMlMin: volumeMlMin,
-            volumeMlMax: volumeMlMax,
-          ),
-    );
-    return catalogProductDetailFromGenerated(data);
+    try {
+      final response = await _dio.get<Map<String, dynamic>>(
+        'catalog-products/$id',
+        queryParameters: {
+          if (flavor != null) 'flavor': flavor,
+          if (volumeMlMin != null) 'volumeMlMin': volumeMlMin,
+          if (volumeMlMax != null) 'volumeMlMax': volumeMlMax,
+        },
+      );
+      return CatalogProductDetailModel.fromJson(response.data ?? const {});
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
   }
 
   Future<ProductModel> product(String id) async {
@@ -618,6 +645,15 @@ class ApiClient {
     }
   }
 
+  Future<Map<String, dynamic>> sellerStats() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('seller/stats');
+      return response.data ?? {};
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<Map<String, dynamic>> adminUsers({String? q}) async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -632,7 +668,7 @@ class ApiClient {
     }
   }
 
-  Future<void> adminUpdateUser(
+  Future<Map<String, dynamic>> adminUpdateUser(
     String userId, {
     required bool isAdmin,
     bool? isBuyer,
@@ -641,7 +677,7 @@ class ApiClient {
     String? sellerName,
   }) async {
     try {
-      await _dio.patch<Map<String, dynamic>>(
+      final response = await _dio.patch<Map<String, dynamic>>(
         'admin/users/$userId',
         data: {
           'isAdmin': isAdmin,
@@ -651,6 +687,9 @@ class ApiClient {
           if (sellerName != null) 'sellerName': sellerName,
         },
       );
+      final data = response.data;
+      if (data == null) throw ApiException('응답 데이터가 없습니다.');
+      return data;
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }
@@ -726,6 +765,57 @@ class ApiClient {
     return sellerModelFromGenerated(data)!;
   }
 
+  Future<SellerModel> sellerUpdateStorefront({
+    String? storeDescription,
+    String? storeLogoUrl,
+    String? storeBannerUrl,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        'seller/storefront',
+        data: {
+          'storeDescription': storeDescription,
+          'storeLogoUrl': storeLogoUrl,
+          'storeBannerUrl': storeBannerUrl,
+        },
+      );
+      return SellerModel.fromJson(response.data ?? {});
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<Uint8List> sellerDownloadStorefrontProductsCsv({required bool template}) async {
+    try {
+      final response = await _dio.get<Uint8List>(
+        template ? 'seller/storefront/products/export/template' : 'seller/storefront/products/export',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data ?? Uint8List(0);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<({int sourceRows, int upserted})> sellerImportStorefrontProducts(
+    List<int> bytes,
+    String filename,
+  ) async {
+    if (bytes.length > _importMaxBytes) {
+      throw ApiException('파일이 너무 큽니다. 판매자 사이트 상품 템플릿 형식으로 4MB 이하 파일을 올리세요.');
+    }
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'seller/storefront/products/import',
+        data: FormData.fromMap({'file': MultipartFile.fromBytes(bytes, filename: filename)}),
+      );
+      final data = response.data ?? const <String, dynamic>{};
+      return (sourceRows: data['sourceRows'] as int? ?? 0, upserted: data['upserted'] as int? ?? 0);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<CatalogProductSearchPage> sellerSearchCatalog({
     String? q,
     String? category,
@@ -760,6 +850,18 @@ class ApiClient {
   static const _importMaxBytes = 4 * 1024 * 1024;
   static const _importMaxRows = 20000;
 
+  Future<Uint8List> adminDownloadCatalogCsv({required bool template}) async {
+    try {
+      final response = await _dio.get<Uint8List>(
+        template ? 'admin/catalog/export/template' : 'admin/catalog/export',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data ?? Uint8List(0);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<({int sourceRows, int upserted})> adminImportCatalog(
     List<int> bytes,
     String filename, {
@@ -767,7 +869,7 @@ class ApiClient {
     void Function()? onProcessing,
   }) async {
     if (bytes.length > _importMaxBytes) {
-      throw ApiException('파일이 너무 큽니다. data/aihub-catalog.csv만 올리세요.');
+      throw ApiException('파일이 너무 큽니다. 카탈로그 템플릿 형식으로 4MB 이하 파일을 올리세요.');
     }
     late final String text;
     try {
@@ -784,7 +886,7 @@ class ApiClient {
         if (line.trim().isNotEmpty) line,
     ];
     if (dataLines.length > _importMaxRows) {
-      throw ApiException('행이 너무 많습니다. data/aihub-catalog.csv만 올리세요.');
+      throw ApiException('행이 너무 많습니다. 카탈로그 템플릿 형식으로 2만 줄 이하 파일을 올리세요.');
     }
     if (dataLines.isEmpty) {
       throw ApiException('데이터 행이 없습니다.');
@@ -836,7 +938,7 @@ class ApiClient {
       if (e.type == DioExceptionType.connectionError ||
           e.type == DioExceptionType.unknown) {
         throw ApiException(
-          '업로드 연결이 끊겼습니다. 초기화가 끝난 뒤 data/aihub-catalog.csv만 다시 올리세요.',
+          '업로드 연결이 끊겼습니다. 잠시 뒤 카탈로그 CSV를 다시 올리세요.',
         );
       }
       throw mapped;
@@ -888,6 +990,7 @@ class ApiClient {
     String? description,
     String status = 'draft',
     String? catalogProductId,
+    String? variantId,
     String? optionLabel,
     int? volumeMl,
     double? unitAmount,
@@ -895,6 +998,7 @@ class ApiClient {
     int? packCount,
     String? flavor,
     String? imageUrl,
+    List<String> detailImageUrls = const [],
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -907,6 +1011,7 @@ class ApiClient {
           if (stock != null) 'stock': stock,
           if (description != null && description.isNotEmpty) 'description': description,
           if (catalogProductId != null) 'catalogProductId': catalogProductId,
+          if (variantId != null) 'variantId': variantId,
           if (optionLabel != null && optionLabel.isNotEmpty) 'optionLabel': optionLabel,
           if (volumeMl != null) 'volumeMl': volumeMl,
           if (unitAmount != null) 'unitAmount': unitAmount,
@@ -914,6 +1019,7 @@ class ApiClient {
           if (packCount != null) 'packCount': packCount,
           if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
           if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+          if (detailImageUrls.isNotEmpty) 'detailImageUrls': detailImageUrls,
         },
       );
       final data = response.data;
@@ -929,6 +1035,8 @@ class ApiClient {
     int? priceCredits,
     int? stock,
     String? imageUrl,
+    String? description,
+    List<String>? detailImageUrls,
     String? status,
     String? optionLabel,
     double? unitAmount,
@@ -943,6 +1051,8 @@ class ApiClient {
           if (priceCredits != null) 'priceCredits': priceCredits,
           if (stock != null) 'stock': stock,
           if (imageUrl != null) 'imageUrl': imageUrl,
+          if (description != null) 'description': description,
+          if (detailImageUrls != null) 'detailImageUrls': detailImageUrls,
           if (status != null) 'status': status,
           if (optionLabel != null) 'optionLabel': optionLabel,
           if (unitAmount != null) 'unitAmount': unitAmount,
@@ -954,6 +1064,23 @@ class ApiClient {
       final data = response.data;
       if (data == null) throw ApiException('응답 데이터가 없습니다.');
       return ProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<void> sellerUpdateStorefrontLayout({
+    required List<String> productIds,
+    required List<String> featuredProductIds,
+  }) async {
+    try {
+      await _dio.put<void>(
+        'seller/storefront/products',
+        data: {
+          'productIds': productIds,
+          'featuredProductIds': featuredProductIds,
+        },
+      );
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }
@@ -989,6 +1116,14 @@ class ApiClient {
     }
   }
 
+  Future<void> sellerBulkDeleteProducts(List<String> ids) async {
+    try {
+      await _dio.delete<void>('seller/products/bulk', data: {'ids': ids});
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<List<IntakeDraftModel>> sellerCardDrafts() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(
@@ -1008,6 +1143,9 @@ class ApiClient {
     required String manufacturer,
     required String title,
     required String category,
+    String? catalogProductId,
+    String? variantName,
+    List<Map<String, dynamic>> variants = const [],
     String? optionLabel,
     int? priceCredits,
     int? stock,
@@ -1027,6 +1165,9 @@ class ApiClient {
           'manufacturer': manufacturer,
           'title': title,
           'category': category,
+          if (catalogProductId != null) 'catalogProductId': catalogProductId,
+          if (variantName != null) 'variantName': variantName,
+          if (variants.isNotEmpty) 'variants': variants,
           if (optionLabel != null && optionLabel.isNotEmpty) 'optionLabel': optionLabel,
           if (priceCredits != null) 'priceCredits': priceCredits,
           if (stock != null) 'stock': stock,
@@ -1208,6 +1349,18 @@ class ApiClient {
     }
   }
 
+  Future<AdminSellerPage> adminSellerPage({String? q, String? status, int offset = 0, int limit = 30}) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('admin/sellers', queryParameters: {
+        if (q != null && q.isNotEmpty) 'q': q,
+        if (status != null && status.isNotEmpty) 'status': status,
+        'offset': offset,
+        'limit': limit,
+      });
+      return AdminSellerPage.fromJson(response.data ?? const {});
+    } on DioException catch (e) { throw _apiExceptionFromDio(e); }
+  }
+
   Future<AdminSellerModel> _adminSellerAction(
     String path, {
     String? reason,
@@ -1225,14 +1378,8 @@ class ApiClient {
     }
   }
 
-  Future<void> adminApproveSeller(String sellerId) async {
-    try {
-      await _dio.post<Map<String, dynamic>>(
-        'admin/sellers/$sellerId/approve',
-      );
-    } on DioException catch (e) {
-      throw _apiExceptionFromDio(e);
-    }
+  Future<AdminSellerModel> adminApproveSeller(String sellerId) {
+    return _adminSellerAction('admin/sellers/$sellerId/approve');
   }
 
   Future<AdminSellerModel> adminWarnSeller(String sellerId, String reason) {
@@ -1294,6 +1441,23 @@ class ApiClient {
     }
   }
 
+  Future<List<SellerModerationEventModel>> adminAuditEvents() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('admin/audit');
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map(
+            (e) => SellerModerationEventModel.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<AdminCatalogProductPageModel> adminCatalogProducts({
     String? q,
     bool includeRetired = false,
@@ -1324,6 +1488,10 @@ class ApiClient {
     required String title,
     required String category,
     String? description,
+    String? imageUrl,
+    List<String> volumeOptions = const [],
+    List<Map<String, dynamic>> variants = const [],
+    String priceUnit = 'credits',
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -1334,11 +1502,33 @@ class ApiClient {
           'category': category,
           if (description != null && description.isNotEmpty)
             'description': description,
+          if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+          'volumeOptions': volumeOptions,
+          'variants': variants,
+          'priceUnit': priceUnit,
         },
       );
       final data = response.data;
       if (data == null) throw ApiException('응답 데이터가 없습니다.');
       return AdminCatalogProductModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<List<CatalogVariantModel>> adminAddCatalogVariants(
+    String catalogId,
+    List<Map<String, dynamic>> variants,
+  ) async {
+    try {
+      final response = await _dio.post<List<dynamic>>(
+        'admin/catalog/products/$catalogId/variants/batch',
+        data: {'variants': variants},
+      );
+      return (response.data ?? const [])
+          .whereType<Map>()
+          .map((row) => CatalogVariantModel.fromJson(Map<String, dynamic>.from(row)))
+          .toList();
     } on DioException catch (e) {
       throw _apiExceptionFromDio(e);
     }

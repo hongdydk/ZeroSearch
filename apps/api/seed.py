@@ -3,6 +3,10 @@
 Run: `cd apps/api && python -m alembic upgrade head && python seed.py`
 
 Optional DummyJSON demo catalog (after seed): ``python -m scripts.import_dummyjson_catalog``
+
+PR #36 제주삼다수·레쓰비 두 장 자동 시드는 제거했다. API 기동·``ensure_catalog_seed`` 는
+그 카드를 다시 심지 않는다. 이미 들어간 행은
+``python -m scripts.purge_pr36_demo_cards --apply`` 또는 alembic 018.
 """
 
 import argparse
@@ -13,9 +17,9 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import SessionLocal
 from app.deps import hash_password
-from app.models import CartItem, CatalogProduct, MembershipPlan, Product, Seller, User
-from app.services.sellers import ensure_platform_seller
+from app.models import CatalogProduct, MembershipPlan, Product, Seller, User
 from app.services.catalog_l1 import apply_auto_l1_tags, backfill_l1_tags
+from app.services.sellers import ensure_platform_seller
 
 # Optional local demo — not auto-seeded (images are /images/* paths; use import_dummyjson or add CDN URLs).
 BEVERAGE_CATALOGS = [
@@ -76,190 +80,6 @@ MEMBERSHIP_PLANS = [
 MERCHANT_SHOP = {"shop_name": "청정마트", "slug": "clean-mart"}
 MERCHANT_SEED_EMAIL = "merchant-seed@local.dev"
 MERCHANT_SEED_PASSWORD = "merchant-seed-dev"
-
-# Guest L1 browse demo — enough coverage that 라면·생수·찌개·만두/냉동·과자·장류 feel populated.
-GUEST_L1_DEMO_CATALOGS = [
-    {
-        "title": "신라면",
-        "manufacturer": "농심",
-        "category": "국물봉지라면",
-        "category_major": "면류",
-        "category_mid": "봉지면",
-        "description": "농심 신라면",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "진라면 매운맛",
-        "manufacturer": "오뚜기",
-        "category": "국물봉지라면",
-        "category_major": "면류",
-        "category_mid": "봉지면",
-        "description": "오뚜기 진라면",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "짜파게티",
-        "manufacturer": "농심",
-        "category": "비빔봉지라면",
-        "category_major": "면류",
-        "category_mid": "봉지면",
-        "description": "농심 짜파게티",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1612929633738-8fe44f7ec841?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "제주삼다수",
-        "manufacturer": "제주특별자치도개발공사",
-        "category": "일반생수",
-        "category_major": "음료",
-        "category_mid": "생수",
-        "description": "제주 삼다수",
-        "price_unit": "ml",
-        "image_url": "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "백산수",
-        "manufacturer": "농심",
-        "category": "일반생수",
-        "category_major": "음료",
-        "category_mid": "생수",
-        "description": "농심 백산수",
-        "price_unit": "ml",
-        "image_url": "https://images.unsplash.com/photo-1548839140-29a749e1cf4d?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "된장찌개 레토르트",
-        "manufacturer": "오뚜기",
-        "category": "즉석국/찌개",
-        "category_major": "상온HMR",
-        "category_mid": "레토르트",
-        "description": "오뚜기 된장찌개",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1516684669134-de6f7c473a2a?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "김치찌개",
-        "manufacturer": "비비고",
-        "category": "즉석국/찌개",
-        "category_major": "상온HMR",
-        "category_mid": "레토르트",
-        "description": "비비고 김치찌개",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1516684669134-de6f7c473a2a?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "왕교자",
-        "manufacturer": "비비고",
-        "category": "만두",
-        "category_major": "상온HMR",
-        "category_mid": "레토르트",
-        "storage": "냉동",
-        "description": "비비고 왕교자",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "김치왕교자",
-        "manufacturer": "비비고",
-        "category": "만두",
-        "storage": "냉동",
-        "description": "비비고 김치왕교자",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1496116218417-1a781b1c416c?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "초콜릿칩 쿠키",
-        "manufacturer": "허쉬",
-        "category": "쿠키",
-        "category_major": "과자",
-        "category_mid": "스낵",
-        "description": "허쉬 초콜릿칩 쿠키",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "스윙칩 볶음고추장맛",
-        "manufacturer": "오리온",
-        "category": "감자스낵",
-        "category_major": "과자",
-        "category_mid": "스낵",
-        "description": "오리온 스윙칩",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1599490659213-e2b9527bd087?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "초고추장",
-        "manufacturer": "청정원",
-        "category": "고추장",
-        "category_major": "소스",
-        "category_mid": "장류",
-        "description": "청정원 초고추장",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1472476443507-6e15bbba9d8d?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "순창 고추장",
-        "manufacturer": "대상",
-        "category": "고추장",
-        "category_major": "소스",
-        "category_mid": "장류",
-        "description": "순창 고추장",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1472476443507-6e15bbba9d8d?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "스팸 클래식",
-        "manufacturer": "CJ제일제당",
-        "category": "햄캔",
-        "category_major": "통조림/안주",
-        "category_mid": "통조림",
-        "description": "스팸 클래식",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1588166524941-3bf61a9c41db?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "햇반",
-        "manufacturer": "CJ제일제당",
-        "category": "즉석밥",
-        "category_major": "상온HMR",
-        "category_mid": "레토르트",
-        "description": "햇반 즉석밥",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1516684669134-de6f7c473a2a?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "3분 짜장",
-        "manufacturer": "오뚜기",
-        "category": "즉석카레짜장",
-        "category_major": "상온HMR",
-        "category_mid": "레토르트",
-        "description": "오뚜기 3분 짜장",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1516684669134-de6f7c473a2a?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "서울우유",
-        "manufacturer": "서울우유",
-        "category": "일반우유",
-        "category_major": "유제품",
-        "category_mid": "우유",
-        "description": "서울우유 1L",
-        "price_unit": "ml",
-        "image_url": "https://images.unsplash.com/photo-1563636619-e9143da7973b?auto=format&fit=crop&w=400&q=80",
-    },
-    {
-        "title": "커피믹스",
-        "manufacturer": "맥심",
-        "category": "커피",
-        "category_major": "커피차",
-        "category_mid": "분말차",
-        "description": "맥심 커피믹스",
-        "price_unit": "each",
-        "image_url": "https://images.unsplash.com/photo-1495474472287-4d71bcdd2085?auto=format&fit=crop&w=400&q=80",
-    },
-]
 
 
 def ensure_admin_user(db: Session) -> User | None:
@@ -363,41 +183,6 @@ def _ensure_catalog(db: Session, data: dict) -> CatalogProduct:
     return catalog
 
 
-def _ensure_demo_offer(
-    db: Session,
-    catalog: CatalogProduct,
-    seller: Seller,
-    *,
-    option_label: str,
-    price_credits: int,
-    volume_ml: int | None = None,
-) -> None:
-    existing = db.scalar(
-        select(Product).where(
-            Product.catalog_product_id == catalog.id,
-            Product.seller_id == seller.id,
-            Product.option_label == option_label,
-        )
-    )
-    if existing is not None:
-        return
-    db.add(
-        Product(
-            seller_id=seller.id,
-            catalog_product_id=catalog.id,
-            title=catalog.title,
-            description=catalog.description,
-            price_credits=price_credits,
-            stock=40,
-            category=catalog.category,
-            image_url=catalog.image_url,
-            status="published",
-            option_label=option_label,
-            volume_ml=volume_ml,
-        )
-    )
-
-
 def seed_beverage_demo(db: Session) -> None:
     """Seed 생수 데모 (수동 실행용). image_url은 /images/* — 웹 배포 전 CDN URL로 바꿀 것."""
     admin_user = db.scalar(select(User).where(User.is_admin.is_(True)))
@@ -442,44 +227,6 @@ def seed_beverage_demo(db: Session) -> None:
     db.flush()
 
 
-def _ensure_guest_l1_demo(db: Session, platform_seller: Seller, merchant_seller: Seller) -> None:
-    for data in GUEST_L1_DEMO_CATALOGS:
-        catalog = _ensure_catalog(db, data)
-        if catalog.price_unit == "ml":
-            _ensure_demo_offer(
-                db,
-                catalog,
-                platform_seller,
-                option_label="2L × 6",
-                price_credits=9800,
-                volume_ml=12000,
-            )
-            _ensure_demo_offer(
-                db,
-                catalog,
-                merchant_seller,
-                option_label="500ml × 20",
-                price_credits=11500,
-                volume_ml=10000,
-            )
-        else:
-            _ensure_demo_offer(
-                db,
-                catalog,
-                platform_seller,
-                option_label="1팩",
-                price_credits=4200,
-            )
-            _ensure_demo_offer(
-                db,
-                catalog,
-                merchant_seller,
-                option_label="묶음",
-                price_credits=3980,
-            )
-    db.flush()
-
-
 def ensure_catalog_seed(db: Session) -> None:
     admin_user = db.scalar(select(User).where(User.is_admin.is_(True)))
     if admin_user is None:
@@ -488,7 +235,7 @@ def ensure_catalog_seed(db: Session) -> None:
         return
 
     platform_seller = ensure_platform_seller(db, admin_user)
-    merchant_seller = ensure_merchant_seller(db)
+    ensure_merchant_seller(db)
 
     products_without_seller = db.scalars(select(Product).where(Product.seller_id.is_(None))).all()
     for product in products_without_seller:
@@ -501,7 +248,6 @@ def ensure_catalog_seed(db: Session) -> None:
         for data in MEMBERSHIP_PLANS:
             db.add(MembershipPlan(**data))
 
-    _ensure_guest_l1_demo(db, platform_seller, merchant_seller)
     backfill_l1_tags(db, only_if_empty=True)
     db.flush()
 

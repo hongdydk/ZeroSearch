@@ -35,6 +35,7 @@ class SellerSummary(BaseModel):
     id: str
 
     shop_name: str = Field(alias="shopName")
+    slug: str
 
     seller_type: SellerType = Field(alias="sellerType")
 
@@ -67,6 +68,9 @@ class SellerResponse(BaseModel):
     status: SellerStatus
 
     seller_type: SellerType = Field(alias="sellerType")
+    store_description: str | None = Field(default=None, alias="storeDescription")
+    store_logo_url: str | None = Field(default=None, alias="storeLogoUrl")
+    store_banner_url: str | None = Field(default=None, alias="storeBannerUrl")
 
     created_at: datetime | None = Field(default=None, alias="createdAt")
 
@@ -97,6 +101,21 @@ class SellerApplyRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class SellerStorefrontUpdateRequest(BaseModel):
+    store_description: str | None = Field(default=None, alias="storeDescription", max_length=500)
+    store_logo_url: str | None = Field(default=None, alias="storeLogoUrl", max_length=500)
+    store_banner_url: str | None = Field(default=None, alias="storeBannerUrl", max_length=500)
+
+    model_config = {"populate_by_name": True}
+
+
+class SellerStorefrontLayoutRequest(BaseModel):
+    product_ids: list[UUID] = Field(alias="productIds", max_length=100)
+    featured_product_ids: list[UUID] = Field(default_factory=list, alias="featuredProductIds", max_length=6)
+
+    model_config = {"populate_by_name": True}
+
+
 
 
 
@@ -114,9 +133,12 @@ class SellerProductCreateRequest(BaseModel):
 
     image_url: str | None = Field(default=None, alias="imageUrl", max_length=500)
 
+    detail_image_urls: list[str] = Field(default_factory=list, alias="detailImageUrls", max_length=12)
+
     status: ProductStatus = "draft"
 
     catalog_product_id: str | None = Field(default=None, alias="catalogProductId")
+    variant_id: UUID | None = Field(default=None, alias="variantId")
 
     option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
 
@@ -152,6 +174,8 @@ class SellerProductUpdateRequest(BaseModel):
 
     image_url: str | None = Field(default=None, alias="imageUrl", max_length=500)
 
+    detail_image_urls: list[str] | None = Field(default=None, alias="detailImageUrls", max_length=12)
+
     status: ProductStatus | None = None
 
     option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
@@ -176,6 +200,12 @@ class SellerProductBulkRequest(BaseModel):
     price_credits: int | None = Field(default=None, alias="priceCredits", gt=0)
     stock: int | None = Field(default=None, ge=0)
     status: ProductStatus | None = None
+
+    model_config = {"populate_by_name": True}
+
+
+class SellerProductBulkDeleteRequest(BaseModel):
+    ids: list[UUID] = Field(min_length=1, max_length=100)
 
     model_config = {"populate_by_name": True}
 
@@ -227,6 +257,27 @@ class SellerOrderItemListResponse(BaseModel):
     total: int
 
 
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class DailySalesItem(BaseModel):
+    date: str
+    line_count: int = Field(alias="lineCount")
+    amount: int
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class SalesStatsResponse(BaseModel):
+    paid_order_count: int = Field(alias="paidOrderCount")
+    sales_line_count: int = Field(alias="salesLineCount")
+    sold_item_count: int = Field(alias="soldItemCount")
+    sold_qty_sum: int = Field(alias="soldQtySum")
+    sold_amount_sum: int = Field(alias="soldAmountSum")
+    daily_sales: list[DailySalesItem] = Field(alias="dailySales")
+    fulfillment_counts: dict[str, int] = Field(alias="fulfillmentCounts")
+    offer_counts: dict[str, int] = Field(alias="offerCounts")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

@@ -1,15 +1,16 @@
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import and_, case, func, or_, select
+from sqlalchemy import and_, case, delete, func, or_, select, update
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import CatalogProduct, Product, Seller
+from app.models import CartItem, CatalogIntakeDraft, CatalogProduct, Product, Seller
 from app.schemas.product import ProductResponse, SellerProductBulkFailure, SellerProductCounts
 from app.schemas.seller import (
     SellerOfferFilter,
     SellerOfferSort,
     SellerProductBulkRequest,
+    SellerProductBulkDeleteRequest,
     SellerProductCreateRequest,
     SellerProductUpdateRequest,
     SellerSummary,
@@ -27,8 +28,12 @@ def _product_response(product: Product) -> ProductResponse:
         stock=product.stock,
         category=product.category,
         image_url=product.image_url,
+        detail_image_urls=product.detail_image_urls or [],
+        storefront_rank=product.storefront_rank or 0,
+        storefront_featured=bool(product.storefront_featured),
         status=product.status,  # type: ignore[arg-type]
         catalog_product_id=str(product.catalog_product_id),
+        variant_id=str(product.variant_id) if product.variant_id else None,
         option_label=product.option_label,
         volume_ml=product.volume_ml,
         unit_amount=float(product.unit_amount) if product.unit_amount is not None else None,
@@ -38,6 +43,7 @@ def _product_response(product: Product) -> ProductResponse:
         seller=SellerSummary(
             id=str(product.seller.id),
             shop_name=product.seller.shop_name,
+            slug=product.seller.slug,
             seller_type=product.seller.seller_type,  # type: ignore[arg-type]
         ),
         created_at=product.created_at,
@@ -189,29 +195,36 @@ def _resolve_catalog_product(
 
 def create_seller_product(db: Session, seller: Seller, payload: SellerProductCreateRequest) -> Product:
     catalog = _resolve_catalog_product(db, payload)
+    variant = None
+    if payload.variant_id:
+        from app.services.catalog_variants import require_catalog_variant
+
+        variant = require_catalog_variant(db, catalog.id, payload.variant_id)
     units = resolve_offer_units(
-        option_label=payload.option_label,
-        unit_amount=payload.unit_amount,
-        unit=payload.unit,
-        pack_count=payload.pack_count,
-        volume_ml=payload.volume_ml,
+        option_label=None if variant else payload.option_label,
+        unit_amount=float(variant.unit_amount) if variant else payload.unit_amount,
+        unit=variant.unit if variant else payload.unit,
+        pack_count=variant.pack_count if variant else payload.pack_count,
+        volume_ml=None if variant else payload.volume_ml,
     )
     product = Product(
         seller_id=seller.id,
         catalog_product_id=catalog.id,
-        title=catalog.title,
+        variant_id=variant.id if variant else None,
+        title=(f"{catalog.title} · {variant.name} · {units.option_label}"[:200] if variant else catalog.title),
         description=payload.description,
         price_credits=payload.price_credits or 0,
         stock=payload.stock or 0,
         category=catalog.category,
-        image_url=payload.image_url or catalog.image_url,
+        image_url=payload.image_url or (variant.image_url if variant else None) or catalog.image_url,
+        detail_image_urls=payload.detail_image_urls,
         status="draft",
         option_label=units.option_label,
         volume_ml=units.volume_ml,
         unit_amount=units.unit_amount,
         unit=units.unit,
         pack_count=units.pack_count,
-        flavor=payload.flavor,
+        flavor=None if variant else payload.flavor,
     )
     db.add(product)
     db.flush()
@@ -220,6 +233,11 @@ def create_seller_product(db: Session, seller: Seller, payload: SellerProductCre
 
 
 def _apply_seller_product_update(product: Product, payload: SellerProductUpdateRequest) -> None:
+    if product.variant_id and any(
+        value is not None
+        for value in (payload.option_label, payload.unit_amount, payload.unit, payload.pack_count, payload.volume_ml, payload.flavor)
+    ):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="상품 옵션은 변경할 수 없습니다. 새 오퍼를 등록하세요.")
     if payload.status is not None:
         if payload.status == "published" and product.status == "draft":
             raise HTTPException(
@@ -238,6 +256,8 @@ def _apply_seller_product_update(product: Product, payload: SellerProductUpdateR
         product.category = payload.category
     if payload.image_url is not None:
         product.image_url = payload.image_url
+    if payload.detail_image_urls is not None:
+        product.detail_image_urls = payload.detail_image_urls
     if payload.status is not None:
         product.status = payload.status
     if payload.flavor is not None:
@@ -270,6 +290,31 @@ def update_seller_product(
     _apply_seller_product_update(product, payload)
     db.flush()
     return product
+
+
+def update_seller_storefront_layout(
+    db: Session, seller: Seller, *, product_ids: list[UUID], featured_product_ids: list[UUID]
+) -> None:
+    ordered_ids = list(dict.fromkeys(product_ids))
+    featured_ids = set(featured_product_ids)
+    if not featured_ids.issubset(ordered_ids):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="추천 상품은 진열 상품 안에서 고르세요.")
+    products = list(
+        db.scalars(
+            select(Product).where(Product.seller_id == seller.id, Product.id.in_(ordered_ids))
+        ).all()
+    ) if ordered_ids else []
+    if len(products) != len(ordered_ids):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="진열할 상품을 찾을 수 없습니다.")
+    for product in db.scalars(select(Product).where(Product.seller_id == seller.id)):
+        product.storefront_rank = 1000
+        product.storefront_featured = False
+    by_id = {product.id: product for product in products}
+    for rank, product_id in enumerate(ordered_ids):
+        product = by_id[product_id]
+        product.storefront_rank = rank
+        product.storefront_featured = product_id in featured_ids
+    db.flush()
 
 
 def bulk_update_seller_products(
@@ -312,10 +357,45 @@ def bulk_update_seller_products(
     return updated, failed
 
 
-def archive_seller_product(db: Session, seller: Seller, product_id: UUID) -> None:
+def delete_seller_product(db: Session, seller: Seller, product_id: UUID) -> None:
     product = get_seller_product(db, seller, product_id)
-    product.status = "archived"
+    db.execute(delete(CartItem).where(CartItem.product_id == product.id))
+    db.execute(
+        update(CatalogIntakeDraft)
+        .where(CatalogIntakeDraft.product_id == product.id)
+        .values(product_id=None)
+    )
+    db.delete(product)
     db.flush()
+
+
+def bulk_delete_seller_products(
+    db: Session, seller: Seller, payload: SellerProductBulkDeleteRequest
+) -> tuple[int, list[SellerProductBulkFailure]]:
+    ids = list(dict.fromkeys(payload.ids))
+    products = db.scalars(
+        select(Product).where(Product.seller_id == seller.id, Product.id.in_(ids))
+    ).all()
+    by_id = {product.id: product for product in products}
+    failed: list[SellerProductBulkFailure] = []
+    deleted = 0
+    for product_id in ids:
+        product = by_id.get(product_id)
+        if product is None:
+            failed.append(
+                SellerProductBulkFailure(id=str(product_id), detail="상품을 찾을 수 없습니다.")
+            )
+            continue
+        db.execute(delete(CartItem).where(CartItem.product_id == product.id))
+        db.execute(
+            update(CatalogIntakeDraft)
+            .where(CatalogIntakeDraft.product_id == product.id)
+            .values(product_id=None)
+        )
+        db.delete(product)
+        deleted += 1
+    db.flush()
+    return deleted, failed
 
 
 def product_to_response(product: Product) -> ProductResponse:

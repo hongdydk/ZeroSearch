@@ -272,28 +272,6 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     );
   }
 
-  void _applyL1All() {
-    final l1 = ref.read(catalogL1Provider);
-    final q = ref.read(catalogSearchProvider).trim();
-    if (l1 == null && q.isEmpty) return;
-    ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
-    ref.read(catalogL1BrandProvider.notifier).state = null;
-    ref.read(catalogL1MenuProvider.notifier).state = null;
-    ref.read(catalogFlavorFilterProvider.notifier).state = null;
-    ref.read(catalogVolumeMinFilterProvider.notifier).state = null;
-    ref.read(catalogL1AllProvider.notifier).state = true;
-    context.go(
-      browseLocation(
-        q: q.isEmpty ? null : q,
-        l1: l1,
-        l2: l1 == null ? null : ref.read(catalogL2Provider),
-        axis: ref.read(catalogL1AxisProvider),
-        storage: l1 == null ? null : ref.read(catalogStorageFilterProvider),
-        all: true,
-      ),
-    );
-  }
-
   void _applyMidDrill(String major, String name) {
     ref.read(catalogGridScrollOffsetProvider.notifier).state = 0;
     ref.read(catalogFlavorFilterProvider.notifier).state = null;
@@ -421,9 +399,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
         onStorage: _applyL1Storage,
         onPickBrand: _applyL1Brand,
         onPickMenu: _applyL1Menu,
-        onSeeAll: _applyL1All,
         showStorage: l1 != null,
-        seeAllLabel: l1 != null ? '이 종류 전체 보기' : '카드로 전체 보기',
       );
       if (!isWebUi && inSearch) {
         axisView = Column(
@@ -819,6 +795,16 @@ class _LandingViewState extends State<_LandingView> {
                 },
               ),
               const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.storefront_outlined),
+                  title: const Text('입점 판매자 둘러보기'),
+                  subtitle: const Text('상품이 준비 중인 판매자 사이트도 미리 확인할 수 있습니다.'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go('/stores'),
+                ),
+              ),
+              const SizedBox(height: 20),
               KeyedSubtree(
                 key: _tableKey,
                 child: Column(

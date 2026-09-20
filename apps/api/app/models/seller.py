@@ -19,6 +19,9 @@ class Seller(Base):
     slug: Mapped[str] = mapped_column(String(100), nullable=False, unique=True, index=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="pending")
     seller_type: Mapped[str] = mapped_column(String(20), nullable=False, server_default="merchant")
+    store_description: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    store_logo_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    store_banner_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()

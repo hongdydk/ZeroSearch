@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/cart/cart_actions.dart';
 import '../../core/cart/cart_feedback.dart';
@@ -166,10 +167,29 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
-              Text('재고 ${product.stock}개'),
+              if (product.stock < 1)
+                Text('품절', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error)),
               if (product.description != null && product.description!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text(product.description!, style: Theme.of(context).textTheme.bodyLarge),
+              ],
+              if (product.detailImageUrls.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text('상품 상세 정보', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                ...product.detailImageUrls.map((url) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: ProductImage(imageUrl: url, title: '${product.title} 상세 이미지'),
+                  ),
+                  if (product.seller.slug.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () => context.push('/stores/${product.seller.slug}'),
+                      icon: const Icon(Icons.storefront_outlined, size: 17),
+                      label: const Text('판매자 사이트'),
+                    ),
+                )),
               ],
               const SizedBox(height: 24),
               Row(

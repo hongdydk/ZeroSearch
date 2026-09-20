@@ -459,7 +459,8 @@ List<_PortalMenuGroup> _menuGroups(PortalWorkspaceRole role) {
     return const [
       _PortalMenuGroup('운영', [
         _PortalMenuItem('운영 홈', '/seller', Icons.dashboard_outlined),
-        _PortalMenuItem('내 오퍼', '/seller/products', Icons.inventory_2_outlined),
+        _PortalMenuItem('판매자 사이트', '/seller/storefront', Icons.storefront_outlined),
+        _PortalMenuItem('내 카탈로그', '/seller/products', Icons.inventory_2_outlined),
         _PortalMenuItem('주문 관리', '/seller/orders', Icons.receipt_long_outlined),
       ]),
       _PortalMenuGroup('분석·도구', [
@@ -467,21 +468,13 @@ List<_PortalMenuGroup> _menuGroups(PortalWorkspaceRole role) {
           '통계',
           '/seller/stats',
           Icons.bar_chart_outlined,
-          soon: true,
         ),
         _PortalMenuItem(
           '알림',
           '/seller/alerts',
           Icons.notifications_none,
-          soon: true,
         ),
-        _PortalMenuItem(
-          '저장 필터',
-          '/seller/saved-filters',
-          Icons.filter_alt_outlined,
-          soon: true,
-        ),
-        _PortalMenuItem('작업 기록', '/seller/activity', Icons.history, soon: true),
+        _PortalMenuItem('작업 기록', '/seller/activity', Icons.history),
       ]),
     ];
   }
@@ -500,19 +493,11 @@ List<_PortalMenuGroup> _menuGroups(PortalWorkspaceRole role) {
         '알림',
         '/admin/alerts',
         Icons.notifications_none,
-        soon: true,
-      ),
-      _PortalMenuItem(
-        '저장 필터',
-        '/admin/saved-filters',
-        Icons.filter_alt_outlined,
-        soon: true,
       ),
       _PortalMenuItem(
         '감사 로그',
         '/admin/audit',
         Icons.manage_history,
-        soon: true,
       ),
     ]),
   ];

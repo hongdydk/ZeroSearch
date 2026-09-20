@@ -4,7 +4,8 @@ from uuid import UUID
 
 
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
 
 from sqlalchemy.orm import Session
 
@@ -23,8 +24,13 @@ from app.schemas.catalog_intake import (
     SellerCardDraftCreateRequest,
     SellerCardDraftUpdateRequest,
 )
-from app.schemas.catalog_product import CatalogProductListResponse
-from app.schemas.product import ProductResponse, SellerProductBulkResponse, SellerProductListResponse
+from app.schemas.catalog_product import CatalogImportResponse, CatalogProductListResponse
+from app.schemas.product import (
+    ProductResponse,
+    SellerProductBulkDeleteResponse,
+    SellerProductBulkResponse,
+    SellerProductListResponse,
+)
 
 from app.schemas.seller import (
 
@@ -41,14 +47,18 @@ from app.schemas.seller import (
     SellerOrderItemStatusUpdate,
 
     SellerProductBulkRequest,
+    SellerProductBulkDeleteRequest,
 
     SellerProductCreateRequest,
 
     SellerProductUpdateRequest,
+    SellerStorefrontUpdateRequest,
+    SellerStorefrontLayoutRequest,
 
     SellerImageUploadResponse,
 
     SellerResponse,
+    SalesStatsResponse,
 
 )
 from app.schemas.admin import SellerModerationEventListResponse
@@ -63,7 +73,9 @@ from app.services.uploads import save_seller_image
 from app.services.catalog_products import search_seller_catalog_products
 from app.services.products import (
 
-    archive_seller_product,
+    delete_seller_product,
+
+    bulk_delete_seller_products,
 
     bulk_update_seller_products,
 
@@ -76,6 +88,7 @@ from app.services.products import (
     product_to_response,
 
     update_seller_product,
+    update_seller_storefront_layout,
 
 )
 
@@ -90,10 +103,26 @@ from app.services.seller_orders import (
 from app.services.seller_orders import _seller_order_item_response
 
 from app.services.sellers import apply_for_seller, get_seller_for_user, list_moderation_events, moderation_event_item
+from app.services.sales_stats import get_sales_stats
+from app.services.storefront_product_import import (
+    export_storefront_product_csv,
+    import_storefront_product_csv,
+    storefront_product_template_csv,
+)
 
 
 
 router = APIRouter(prefix="/seller", tags=["seller"])
+
+_MAX_STOREFRONT_CSV_BYTES = 4 * 1024 * 1024
+
+
+@router.get("/stats", response_model=SalesStatsResponse)
+def seller_stats(
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> SalesStatsResponse:
+    return SalesStatsResponse(**get_sales_stats(db, seller_id=seller.id))
 
 
 
@@ -140,6 +169,68 @@ def seller_me(
         return None
 
     return SellerResponse.model_validate(seller)
+
+
+@router.patch("/storefront", response_model=SellerResponse)
+def update_seller_storefront(
+    payload: SellerStorefrontUpdateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> SellerResponse:
+    seller.store_description = (payload.store_description or "").strip() or None
+    seller.store_logo_url = (payload.store_logo_url or "").strip() or None
+    seller.store_banner_url = (payload.store_banner_url or "").strip() or None
+    db.commit()
+    db.refresh(seller)
+    return SellerResponse.model_validate(seller)
+
+
+@router.post("/storefront/products/import", response_model=CatalogImportResponse)
+async def import_seller_storefront_products(
+    file: Annotated[UploadFile, File()],
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> CatalogImportResponse:
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CSV 파일만 올릴 수 있습니다.")
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="빈 파일입니다.")
+    if len(content) > _MAX_STOREFRONT_CSV_BYTES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="파일이 너무 큽니다. 4MB 이하 CSV를 올리세요.")
+    result = import_storefront_product_csv(db, seller, content)
+    db.commit()
+    return CatalogImportResponse(**result)
+
+
+@router.get("/storefront/products/export", response_class=Response)
+def export_seller_storefront_products(
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> Response:
+    return Response(content=export_storefront_product_csv(db, seller), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="my-storefront-products.csv"'})
+
+
+@router.get("/storefront/products/export/template", response_class=Response)
+def export_seller_storefront_products_template(
+    _: Annotated[Seller, Depends(require_active_seller)],
+) -> Response:
+    return Response(content=storefront_product_template_csv(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="my-storefront-products-template.csv"'})
+
+
+@router.put("/storefront/products", status_code=status.HTTP_204_NO_CONTENT)
+def update_seller_storefront_products(
+    payload: SellerStorefrontLayoutRequest,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> None:
+    update_seller_storefront_layout(
+        db,
+        seller,
+        product_ids=payload.product_ids,
+        featured_product_ids=payload.featured_product_ids,
+    )
+    db.commit()
 
 
 @router.get("/moderation-events", response_model=SellerModerationEventListResponse)
@@ -257,6 +348,21 @@ def seller_bulk_update_products(
     )
 
 
+@router.delete("/products/bulk", response_model=SellerProductBulkDeleteResponse)
+def seller_bulk_delete_products(
+    payload: SellerProductBulkDeleteRequest,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> SellerProductBulkDeleteResponse:
+    deleted_count, failed = bulk_delete_seller_products(db, seller, payload)
+    db.commit()
+    return SellerProductBulkDeleteResponse(
+        deleted_count=deleted_count,
+        failed=failed,
+        fail_count=len(failed),
+    )
+
+
 @router.get("/products/{product_id}", response_model=ProductResponse)
 def seller_get_product(
     product_id: UUID,
@@ -328,7 +434,7 @@ def seller_delete_product(
 
 ) -> None:
 
-    archive_seller_product(db, seller, product_id)
+    delete_seller_product(db, seller, product_id)
 
     db.commit()
 

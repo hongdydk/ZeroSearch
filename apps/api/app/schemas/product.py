@@ -40,9 +40,15 @@ class ProductResponse(BaseModel):
 
     image_url: str | None = Field(default=None, alias="imageUrl")
 
+    detail_image_urls: list[str] = Field(default_factory=list, alias="detailImageUrls")
+
+    storefront_rank: int = Field(default=0, alias="storefrontRank")
+    storefront_featured: bool = Field(default=False, alias="storefrontFeatured")
+
     status: ProductStatus = "published"
 
     catalog_product_id: str = Field(alias="catalogProductId")
+    variant_id: str | None = Field(default=None, alias="variantId")
 
     option_label: str | None = Field(default=None, alias="optionLabel")
 
@@ -132,6 +138,14 @@ class SellerProductBulkResponse(BaseModel):
     updated: list[ProductResponse]
     failed: list[SellerProductBulkFailure]
     success_count: int = Field(alias="successCount")
+    fail_count: int = Field(alias="failCount")
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+
+class SellerProductBulkDeleteResponse(BaseModel):
+    deleted_count: int = Field(alias="deletedCount")
+    failed: list[SellerProductBulkFailure]
     fail_count: int = Field(alias="failCount")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}

@@ -8,7 +8,7 @@ from typing import Any
 from sqlalchemy import text
 
 from app.database import SessionLocal
-from app.services.catalog_import import import_catalog_csv
+from app.services.catalog_import import import_admin_catalog_csv, import_catalog_csv
 
 logger = logging.getLogger(__name__)
 _jobs: dict[str, dict[str, Any]] = {}
@@ -21,7 +21,7 @@ def get_job(job_id: str) -> dict[str, Any] | None:
         return dict(job) if job is not None else None
 
 
-def start_import_job(csv_text: str) -> dict[str, Any]:
+def start_import_job(csv_text: str, *, admin_csv: bool = False) -> dict[str, Any]:
     job_id = str(uuid.uuid4())
     with _lock:
         _jobs[job_id] = {
@@ -31,7 +31,7 @@ def start_import_job(csv_text: str) -> dict[str, Any]:
             "upserted": 0,
             "error": None,
         }
-    thread = threading.Thread(target=_run_import_job, args=(job_id, csv_text), daemon=True)
+    thread = threading.Thread(target=_run_import_job, args=(job_id, csv_text, admin_csv), daemon=True)
     thread.start()
     return get_job(job_id) or {"job_id": job_id, "status": "running", "source_rows": 0, "upserted": 0, "error": None}
 
@@ -43,12 +43,13 @@ def _update(job_id: str, **fields: Any) -> None:
             job.update(fields)
 
 
-def _run_import_job(job_id: str, csv_text: str) -> None:
+def _run_import_job(job_id: str, csv_text: str, admin_csv: bool) -> None:
     db = SessionLocal()
     try:
         db.execute(text("SET LOCAL lock_timeout = '15s'"))
         db.execute(text("SET LOCAL statement_timeout = '90s'"))
-        result = import_catalog_csv(db, csv_text.encode("utf-8"))
+        importer = import_admin_catalog_csv if admin_csv else import_catalog_csv
+        result = importer(db, csv_text.encode("utf-8"))
         db.commit()
         _update(job_id, status="done", source_rows=result["source_rows"], upserted=result["upserted"])
     except Exception as exc:

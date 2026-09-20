@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -36,6 +36,8 @@ class CatalogIntakeDraft(Base):
     category: Mapped[str] = mapped_column(String(120), nullable=False)
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
     flavor: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    variant_name: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    variant_proposals: Mapped[list] = mapped_column(JSONB, nullable=False, default=list, server_default="[]")
     option_label: Mapped[str | None] = mapped_column(String(100), nullable=True)
     volume_ml: Mapped[int | None] = mapped_column(Integer, nullable=True)
     unit_amount: Mapped[float | None] = mapped_column(Numeric(12, 3), nullable=True)

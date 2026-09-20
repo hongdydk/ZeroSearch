@@ -7,6 +7,7 @@ from decimal import Decimal
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.seller import OfferUnit
+from app.schemas.catalog_variant import CatalogVariantCreateRequest
 
 
 IntakeKind = Literal["offer", "card"]
@@ -15,11 +16,14 @@ OfferVisibility = Literal["public", "hidden"]
 
 
 class SellerCardDraftCreateRequest(BaseModel):
+    catalog_product_id: UUID | None = Field(default=None, alias="catalogProductId")
     manufacturer: str = Field(min_length=1, max_length=200)
     title: str = Field(min_length=1, max_length=200)
     category: str = Field(min_length=1, max_length=120)
     image_url: str | None = Field(default=None, alias="imageUrl", max_length=500)
     flavor: str | None = Field(default=None, max_length=50)
+    variant_name: str | None = Field(default=None, alias="variantName", max_length=100)
+    variants: list[CatalogVariantCreateRequest] = Field(default_factory=list, max_length=30)
     option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
     volume_ml: int | None = Field(default=None, alias="volumeMl", gt=0)
     unit_amount: float | None = Field(default=None, alias="unitAmount", gt=0)
@@ -36,6 +40,7 @@ class SellerCardDraftCreateRequest(BaseModel):
 class SellerCardDraftUpdateRequest(BaseModel):
     image_url: str | None = Field(default=None, alias="imageUrl", max_length=500)
     flavor: str | None = Field(default=None, max_length=50)
+    variant_name: str | None = Field(default=None, alias="variantName", max_length=100)
     option_label: str | None = Field(default=None, alias="optionLabel", max_length=100)
     volume_ml: int | None = Field(default=None, alias="volumeMl", gt=0)
     unit_amount: float | None = Field(default=None, alias="unitAmount", gt=0)
@@ -61,6 +66,8 @@ class CatalogIntakeItem(BaseModel):
     category: str
     image_url: str | None = Field(default=None, alias="imageUrl")
     flavor: str | None = None
+    variant_name: str | None = Field(default=None, alias="variantName")
+    variants: list[CatalogVariantCreateRequest] = Field(default_factory=list)
     option_label: str | None = Field(default=None, alias="optionLabel")
     volume_ml: int | None = Field(default=None, alias="volumeMl")
     unit_amount: float | None = Field(default=None, alias="unitAmount")

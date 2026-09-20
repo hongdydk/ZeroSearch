@@ -240,6 +240,32 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     await _applyBulk(status: 'published');
   }
 
+  Future<void> _bulkDelete() async {
+    if (_selectedIds.isEmpty || isBusy('bulk')) return;
+    final ok = await _confirmBulk(
+      '선택 오퍼 영구 삭제',
+      '${_selectedIds.length}건의 연결된 오퍼를 영구 삭제할까요? 기존 주문과 판매 기록은 유지됩니다.',
+    );
+    if (!ok || !mounted) return;
+    final ids = _selectedIds.toList();
+    await runBusy('bulk', () async {
+      try {
+        await ref.read(apiClientProvider).sellerBulkDeleteProducts(ids);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${ids.length}건의 오퍼를 삭제했습니다.')),
+        );
+        setState(_selectedIds.clear);
+        await _load(silent: true);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
+  }
+
   Future<void> _applyBulk({
     int? priceCredits,
     int? stock,
@@ -359,6 +385,13 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                 OutlinedButton(
                   onPressed: bulkBusy ? null : _bulkUnhide,
                   child: const Text('숨김 해제'),
+                ),
+                OutlinedButton(
+                  onPressed: bulkBusy ? null : _bulkDelete,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  child: const Text('영구 삭제'),
                 ),
               ],
             ),
@@ -494,7 +527,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('오퍼 삭제'),
-        content: const Text('구매자에게 보이지 않게 숨김으로 옮깁니다. 나중에 숨김 해제로 되돌릴 수 있습니다.'),
+        content: const Text('오퍼를 영구 삭제합니다. 되돌릴 수 없습니다. 기존 주문과 판매 기록은 유지됩니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -515,13 +548,8 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
         await ref.read(apiClientProvider).sellerDeleteProduct(product.id);
         if (!mounted) return;
         setState(() {
-          _products = [
-            for (final row in _products)
-              if (row.id == product.id)
-                row.copyWith(status: 'archived')
-              else
-                row,
-          ];
+          _products = [for (final row in _products) if (row.id != product.id) row];
+          _selectedIds.remove(product.id);
         });
         await _load(silent: true);
       } on ApiException catch (e) {
@@ -550,7 +578,7 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
       activePath: '/seller/products',
       child: PortalPage(
         eyebrow: '판매자 센터',
-        title: '내 오퍼',
+        title: '내 카탈로그',
         trailing: Wrap(
           spacing: 8,
           children: [

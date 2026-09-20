@@ -137,6 +137,7 @@ def create_paid_order_from_snapshot(
             OrderItem(
                 order_id=order.id,
                 product_id=UUID(item["productId"]),
+                catalog_product_id=UUID(item["catalogProductId"]) if item.get("catalogProductId") else None,
                 seller_id=UUID(item["sellerId"]),
                 qty=int(item["qty"]),
                 unit_price_credits=int(item["unitPrice"]),
@@ -258,6 +259,7 @@ def checkout(
             OrderItem(
                 order_id=order.id,
                 product_id=item.product_id,
+                catalog_product_id=item.product.catalog_product_id,
                 seller_id=item.product.seller_id,
                 qty=item.qty,
                 unit_price_credits=item.product.price_credits,

@@ -3,12 +3,15 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
 from app.deps import require_admin
-from app.models import User
+from app.models import CatalogProduct, Seller, User
+from app.schemas.catalog_variant import CatalogVariantCreateRequest, CatalogVariantItem, CatalogVariantsCreateRequest
+from app.services.catalog_variants import add_catalog_variant, variant_to_item
 from app.schemas.admin import (
     AdminCatalogCreateRequest,
     AdminCatalogProductItem,
@@ -55,7 +58,11 @@ from app.services.admin_users import (
     list_admin_users,
     update_admin_user,
 )
-from app.services.catalog_import import import_catalog_csv
+from app.services.catalog_import import (
+    admin_catalog_template_csv,
+    export_admin_catalog_csv,
+    import_admin_catalog_csv,
+)
 from app.services.catalog_import_jobs import get_job, start_import_job
 from app.services.catalog_intake import attach_intake_draft, list_admin_intake_queue, promote_card_draft
 from app.services.credits import grant_credits
@@ -68,8 +75,10 @@ from app.services.sellers import (
     approve_seller,
     list_admin_sellers,
     list_moderation_events,
+    list_all_moderation_events,
     moderation_event_item,
     _moderation_summaries,
+    seller_operations_summaries,
     remove_seller,
     suspend_seller,
     unsuspend_seller,
@@ -106,9 +115,9 @@ async def import_catalog(
     if len(content) > _MAX_CATALOG_CSV_BYTES:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="파일이 너무 큽니다. data/aihub-catalog.csv만 올리세요.",
+            detail="파일이 너무 큽니다. 카탈로그 템플릿 형식으로 4MB 이하 파일을 올리세요.",
         )
-    result = import_catalog_csv(db, content)
+    result = import_admin_catalog_csv(db, content)
     db.commit()
     return CatalogImportResponse(**result)
 
@@ -119,7 +128,7 @@ def import_catalog_text(
     _: Annotated[User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
 ) -> CatalogImportResponse:
-    result = import_catalog_csv(db, payload.csv.encode("utf-8"))
+    result = import_admin_catalog_csv(db, payload.csv.encode("utf-8"))
     db.commit()
     return CatalogImportResponse(**result)
 
@@ -129,7 +138,7 @@ def create_catalog_import_job(
     payload: CatalogImportTextRequest,
     _: Annotated[User, Depends(require_admin)],
 ) -> CatalogImportJobResponse:
-    return CatalogImportJobResponse(**start_import_job(payload.csv))
+    return CatalogImportJobResponse(**start_import_job(payload.csv, admin_csv=True))
 
 
 @router.get("/catalog/import-jobs/{job_id}", response_model=CatalogImportJobResponse)
@@ -141,6 +150,29 @@ def read_catalog_import_job(
     if job is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="가져오기 작업을 찾을 수 없습니다.")
     return CatalogImportJobResponse(**job)
+
+
+@router.get("/catalog/export", response_class=Response)
+def export_catalog(
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> Response:
+    return Response(
+        content=export_admin_catalog_csv(db),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="catalog-current.csv"'},
+    )
+
+
+@router.get("/catalog/export/template", response_class=Response)
+def export_catalog_template(
+    _: Annotated[User, Depends(require_admin)],
+) -> Response:
+    return Response(
+        content=admin_catalog_template_csv(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="catalog-template.csv"'},
+    )
 
 
 @router.get("/users", response_model=AdminUserListResponse)
@@ -280,14 +312,18 @@ def list_sellers(
     _: Annotated[User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    q: Annotated[str | None, Query()] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
 ) -> AdminSellerListResponse:
-    rows = list_admin_sellers(db, status_filter)
+    rows, total = list_admin_sellers(db, status_filter, q, offset, limit)
     summaries = _moderation_summaries(db, [seller.id for seller, _ in rows])
+    operations = seller_operations_summaries(db, [seller.id for seller, _ in rows])
     items = [
-        admin_seller_item(seller, user, summaries.get(seller.id))
+        admin_seller_item(seller, user, summaries.get(seller.id), operations.get(seller.id))
         for seller, user in rows
     ]
-    return AdminSellerListResponse(items=items, total=len(items))
+    return AdminSellerListResponse(items=items, total=total, offset=offset, limit=limit)
 
 
 def _seller_item_after_action(db: Session, seller) -> AdminSellerItem:
@@ -385,6 +421,35 @@ def list_seller_moderation(
     return SellerModerationEventListResponse(items=items, total=len(items))
 
 
+@router.get("/audit", response_model=SellerModerationEventListResponse)
+def list_admin_audit(
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SellerModerationEventListResponse:
+    events = list_all_moderation_events(db)
+    admin_ids = {event.admin_user_id for event in events if event.admin_user_id}
+    seller_ids = {event.seller_id for event in events}
+    emails = {
+        user_id: user.email
+        for user_id in admin_ids
+        if (user := db.get(User, user_id)) is not None
+    }
+    shop_names = {
+        seller_id: seller.shop_name
+        for seller_id in seller_ids
+        if (seller := db.get(Seller, seller_id)) is not None
+    }
+    items = [
+        moderation_event_item(
+            event,
+            emails.get(event.admin_user_id) if event.admin_user_id else None,
+            shop_names.get(event.seller_id),
+        )
+        for event in events
+    ]
+    return SellerModerationEventListResponse(items=items, total=len(items))
+
+
 def _admin_order_item_response(item) -> AdminOrderItemResponse:
     return AdminOrderItemResponse(
         id=str(item.id),
@@ -471,6 +536,36 @@ def create_admin_catalog(
     db.commit()
     logger.info("Admin %s created catalog %s / %s", admin.email, payload.manufacturer, payload.title)
     return item
+
+
+@router.post("/catalog/products/{catalog_id}/variants", response_model=CatalogVariantItem, status_code=status.HTTP_201_CREATED)
+def create_admin_catalog_variant(
+    catalog_id: UUID,
+    payload: CatalogVariantCreateRequest,
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> CatalogVariantItem:
+    catalog = db.get(CatalogProduct, catalog_id)
+    if catalog is None or catalog.status != "active":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 카드를 찾을 수 없습니다.")
+    variant = add_catalog_variant(db, catalog, payload)
+    db.commit()
+    return variant_to_item(variant)
+
+
+@router.post("/catalog/products/{catalog_id}/variants/batch", response_model=list[CatalogVariantItem], status_code=status.HTTP_201_CREATED)
+def create_admin_catalog_variants(
+    catalog_id: UUID,
+    payload: CatalogVariantsCreateRequest,
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> list[CatalogVariantItem]:
+    catalog = db.get(CatalogProduct, catalog_id)
+    if catalog is None or catalog.status != "active":
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="대표 카드를 찾을 수 없습니다.")
+    variants = [add_catalog_variant(db, catalog, item) for item in payload.variants]
+    db.commit()
+    return [variant_to_item(item) for item in variants]
 
 
 @router.delete("/catalog/products/{catalog_id}", response_model=AdminCatalogProductItem)

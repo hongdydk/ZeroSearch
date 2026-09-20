@@ -106,6 +106,14 @@
             "title": "Title",
             "type": "string"
           },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+            },
+            "maxItems": 30,
+            "title": "Variants",
+            "type": "array"
+          },
           "volumeOptions": {
             "items": {
               "type": "string"
@@ -487,6 +495,11 @@
             "title": "Createdat",
             "type": "string"
           },
+          "hiddenOfferCount": {
+            "default": 0,
+            "title": "Hiddenoffercount",
+            "type": "integer"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -513,6 +526,21 @@
             ],
             "title": "Lastmoderationreason"
           },
+          "offerCount": {
+            "default": 0,
+            "title": "Offercount",
+            "type": "integer"
+          },
+          "pendingDraftCount": {
+            "default": 0,
+            "title": "Pendingdraftcount",
+            "type": "integer"
+          },
+          "publishedOfferCount": {
+            "default": 0,
+            "title": "Publishedoffercount",
+            "type": "integer"
+          },
           "sellerType": {
             "title": "Sellertype",
             "type": "string"
@@ -524,6 +552,11 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "soldOutOfferCount": {
+            "default": 0,
+            "title": "Soldoutoffercount",
+            "type": "integer"
           },
           "status": {
             "title": "Status",
@@ -565,6 +598,16 @@
             "title": "Items",
             "type": "array"
           },
+          "limit": {
+            "default": 30,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
+          },
           "total": {
             "title": "Total",
             "type": "integer"
@@ -594,8 +637,34 @@
       },
       "AdminStatsResponse": {
         "properties": {
+          "dailySales": {
+            "items": {
+              "$ref": "#/components/schemas/DailySalesItem"
+            },
+            "title": "Dailysales",
+            "type": "array"
+          },
+          "fulfillmentCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Fulfillmentcounts",
+            "type": "object"
+          },
+          "offerCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Offercounts",
+            "type": "object"
+          },
           "orderCount": {
             "title": "Ordercount",
+            "type": "integer"
+          },
+          "paidOrderCount": {
+            "default": 0,
+            "title": "Paidordercount",
             "type": "integer"
           },
           "pendingSellerCount": {
@@ -604,6 +673,11 @@
           },
           "productCount": {
             "title": "Productcount",
+            "type": "integer"
+          },
+          "salesLineCount": {
+            "default": 0,
+            "title": "Saleslinecount",
             "type": "integer"
           },
           "sellerCount": {
@@ -829,6 +903,20 @@
           "file"
         ],
         "title": "Body_import_catalog_admin_catalog_import_post",
+        "type": "object"
+      },
+      "Body_import_seller_storefront_products_seller_storefront_products_import_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_seller_storefront_products_seller_storefront_products_import_post",
         "type": "object"
       },
       "Body_seller_upload_image_seller_uploads_image_post": {
@@ -1294,6 +1382,24 @@
             ],
             "title": "Unitamount"
           },
+          "variantName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantname"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+            },
+            "title": "Variants",
+            "type": "array"
+          },
           "visibility": {
             "default": "public",
             "enum": [
@@ -1497,6 +1603,17 @@
             "title": "Stock",
             "type": "integer"
           },
+          "variantId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantid"
+          },
           "volumeMl": {
             "anyOf": [
               {
@@ -1635,6 +1752,13 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantItem"
+            },
+            "title": "Variants",
+            "type": "array"
           },
           "volumeOptions": {
             "items": {
@@ -1780,6 +1904,13 @@
             "title": "Title",
             "type": "string"
           },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantItem"
+            },
+            "title": "Variants",
+            "type": "array"
+          },
           "volumeOptions": {
             "items": {
               "type": "string"
@@ -1860,6 +1991,131 @@
         "title": "CatalogReferenceVariant",
         "type": "object"
       },
+      "CatalogVariantCreateRequest": {
+        "properties": {
+          "imageUrl": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "name": {
+            "default": "기본",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Name",
+            "type": "string"
+          },
+          "packCount": {
+            "default": 1,
+            "minimum": 1.0,
+            "title": "Packcount",
+            "type": "integer"
+          },
+          "unit": {
+            "enum": [
+              "ml",
+              "L",
+              "g",
+              "kg",
+              "팩"
+            ],
+            "title": "Unit",
+            "type": "string",
+            "x-enum-varnames": [
+              "ml",
+              "L",
+              "g",
+              "kg",
+              "pack"
+            ]
+          },
+          "unitAmount": {
+            "exclusiveMinimum": 0.0,
+            "title": "Unitamount",
+            "type": "number"
+          }
+        },
+        "required": [
+          "unitAmount",
+          "unit"
+        ],
+        "title": "CatalogVariantCreateRequest",
+        "type": "object"
+      },
+      "CatalogVariantItem": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "imageUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imageurl"
+          },
+          "name": {
+            "title": "Name",
+            "type": "string"
+          },
+          "optionLabel": {
+            "title": "Optionlabel",
+            "type": "string"
+          },
+          "packCount": {
+            "title": "Packcount",
+            "type": "integer"
+          },
+          "unit": {
+            "title": "Unit",
+            "type": "string"
+          },
+          "unitAmount": {
+            "title": "Unitamount",
+            "type": "number"
+          }
+        },
+        "required": [
+          "id",
+          "name",
+          "optionLabel",
+          "unitAmount",
+          "unit",
+          "packCount"
+        ],
+        "title": "CatalogVariantItem",
+        "type": "object"
+      },
+      "CatalogVariantsCreateRequest": {
+        "properties": {
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+            },
+            "maxItems": 30,
+            "minItems": 1,
+            "title": "Variants",
+            "type": "array"
+          }
+        },
+        "required": [
+          "variants"
+        ],
+        "title": "CatalogVariantsCreateRequest",
+        "type": "object"
+      },
       "CheckoutResponse": {
         "properties": {
           "order": {
@@ -1883,6 +2139,29 @@
           "balance"
         ],
         "title": "CreditBalanceResponse",
+        "type": "object"
+      },
+      "DailySalesItem": {
+        "properties": {
+          "amount": {
+            "title": "Amount",
+            "type": "integer"
+          },
+          "date": {
+            "title": "Date",
+            "type": "string"
+          },
+          "lineCount": {
+            "title": "Linecount",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "date",
+          "lineCount",
+          "amount"
+        ],
+        "title": "DailySalesItem",
         "type": "object"
       },
       "DbResetRequest": {
@@ -2351,6 +2630,13 @@
             ],
             "title": "Description"
           },
+          "detailImageUrls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Detailimageurls",
+            "type": "array"
+          },
           "flavor": {
             "anyOf": [
               {
@@ -2414,6 +2700,16 @@
             "title": "Stock",
             "type": "integer"
           },
+          "storefrontFeatured": {
+            "default": false,
+            "title": "Storefrontfeatured",
+            "type": "boolean"
+          },
+          "storefrontRank": {
+            "default": 0,
+            "title": "Storefrontrank",
+            "type": "integer"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -2439,6 +2735,17 @@
               }
             ],
             "title": "Unitamount"
+          },
+          "variantId": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantid"
           },
           "volumeMl": {
             "anyOf": [
@@ -2496,6 +2803,63 @@
         "title": "RegisterRequest",
         "type": "object"
       },
+      "SalesStatsResponse": {
+        "properties": {
+          "dailySales": {
+            "items": {
+              "$ref": "#/components/schemas/DailySalesItem"
+            },
+            "title": "Dailysales",
+            "type": "array"
+          },
+          "fulfillmentCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Fulfillmentcounts",
+            "type": "object"
+          },
+          "offerCounts": {
+            "additionalProperties": {
+              "type": "integer"
+            },
+            "title": "Offercounts",
+            "type": "object"
+          },
+          "paidOrderCount": {
+            "title": "Paidordercount",
+            "type": "integer"
+          },
+          "salesLineCount": {
+            "title": "Saleslinecount",
+            "type": "integer"
+          },
+          "soldAmountSum": {
+            "title": "Soldamountsum",
+            "type": "integer"
+          },
+          "soldItemCount": {
+            "title": "Solditemcount",
+            "type": "integer"
+          },
+          "soldQtySum": {
+            "title": "Soldqtysum",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "paidOrderCount",
+          "salesLineCount",
+          "soldItemCount",
+          "soldQtySum",
+          "soldAmountSum",
+          "dailySales",
+          "fulfillmentCounts",
+          "offerCounts"
+        ],
+        "title": "SalesStatsResponse",
+        "type": "object"
+      },
       "SellerApplyRequest": {
         "properties": {
           "shopName": {
@@ -2513,6 +2877,18 @@
       },
       "SellerCardDraftCreateRequest": {
         "properties": {
+          "catalogProductId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Catalogproductid"
+          },
           "category": {
             "maxLength": 120,
             "minLength": 1,
@@ -2650,6 +3026,26 @@
               }
             ],
             "title": "Unitamount"
+          },
+          "variantName": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantname"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+            },
+            "maxItems": 30,
+            "title": "Variants",
+            "type": "array"
           },
           "visibility": {
             "default": "public",
@@ -2803,6 +3199,18 @@
             ],
             "title": "Unitamount"
           },
+          "variantName": {
+            "anyOf": [
+              {
+                "maxLength": 100,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantname"
+          },
           "visibility": {
             "anyOf": [
               {
@@ -2876,6 +3284,17 @@
           "reason": {
             "title": "Reason",
             "type": "string"
+          },
+          "shopName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shopname"
           }
         },
         "required": [
@@ -3012,6 +3431,51 @@
           "fulfillmentStatus"
         ],
         "title": "SellerOrderItemStatusUpdate",
+        "type": "object"
+      },
+      "SellerProductBulkDeleteRequest": {
+        "properties": {
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "SellerProductBulkDeleteRequest",
+        "type": "object"
+      },
+      "SellerProductBulkDeleteResponse": {
+        "properties": {
+          "deletedCount": {
+            "title": "Deletedcount",
+            "type": "integer"
+          },
+          "failCount": {
+            "title": "Failcount",
+            "type": "integer"
+          },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/SellerProductBulkFailure"
+            },
+            "title": "Failed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "deletedCount",
+          "failed",
+          "failCount"
+        ],
+        "title": "SellerProductBulkDeleteResponse",
         "type": "object"
       },
       "SellerProductBulkFailure": {
@@ -3188,6 +3652,14 @@
             ],
             "title": "Description"
           },
+          "detailImageUrls": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Detailimageurls",
+            "type": "array"
+          },
           "flavor": {
             "anyOf": [
               {
@@ -3313,6 +3785,18 @@
             ],
             "title": "Unitamount"
           },
+          "variantId": {
+            "anyOf": [
+              {
+                "format": "uuid",
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Variantid"
+          },
           "volumeMl": {
             "anyOf": [
               {
@@ -3383,6 +3867,21 @@
               }
             ],
             "title": "Description"
+          },
+          "detailImageUrls": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailimageurls"
           },
           "flavor": {
             "anyOf": [
@@ -3581,6 +4080,39 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "storeBannerUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storebannerurl"
+          },
+          "storeDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storedescription"
+          },
+          "storeLogoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storelogourl"
           }
         },
         "required": [
@@ -3591,6 +4123,75 @@
           "sellerType"
         ],
         "title": "SellerResponse",
+        "type": "object"
+      },
+      "SellerStorefrontLayoutRequest": {
+        "properties": {
+          "featuredProductIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 6,
+            "title": "Featuredproductids",
+            "type": "array"
+          },
+          "productIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Productids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "productIds"
+        ],
+        "title": "SellerStorefrontLayoutRequest",
+        "type": "object"
+      },
+      "SellerStorefrontUpdateRequest": {
+        "properties": {
+          "storeBannerUrl": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storebannerurl"
+          },
+          "storeDescription": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storedescription"
+          },
+          "storeLogoUrl": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storelogourl"
+          }
+        },
+        "title": "SellerStorefrontUpdateRequest",
         "type": "object"
       },
       "SellerSummary": {
@@ -3610,11 +4211,16 @@
           "shopName": {
             "title": "Shopname",
             "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "shopName",
+          "slug",
           "sellerType"
         ],
         "title": "SellerSummary",
@@ -3852,6 +4458,174 @@
           "detailAddress"
         ],
         "title": "ShippingSnapshot",
+        "type": "object"
+      },
+      "StorefrontDetailResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "productCount": {
+            "title": "Productcount",
+            "type": "integer"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/ProductResponse"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "sellerType": {
+            "enum": [
+              "platform",
+              "merchant"
+            ],
+            "title": "Sellertype",
+            "type": "string"
+          },
+          "shopName": {
+            "title": "Shopname",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "storeBannerUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storebannerurl"
+          },
+          "storeDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storedescription"
+          },
+          "storeLogoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storelogourl"
+          }
+        },
+        "required": [
+          "id",
+          "shopName",
+          "slug",
+          "sellerType",
+          "productCount"
+        ],
+        "title": "StorefrontDetailResponse",
+        "type": "object"
+      },
+      "StorefrontItem": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "productCount": {
+            "title": "Productcount",
+            "type": "integer"
+          },
+          "sellerType": {
+            "enum": [
+              "platform",
+              "merchant"
+            ],
+            "title": "Sellertype",
+            "type": "string"
+          },
+          "shopName": {
+            "title": "Shopname",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          },
+          "storeBannerUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storebannerurl"
+          },
+          "storeDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storedescription"
+          },
+          "storeLogoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storelogourl"
+          }
+        },
+        "required": [
+          "id",
+          "shopName",
+          "slug",
+          "sellerType",
+          "productCount"
+        ],
+        "title": "StorefrontItem",
+        "type": "object"
+      },
+      "StorefrontListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StorefrontItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "StorefrontListResponse",
         "type": "object"
       },
       "SubscribeRequest": {
@@ -4201,6 +4975,32 @@
         "summary": "Root"
       }
     },
+    "/admin/audit": {
+      "get": {
+        "operationId": "list_admin_audit_admin_audit_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerModerationEventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Admin Audit",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/catalog/drafts": {
       "get": {
         "operationId": "list_catalog_drafts_admin_catalog_drafts_get",
@@ -4373,6 +5173,44 @@
           }
         ],
         "summary": "Promote Catalog Draft",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/export": {
+      "get": {
+        "operationId": "export_catalog_admin_catalog_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Catalog",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/export/template": {
+      "get": {
+        "operationId": "export_catalog_template_admin_catalog_export_template_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Catalog Template",
         "tags": [
           "admin"
         ]
@@ -4761,6 +5599,126 @@
         ]
       }
     },
+    "/admin/catalog/products/{catalog_id}/variants": {
+      "post": {
+        "operationId": "create_admin_catalog_variant_admin_catalog_products__catalog_id__variants_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "catalog_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Catalog Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogVariantCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogVariantItem"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Catalog Variant",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
+    "/admin/catalog/products/{catalog_id}/variants/batch": {
+      "post": {
+        "operationId": "create_admin_catalog_variants_admin_catalog_products__catalog_id__variants_batch_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "catalog_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "title": "Catalog Id",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CatalogVariantsCreateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/CatalogVariantItem"
+                  },
+                  "title": "Response Create Admin Catalog Variants Admin Catalog Products  Catalog Id  Variants Batch Post",
+                  "type": "array"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Create Admin Catalog Variants",
+        "tags": [
+          "admin"
+        ]
+      }
+    },
     "/admin/db/reset": {
       "post": {
         "operationId": "reset_database_admin_db_reset_post",
@@ -4944,6 +5902,45 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
             }
           }
         ],
@@ -7979,6 +8976,50 @@
       }
     },
     "/seller/products/bulk": {
+      "delete": {
+        "operationId": "seller_bulk_delete_products_seller_products_bulk_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerProductBulkDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerProductBulkDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Bulk Delete Products",
+        "tags": [
+          "seller"
+        ]
+      },
       "post": {
         "operationId": "seller_bulk_update_products_seller_products_bulk_post",
         "requestBody": {
@@ -8167,6 +9208,201 @@
         ]
       }
     },
+    "/seller/stats": {
+      "get": {
+        "operationId": "seller_stats_seller_stats_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SalesStatsResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Stats",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront": {
+      "patch": {
+        "operationId": "update_seller_storefront_seller_storefront_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerStorefrontUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Seller Storefront",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront/products": {
+      "put": {
+        "operationId": "update_seller_storefront_products_seller_storefront_products_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerStorefrontLayoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Seller Storefront Products",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront/products/export": {
+      "get": {
+        "operationId": "export_seller_storefront_products_seller_storefront_products_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Seller Storefront Products",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront/products/export/template": {
+      "get": {
+        "operationId": "export_seller_storefront_products_template_seller_storefront_products_export_template_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Seller Storefront Products Template",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront/products/import": {
+      "post": {
+        "operationId": "import_seller_storefront_products_seller_storefront_products_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_seller_storefront_products_seller_storefront_products_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Seller Storefront Products",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
     "/seller/uploads/image": {
       "post": {
         "operationId": "seller_upload_image_seller_uploads_image_post",
@@ -8210,6 +9446,69 @@
         "summary": "Seller Upload Image",
         "tags": [
           "seller"
+        ]
+      }
+    },
+    "/stores": {
+      "get": {
+        "operationId": "list_storefronts_stores_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorefrontListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Storefronts",
+        "tags": [
+          "storefronts"
+        ]
+      }
+    },
+    "/stores/{slug}": {
+      "get": {
+        "operationId": "get_storefront_stores__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorefrontDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Storefront",
+        "tags": [
+          "storefronts"
         ]
       }
     }

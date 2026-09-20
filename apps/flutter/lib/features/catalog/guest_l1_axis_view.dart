@@ -24,9 +24,7 @@ class GuestL1AxisView extends ConsumerWidget {
     required this.onStorage,
     required this.onPickBrand,
     required this.onPickMenu,
-    required this.onSeeAll,
     this.showStorage = true,
-    this.seeAllLabel = '이 분류 전체 보기',
   });
 
   final String title;
@@ -39,9 +37,7 @@ class GuestL1AxisView extends ConsumerWidget {
   final ValueChanged<String?> onStorage;
   final ValueChanged<String> onPickBrand;
   final ValueChanged<String> onPickMenu;
-  final VoidCallback onSeeAll;
   final bool showStorage;
-  final String seeAllLabel;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
@@ -113,16 +109,6 @@ class GuestL1AxisView extends ConsumerWidget {
                 ),
               ),
             ],
-          ),
-        ],
-        if (!sellerAxis) ...[
-          const SizedBox(height: 8),
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton(
-              onPressed: onSeeAll,
-              child: Text(seeAllLabel),
-            ),
           ),
         ],
         const SizedBox(height: 8),

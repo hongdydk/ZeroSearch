@@ -51,12 +51,12 @@ def test_admin_catalog_import(client):
     override_db(mock_db)
 
     with patch(
-        "app.routers.admin.import_catalog_csv",
+        "app.routers.admin.import_admin_catalog_csv",
         return_value={"source_rows": 2, "upserted": 2},
     ) as mock_import:
         response = client.post(
             "/admin/catalog/import",
-            files={"file": ("mfds.csv", "대분류,중분류,소분류,품목명,제조사,용량\n".encode(), "text/csv")},
+            files={"file": ("catalog.csv", "제조사,카드명,종류,카드설명,카드사진URL,옵션명,수량,단위,팩수,옵션사진URL\n".encode(), "text/csv")},
             headers={"Authorization": "Bearer fake"},
         )
 
@@ -87,10 +87,10 @@ def test_admin_catalog_import_text(client):
     override_current_user(admin)
     mock_db = MagicMock()
     override_db(mock_db)
-    csv = "대분류,중분류,소분류,품목명,제조사,용량\n김,김치류,김치,나박김치,(주)거풍,100g\n"
+    csv = "제조사,카드명,종류,카드설명,카드사진URL,옵션명,수량,단위,팩수,옵션사진URL\n거풍,나박김치,김치,,,,,,\n"
 
     with patch(
-        "app.routers.admin.import_catalog_csv",
+        "app.routers.admin.import_admin_catalog_csv",
         return_value={"source_rows": 1, "upserted": 1},
     ) as mock_import:
         response = client.post(
@@ -118,13 +118,13 @@ def test_admin_catalog_import_job(client):
     admin = make_user(is_admin=True)
     override_current_user(admin)
     mock_db = MagicMock()
-    csv = "대분류,중분류,소분류,품목명,제조사,용량\n김,김치류,김치,나박김치,(주)거풍,100g\n"
+    csv = "제조사,카드명,종류,카드설명,카드사진URL,옵션명,수량,단위,팩수,옵션사진URL\n거풍,나박김치,김치,,,,,,\n"
 
     with (
         patch("app.services.catalog_import_jobs.threading.Thread", _ImmediateThread),
         patch("app.services.catalog_import_jobs.SessionLocal", return_value=mock_db),
         patch(
-            "app.services.catalog_import_jobs.import_catalog_csv",
+            "app.services.catalog_import_jobs.import_admin_catalog_csv",
             return_value={"source_rows": 1, "upserted": 1},
         ),
     ):

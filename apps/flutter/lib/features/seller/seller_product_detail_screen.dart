@@ -32,6 +32,8 @@ class _SellerProductDetailScreenState
   final _price = TextEditingController();
   final _stock = TextEditingController();
   final _image = TextEditingController();
+  final _description = TextEditingController();
+  List<String> _detailImages = [];
 
   @override
   void initState() {
@@ -44,6 +46,7 @@ class _SellerProductDetailScreenState
     _price.dispose();
     _stock.dispose();
     _image.dispose();
+    _description.dispose();
     super.dispose();
   }
 
@@ -53,6 +56,8 @@ class _SellerProductDetailScreenState
     _price.text = product.hasSellablePrice ? product.priceCredits.toString() : '';
     _stock.text = product.hasSellablePrice ? product.stock.toString() : '';
     _image.text = product.imageUrl ?? '';
+    _description.text = product.description ?? '';
+    _detailImages = [...product.detailImageUrls];
   }
 
   Future<void> _load() async {
@@ -87,8 +92,9 @@ class _SellerProductDetailScreenState
     }
   }
 
-  Future<void> _pickImage() async {
-    if (isBusy('photo')) return;
+  Future<void> _pickImage({bool detail = false}) async {
+    final key = detail ? 'detailPhoto' : 'photo';
+    if (isBusy(key)) return;
     final picked = await FilePicker.platform.pickFiles(
       type: FileType.image,
       withData: true,
@@ -96,14 +102,20 @@ class _SellerProductDetailScreenState
     final file = picked?.files.single;
     final bytes = file?.bytes;
     if (file == null || bytes == null) return;
-    await runBusy('photo', () async {
+    await runBusy(key, () async {
       try {
         final url = await ref.read(apiClientProvider).sellerUploadImage(
           bytes,
           file.name,
         );
         if (!mounted) return;
-        setState(() => _image.text = url);
+        setState(() {
+          if (detail) {
+            _detailImages = [..._detailImages, url];
+          } else {
+            _image.text = url;
+          }
+        });
       } on ApiException catch (e) {
         if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
@@ -143,6 +155,8 @@ class _SellerProductDetailScreenState
           priceCredits: price,
           stock: stock,
           imageUrl: _image.text.trim(),
+          description: _description.text.trim(),
+          detailImageUrls: _detailImages,
           status: _statusForSave(product),
         );
         if (!mounted) return;
@@ -164,7 +178,7 @@ class _SellerProductDetailScreenState
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('오퍼 삭제'),
-        content: const Text('구매자에게 보이지 않게 숨김으로 옮깁니다. 나중에 숨김 해제로 되돌릴 수 있습니다.'),
+        content: const Text('오퍼를 영구 삭제합니다. 되돌릴 수 없습니다. 기존 주문과 판매 기록은 유지됩니다.'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
@@ -303,6 +317,57 @@ class _SellerProductDetailScreenState
                         ? busyProgress()
                         : const Icon(Icons.photo_outlined),
                     label: Text(isBusy('photo') ? '올리는 중…' : '사진 파일 올리기'),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                TextField(
+                  controller: _description,
+                  minLines: 3,
+                  maxLines: 7,
+                  maxLength: 3000,
+                  decoration: const InputDecoration(
+                    labelText: '상품 상세 설명',
+                    hintText: '구매자 상품 상세 화면에 표시할 정보를 입력하세요',
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Text('상세 이미지', style: Theme.of(context).textTheme.titleSmall),
+                const SizedBox(height: 4),
+                Text('상품 성분, 규격, 구성처럼 구매 판단에 필요한 이미지를 최대 12장 올릴 수 있습니다.', style: Theme.of(context).textTheme.bodySmall),
+                const SizedBox(height: 8),
+                if (_detailImages.isNotEmpty)
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      for (var index = 0; index < _detailImages.length; index++)
+                        SizedBox(
+                          width: 112,
+                          child: Stack(children: [
+                            AspectRatio(aspectRatio: 1, child: ClipRRect(borderRadius: BorderRadius.circular(8), child: ProductImage(imageUrl: _detailImages[index], title: '상세 이미지 ${index + 1}'))),
+                            Positioned(
+                              top: 2,
+                              right: 2,
+                              child: Material(
+                                color: Colors.black54,
+                                shape: const CircleBorder(),
+                                child: InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: () => setState(() => _detailImages = [..._detailImages]..removeAt(index)),
+                                  child: const Padding(padding: EdgeInsets.all(4), child: Icon(Icons.close, size: 16, color: Colors.white)),
+                                ),
+                              ),
+                            ),
+                          ]),
+                        ),
+                    ],
+                  ),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: OutlinedButton.icon(
+                    onPressed: _detailImages.length >= 12 || isBusy('detailPhoto') ? null : () => _pickImage(detail: true),
+                    icon: isBusy('detailPhoto') ? busyProgress() : const Icon(Icons.add_photo_alternate_outlined),
+                    label: Text(isBusy('detailPhoto') ? '올리는 중…' : '상세 이미지 추가'),
                   ),
                 ),
                 SwitchListTile(
