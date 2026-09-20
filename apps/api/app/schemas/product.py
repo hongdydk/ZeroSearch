@@ -40,6 +40,8 @@ class ProductResponse(BaseModel):
 
     image_url: str | None = Field(default=None, alias="imageUrl")
 
+    detail_image_urls: list[str] = Field(default_factory=list, alias="detailImageUrls")
+
     status: ProductStatus = "published"
 
     catalog_product_id: str = Field(alias="catalogProductId")

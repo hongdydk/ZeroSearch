@@ -23,6 +23,7 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
   String? _logoUrl;
   String? _bannerUrl;
   bool _loading = true;
+  SellerModel? _seller;
 
   @override
   void initState() {
@@ -41,6 +42,7 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
       final seller = await ref.read(apiClientProvider).sellerMe();
       if (seller == null || !mounted) return;
       setState(() {
+        _seller = seller;
         _description.text = seller.storeDescription ?? '';
         _logoUrl = seller.storeLogoUrl;
         _bannerUrl = seller.storeBannerUrl;
@@ -78,6 +80,42 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
     });
   }
 
+  void _openStore() {
+    final slug = _seller?.slug;
+    if (slug == null || slug.isEmpty) return;
+    context.push('/stores/$slug');
+  }
+
+  void _showPreview() {
+    final seller = _seller;
+    if (seller == null) return;
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(mainAxisSize: MainAxisSize.min, crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+            Text('판매자 사이트 미리보기', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+            const SizedBox(height: 14),
+            if (_bannerUrl != null) ClipRRect(borderRadius: BorderRadius.circular(12), child: SizedBox(height: 120, child: ProductImage(imageUrl: _bannerUrl, title: seller.shopName))),
+            if (_bannerUrl != null) const SizedBox(height: 12),
+            Row(children: [
+              if (_logoUrl != null) SizedBox(width: 52, height: 52, child: ClipOval(child: ProductImage(imageUrl: _logoUrl, title: seller.shopName))),
+              if (_logoUrl != null) const SizedBox(width: 10),
+              Expanded(child: Text(seller.shopName, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700))),
+            ]),
+            if (_description.text.trim().isNotEmpty) ...[const SizedBox(height: 10), Text(_description.text.trim(), maxLines: 3, overflow: TextOverflow.ellipsis)],
+            const SizedBox(height: 14),
+            const Text('공개된 상품은 이 아래에 진열되며, 상품을 선택하면 상세 정보와 상세 이미지가 표시됩니다.'),
+            const SizedBox(height: 16),
+            FilledButton.icon(onPressed: () { Navigator.pop(context); _openStore(); }, icon: const Icon(Icons.open_in_new), label: const Text('공개 사이트 열기')),
+          ]),
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return PortalWorkspaceScaffold(
@@ -86,7 +124,11 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
       child: PortalPage(
         eyebrow: '공개 판매자 사이트',
         title: '내 판매자 사이트 관리',
-        trailing: TextButton.icon(onPressed: () => context.go('/seller/products/new'), icon: const Icon(Icons.add), label: const Text('상품 등록')),
+        trailing: Wrap(spacing: 4, children: [
+          TextButton.icon(onPressed: _seller == null ? null : _showPreview, icon: const Icon(Icons.visibility_outlined), label: const Text('미리보기')),
+          TextButton.icon(onPressed: _seller == null ? null : _openStore, icon: const Icon(Icons.open_in_new), label: const Text('사이트 바로가기')),
+          TextButton.icon(onPressed: () => context.go('/seller/products/new'), icon: const Icon(Icons.add), label: const Text('상품 등록')),
+        ]),
         child: _loading ? const Center(child: CircularProgressIndicator()) : PageFormScaffold(
           maxWidth: 760,
           padding: EdgeInsets.zero,

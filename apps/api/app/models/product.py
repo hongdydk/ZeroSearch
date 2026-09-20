@@ -2,7 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, Numeric, String, Text, func
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
@@ -37,6 +37,9 @@ class Product(Base):
     stock: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     category: Mapped[str] = mapped_column(String(50), nullable=False, index=True)
     image_url: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    detail_image_urls: Mapped[list[str]] = mapped_column(
+        JSONB, nullable=False, default=list, server_default="[]"
+    )
     status: Mapped[str] = mapped_column(String(20), nullable=False, server_default="published")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(

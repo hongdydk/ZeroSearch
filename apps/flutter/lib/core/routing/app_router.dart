@@ -94,6 +94,10 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, state) => StorefrontDetailScreen(slug: state.pathParameters['slug']!),
           ),
           GoRoute(
+            path: '/stores/:slug/products/:id',
+            builder: (_, state) => ProductDetailScreen(productId: state.pathParameters['id']!),
+          ),
+          GoRoute(
             path: '/catalog/:id',
             builder: (_, state) =>
                 CatalogDetailScreen(catalogId: state.pathParameters['id']!),

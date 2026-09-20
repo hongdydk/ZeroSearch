@@ -29,6 +29,7 @@ class ProductModel {
     required this.seller,
     this.description,
     this.imageUrl,
+    this.detailImageUrls = const [],
     this.status = 'published',
     this.catalogProductId,
     this.variantId,
@@ -53,6 +54,10 @@ class ProductModel {
           : SellerSummaryModel(id: '', shopName: '', sellerType: 'merchant'),
       description: json['description'] as String?,
       imageUrl: json['imageUrl'] as String?,
+      detailImageUrls: (json['detailImageUrls'] as List<dynamic>? ?? const [])
+          .whereType<String>()
+          .where((url) => url.isNotEmpty)
+          .toList(),
       status: json['status'] as String? ?? 'published',
       catalogProductId: json['catalogProductId'] as String?,
       variantId: json['variantId'] as String?,
@@ -73,6 +78,7 @@ class ProductModel {
   final SellerSummaryModel seller;
   final String? description;
   final String? imageUrl;
+  final List<String> detailImageUrls;
   final String status;
   final String? catalogProductId;
   final String? variantId;
@@ -95,6 +101,7 @@ class ProductModel {
     SellerSummaryModel? seller,
     String? description,
     String? imageUrl,
+    List<String>? detailImageUrls,
     String? status,
     String? catalogProductId,
     String? variantId,
@@ -114,6 +121,7 @@ class ProductModel {
       seller: seller ?? this.seller,
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
+      detailImageUrls: detailImageUrls ?? this.detailImageUrls,
       status: status ?? this.status,
       catalogProductId: catalogProductId ?? this.catalogProductId,
       variantId: variantId ?? this.variantId,

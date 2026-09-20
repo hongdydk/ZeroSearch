@@ -967,6 +967,7 @@ class ApiClient {
     int? packCount,
     String? flavor,
     String? imageUrl,
+    List<String> detailImageUrls = const [],
   }) async {
     try {
       final response = await _dio.post<Map<String, dynamic>>(
@@ -987,6 +988,7 @@ class ApiClient {
           if (packCount != null) 'packCount': packCount,
           if (flavor != null && flavor.isNotEmpty) 'flavor': flavor,
           if (imageUrl != null && imageUrl.isNotEmpty) 'imageUrl': imageUrl,
+          if (detailImageUrls.isNotEmpty) 'detailImageUrls': detailImageUrls,
         },
       );
       final data = response.data;
@@ -1002,6 +1004,8 @@ class ApiClient {
     int? priceCredits,
     int? stock,
     String? imageUrl,
+    String? description,
+    List<String>? detailImageUrls,
     String? status,
     String? optionLabel,
     double? unitAmount,
@@ -1016,6 +1020,8 @@ class ApiClient {
           if (priceCredits != null) 'priceCredits': priceCredits,
           if (stock != null) 'stock': stock,
           if (imageUrl != null) 'imageUrl': imageUrl,
+          if (description != null) 'description': description,
+          if (detailImageUrls != null) 'detailImageUrls': detailImageUrls,
           if (status != null) 'status': status,
           if (optionLabel != null) 'optionLabel': optionLabel,
           if (unitAmount != null) 'unitAmount': unitAmount,

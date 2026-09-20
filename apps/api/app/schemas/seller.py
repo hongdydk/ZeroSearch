@@ -125,6 +125,8 @@ class SellerProductCreateRequest(BaseModel):
 
     image_url: str | None = Field(default=None, alias="imageUrl", max_length=500)
 
+    detail_image_urls: list[str] = Field(default_factory=list, alias="detailImageUrls", max_length=12)
+
     status: ProductStatus = "draft"
 
     catalog_product_id: str | None = Field(default=None, alias="catalogProductId")
@@ -163,6 +165,8 @@ class SellerProductUpdateRequest(BaseModel):
     category: str | None = Field(default=None, min_length=1, max_length=50)
 
     image_url: str | None = Field(default=None, alias="imageUrl", max_length=500)
+
+    detail_image_urls: list[str] | None = Field(default=None, alias="detailImageUrls", max_length=12)
 
     status: ProductStatus | None = None
 

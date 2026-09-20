@@ -187,23 +187,64 @@ class _StorefrontDetailScreenState extends ConsumerState<StorefrontDetailScreen>
               if (store.products.isEmpty)
                 const _MessageState(message: '상품을 준비하고 있습니다. 판매자 사이트는 정상적으로 열렸습니다.')
               else
-                ...store.products.map(
-                  (product) => Card(
-                    child: ListTile(
-                      leading: SizedBox(width: 52, height: 52, child: ProductImage(imageUrl: product.imageUrl, title: product.title)),
-                      title: Text(product.title),
-                      subtitle: Text('${product.priceCredits}원 · 재고 ${product.stock}개'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.push('/products/${product.id}'),
-                    ),
-                  ),
-                ),
+                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('스토어 상품', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  const SizedBox(height: 12),
+                  LayoutBuilder(builder: (context, constraints) {
+                    final columns = constraints.maxWidth >= 700 ? 3 : constraints.maxWidth >= 470 ? 2 : 1;
+                    return GridView.count(
+                      crossAxisCount: columns,
+                      crossAxisSpacing: 12,
+                      mainAxisSpacing: 12,
+                      childAspectRatio: columns == 1 ? 2.6 : .72,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      children: [
+                        for (final product in store.products)
+                          _StoreProductTile(
+                            product: product,
+                            onTap: () => context.push('/stores/${store.slug}/products/${product.id}'),
+                          ),
+                      ],
+                    );
+                  }),
+                ]),
             ],
           );
         },
       ),
     );
   }
+}
+
+class _StoreProductTile extends StatelessWidget {
+  const _StoreProductTile({required this.product, required this.onTap});
+  final ProductModel product;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+        Expanded(flex: 5, child: ProductImage(imageUrl: product.imageUrl, title: product.title)),
+        Expanded(
+          flex: 4,
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(product.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              const Spacer(),
+              Text('${product.priceCredits}원', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: AppTheme.brandTeal)),
+              const SizedBox(height: 2),
+              Text(product.stock > 0 ? '재고 ${product.stock}개' : '품절', style: Theme.of(context).textTheme.bodySmall),
+            ]),
+          ),
+        ),
+      ]),
+    ),
+  );
 }
 
 class _MessageState extends StatelessWidget {

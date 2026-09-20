@@ -2581,6 +2581,13 @@
             ],
             "title": "Description"
           },
+          "detailImageUrls": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Detailimageurls",
+            "type": "array"
+          },
           "flavor": {
             "anyOf": [
               {
@@ -3530,6 +3537,14 @@
             ],
             "title": "Description"
           },
+          "detailImageUrls": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 12,
+            "title": "Detailimageurls",
+            "type": "array"
+          },
           "flavor": {
             "anyOf": [
               {
@@ -3737,6 +3752,21 @@
               }
             ],
             "title": "Description"
+          },
+          "detailImageUrls": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "maxItems": 12,
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detailimageurls"
           },
           "flavor": {
             "anyOf": [

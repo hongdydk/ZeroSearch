@@ -171,6 +171,18 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                 const SizedBox(height: 16),
                 Text(product.description!, style: Theme.of(context).textTheme.bodyLarge),
               ],
+              if (product.detailImageUrls.isNotEmpty) ...[
+                const SizedBox(height: 24),
+                Text('상품 상세 정보', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 10),
+                ...product.detailImageUrls.map((url) => Padding(
+                  padding: const EdgeInsets.only(bottom: 12),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(12),
+                    child: ProductImage(imageUrl: url, title: '${product.title} 상세 이미지'),
+                  ),
+                )),
+              ],
               const SizedBox(height: 24),
               Row(
                 children: [

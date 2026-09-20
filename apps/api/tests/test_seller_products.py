@@ -59,12 +59,13 @@ def _product(seller: Seller, **kwargs) -> Product:
 
 
 def test_product_to_response_keeps_option_fields():
-    product = _product(_seller())
+    product = _product(_seller(), detail_image_urls=["/uploads/detail.jpg"])
     body = product_to_response(product).model_dump(by_alias=True)
     assert body["optionLabel"] == "500ml × 20"
     assert body["flavor"] == "레몬"
     assert body["volumeMl"] == 10000
     assert body["catalogProductId"] == str(product.catalog_product_id)
+    assert body["detailImageUrls"] == ["/uploads/detail.jpg"]
 
 
 def _empty_counts_row(**kwargs) -> SimpleNamespace:
@@ -140,6 +141,23 @@ def test_patch_price_and_stock():
     assert updated.price_credits == 9900
     assert updated.stock == 7
     assert updated.status == "published"
+
+
+def test_patch_product_content_keeps_detail_images():
+    seller = _seller()
+    product = _product(seller)
+    with patch("app.services.products.get_seller_product", return_value=product):
+        updated = update_seller_product(
+            MagicMock(),
+            seller,
+            product.id,
+            SellerProductUpdateRequest(
+                description="원재료와 보관 방법을 확인하세요.",
+                detailImageUrls=["/uploads/ingredients.jpg", "/uploads/nutrition.jpg"],
+            ),
+        )
+    assert updated.description == "원재료와 보관 방법을 확인하세요."
+    assert updated.detail_image_urls == ["/uploads/ingredients.jpg", "/uploads/nutrition.jpg"]
 
 
 def test_patch_hide_archives_published_offer():

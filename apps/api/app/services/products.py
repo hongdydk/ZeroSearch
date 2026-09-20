@@ -27,6 +27,7 @@ def _product_response(product: Product) -> ProductResponse:
         stock=product.stock,
         category=product.category,
         image_url=product.image_url,
+        detail_image_urls=product.detail_image_urls or [],
         status=product.status,  # type: ignore[arg-type]
         catalog_product_id=str(product.catalog_product_id),
         variant_id=str(product.variant_id) if product.variant_id else None,
@@ -212,6 +213,7 @@ def create_seller_product(db: Session, seller: Seller, payload: SellerProductCre
         stock=payload.stock or 0,
         category=catalog.category,
         image_url=payload.image_url or (variant.image_url if variant else None) or catalog.image_url,
+        detail_image_urls=payload.detail_image_urls,
         status="draft",
         option_label=units.option_label,
         volume_ml=units.volume_ml,
@@ -250,6 +252,8 @@ def _apply_seller_product_update(product: Product, payload: SellerProductUpdateR
         product.category = payload.category
     if payload.image_url is not None:
         product.image_url = payload.image_url
+    if payload.detail_image_urls is not None:
+        product.detail_image_urls = payload.detail_image_urls
     if payload.status is not None:
         product.status = payload.status
     if payload.flavor is not None:
