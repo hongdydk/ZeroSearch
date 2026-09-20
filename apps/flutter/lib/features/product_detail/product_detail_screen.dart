@@ -166,7 +166,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                 style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 4),
-              Text('재고 ${product.stock}개'),
+              if (product.stock < 1)
+                Text('품절', style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.error)),
               if (product.description != null && product.description!.isNotEmpty) ...[
                 const SizedBox(height: 16),
                 Text(product.description!, style: Theme.of(context).textTheme.bodyLarge),

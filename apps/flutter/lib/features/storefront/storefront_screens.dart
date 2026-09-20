@@ -255,7 +255,7 @@ class _StoreProductTile extends StatelessWidget {
               const Spacer(),
               Text('${product.priceCredits}원', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: AppTheme.brandTeal)),
               const SizedBox(height: 2),
-              Text(product.stock > 0 ? '재고 ${product.stock}개' : '품절', style: Theme.of(context).textTheme.bodySmall),
+              Text(product.stock > 0 ? '판매 중' : '품절', style: Theme.of(context).textTheme.bodySmall),
             ]),
           ),
         ),
