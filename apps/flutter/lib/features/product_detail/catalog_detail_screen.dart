@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/cart/cart_actions.dart';
 import '../../core/cart/cart_feedback.dart';
@@ -245,6 +246,12 @@ class _CatalogDetailScreenState extends ConsumerState<CatalogDetailScreen>
                               shopName: offer.seller.shopName,
                               isOfficial: offer.isOfficial,
                             ),
+                            if (offer.seller.slug.isNotEmpty)
+                              TextButton.icon(
+                                onPressed: () => context.push('/stores/${offer.seller.slug}'),
+                                icon: const Icon(Icons.storefront_outlined, size: 17),
+                                label: const Text('판매자 사이트'),
+                              ),
                             Text(
                               shippingOwnerLabel(offer.seller.sellerType),
                               style: Theme.of(context).textTheme.bodySmall,

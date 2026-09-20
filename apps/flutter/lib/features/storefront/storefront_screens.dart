@@ -166,7 +166,7 @@ class _StorefrontDetailScreenState extends ConsumerState<StorefrontDetailScreen>
           }
           final store = snapshot.data!;
           final featuredProducts = store.products.where((product) => product.storefrontFeatured).toList();
-          final regularProducts = store.products.where((product) => !product.storefrontFeatured).toList();
+          final allProducts = store.products;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -198,7 +198,7 @@ class _StorefrontDetailScreenState extends ConsumerState<StorefrontDetailScreen>
                   ],
                   Text('전체 상품', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  _StoreProductGrid(products: regularProducts, slug: store.slug),
+                  _StoreProductGrid(products: allProducts, slug: store.slug),
                 ]),
             ],
           );

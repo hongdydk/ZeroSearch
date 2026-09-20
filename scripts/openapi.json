@@ -4211,11 +4211,16 @@
           "shopName": {
             "title": "Shopname",
             "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
           }
         },
         "required": [
           "id",
           "shopName",
+          "slug",
           "sellerType"
         ],
         "title": "SellerSummary",

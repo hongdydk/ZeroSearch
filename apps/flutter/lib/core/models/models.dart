@@ -53,7 +53,7 @@ class ProductModel {
       category: json['category'] as String? ?? '',
       seller: sellerJson is Map
           ? SellerSummaryModel.fromJson(Map<String, dynamic>.from(sellerJson))
-          : SellerSummaryModel(id: '', shopName: '', sellerType: 'merchant'),
+          : SellerSummaryModel(id: '', shopName: '', slug: '', sellerType: 'merchant'),
       description: json['description'] as String?,
       imageUrl: json['imageUrl'] as String?,
       detailImageUrls: (json['detailImageUrls'] as List<dynamic>? ?? const [])
@@ -1416,6 +1416,7 @@ class StorefrontModel {
     required this.id,
     required this.shopName,
     required this.slug,
+    required this.slug,
     required this.sellerType,
     required this.productCount,
     this.storeDescription,
@@ -1425,7 +1426,8 @@ class StorefrontModel {
 
   factory StorefrontModel.fromJson(Map<String, dynamic> json) => StorefrontModel(
         id: json['id'] as String? ?? '',
-        shopName: json['shopName'] as String? ?? '',
+      shopName: json['shopName'] as String? ?? '',
+      slug: json['slug'] as String? ?? '',
         slug: json['slug'] as String? ?? '',
         sellerType: json['sellerType'] as String? ?? 'merchant',
         productCount: json['productCount'] as int? ?? 0,
@@ -1436,6 +1438,7 @@ class StorefrontModel {
 
   final String id;
   final String shopName;
+  final String slug;
   final String slug;
   final String sellerType;
   final String? storeDescription;

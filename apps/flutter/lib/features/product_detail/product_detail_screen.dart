@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/cart/cart_actions.dart';
 import '../../core/cart/cart_feedback.dart';
@@ -182,6 +183,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                     borderRadius: BorderRadius.circular(12),
                     child: ProductImage(imageUrl: url, title: '${product.title} 상세 이미지'),
                   ),
+                  if (product.seller.slug.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () => context.push('/stores/${product.seller.slug}'),
+                      icon: const Icon(Icons.storefront_outlined, size: 17),
+                      label: const Text('판매자 사이트'),
+                    ),
                 )),
               ],
               const SizedBox(height: 24),

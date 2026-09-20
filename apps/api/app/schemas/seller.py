@@ -35,6 +35,7 @@ class SellerSummary(BaseModel):
     id: str
 
     shop_name: str = Field(alias="shopName")
+    slug: str
 
     seller_type: SellerType = Field(alias="sellerType")
 

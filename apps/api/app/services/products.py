@@ -43,6 +43,7 @@ def _product_response(product: Product) -> ProductResponse:
         seller=SellerSummary(
             id=str(product.seller.id),
             shop_name=product.seller.shop_name,
+            slug=product.seller.slug,
             seller_type=product.seller.seller_type,  # type: ignore[arg-type]
         ),
         created_at=product.created_at,
