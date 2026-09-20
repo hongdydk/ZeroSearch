@@ -119,5 +119,5 @@ class _ImageField extends StatelessWidget {
     Text(label, style: Theme.of(context).textTheme.titleSmall), const SizedBox(height: 10),
     if (imageUrl != null) SizedBox(height: 120, width: double.infinity, child: ProductImage(imageUrl: imageUrl, title: label)),
     const SizedBox(height: 10), Wrap(spacing: 8, children: [OutlinedButton.icon(onPressed: busy ? null : onUpload, icon: const Icon(Icons.upload_file), label: Text(busy ? '업로드 중…' : '이미지 올리기')), if (imageUrl != null) TextButton(onPressed: onClear, child: const Text('제거'))]),
-  ]));
+  ])));
 }
