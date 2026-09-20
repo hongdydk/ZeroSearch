@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
 import '../../core/providers/app_providers.dart';
+import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/page_form_scaffold.dart';
 import '../../shared/widgets/product_image.dart';
 import '../../shared/widgets/seller_badge.dart';
@@ -49,30 +50,82 @@ class _StorefrontListScreenState extends ConsumerState<StorefrontListScreen> {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('입점 판매자', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 6),
-              const Text('공식 스토어와 입점 판매자의 사이트를 둘러보세요. 상품이 준비 중인 가게도 확인할 수 있습니다.'),
-              const SizedBox(height: 18),
+              _StorefrontHero(storeCount: stores.length),
+              const SizedBox(height: 24),
+              Text('판매자 사이트', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700, color: AppTheme.brandTeal)),
+              const SizedBox(height: 5),
+              const Text('공식 스토어와 입점 판매자의 진열 상품·소개를 확인하세요.'),
+              const SizedBox(height: 14),
               if (stores.isEmpty)
                 const _MessageState(message: '현재 공개된 판매자 사이트가 없습니다.')
               else
-                ...stores.map(
-                  (store) => Card(
-                    child: ListTile(
-                      leading: CircleAvatar(child: Icon(store.isOfficial ? Icons.verified_outlined : Icons.storefront_outlined)),
-                      title: SellerBadge(shopName: store.shopName, isOfficial: store.isOfficial),
-                      subtitle: Text(store.productCount > 0 ? '판매 중인 상품 ${store.productCount}개' : '상품 준비 중'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => context.push('/stores/${store.slug}'),
-                    ),
-                  ),
-                ),
+                LayoutBuilder(builder: (context, constraints) {
+                  final columns = constraints.maxWidth >= 700 ? 3 : constraints.maxWidth >= 460 ? 2 : 1;
+                  return GridView.count(
+                    crossAxisCount: columns,
+                    crossAxisSpacing: 12,
+                    mainAxisSpacing: 12,
+                    childAspectRatio: columns == 1 ? 3.3 : 1.15,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    children: [for (final store in stores) _StoreTile(store: store, onTap: () => context.push('/stores/${store.slug}'))],
+                  );
+                }),
             ],
           );
         },
       ),
     );
   }
+}
+
+class _StorefrontHero extends StatelessWidget {
+  const _StorefrontHero({required this.storeCount});
+  final int storeCount;
+  @override
+  Widget build(BuildContext context) => Container(
+    width: double.infinity,
+    padding: const EdgeInsets.all(24),
+    decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(16),
+      gradient: const LinearGradient(colors: [AppTheme.brandTeal, Color(0xFF0B6A62)], begin: Alignment.topLeft, end: Alignment.bottomRight),
+    ),
+    child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('공식 · 입점 스토어', style: TextStyle(color: Color(0xFFCDE8E4), fontWeight: FontWeight.w700)),
+      const SizedBox(height: 7),
+      const Text('입점 판매자 둘러보기', style: TextStyle(color: Colors.white, fontSize: 27, fontWeight: FontWeight.w700)),
+      const SizedBox(height: 7),
+      Text('현재 $storeCount개 판매자 사이트가 열려 있습니다.', style: const TextStyle(color: Color(0xFFD5E2E0))),
+    ]),
+  );
+}
+
+class _StoreTile extends StatelessWidget {
+  const _StoreTile({required this.store, required this.onTap});
+  final StorefrontModel store;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Card(
+    clipBehavior: Clip.antiAlias,
+    child: InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            CircleAvatar(backgroundColor: store.isOfficial ? const Color(0xFFCCFBF1) : const Color(0xFFEDE9FE), child: Icon(store.isOfficial ? Icons.verified_outlined : Icons.storefront_outlined, color: store.isOfficial ? const Color(0xFF0F766E) : const Color(0xFF7C3AED))),
+            const Spacer(), const Icon(Icons.arrow_outward, size: 19, color: AppTheme.brandTeal),
+          ]),
+          const Spacer(),
+          Text(store.shopName, maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          const SizedBox(height: 5),
+          SellerBadge(shopName: store.isOfficial ? '공식 스토어' : '입점 스토어', isOfficial: store.isOfficial),
+          const SizedBox(height: 10),
+          Text(store.productCount > 0 ? '판매 중인 상품 ${store.productCount}개' : '상품 준비 중', style: Theme.of(context).textTheme.bodySmall),
+        ]),
+      ),
+    ),
+  );
 }
 
 class StorefrontDetailScreen extends ConsumerStatefulWidget {
