@@ -25,7 +25,12 @@ from app.schemas.catalog_intake import (
     SellerCardDraftUpdateRequest,
 )
 from app.schemas.catalog_product import CatalogImportResponse, CatalogProductListResponse
-from app.schemas.product import ProductResponse, SellerProductBulkResponse, SellerProductListResponse
+from app.schemas.product import (
+    ProductResponse,
+    SellerProductBulkDeleteResponse,
+    SellerProductBulkResponse,
+    SellerProductListResponse,
+)
 
 from app.schemas.seller import (
 
@@ -42,6 +47,7 @@ from app.schemas.seller import (
     SellerOrderItemStatusUpdate,
 
     SellerProductBulkRequest,
+    SellerProductBulkDeleteRequest,
 
     SellerProductCreateRequest,
 
@@ -68,6 +74,8 @@ from app.services.catalog_products import search_seller_catalog_products
 from app.services.products import (
 
     delete_seller_product,
+
+    bulk_delete_seller_products,
 
     bulk_update_seller_products,
 
@@ -336,6 +344,21 @@ def seller_bulk_update_products(
         updated=[product_to_response(p) for p in updated],
         failed=failed,
         success_count=len(updated),
+        fail_count=len(failed),
+    )
+
+
+@router.delete("/products/bulk", response_model=SellerProductBulkDeleteResponse)
+def seller_bulk_delete_products(
+    payload: SellerProductBulkDeleteRequest,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> SellerProductBulkDeleteResponse:
+    deleted_count, failed = bulk_delete_seller_products(db, seller, payload)
+    db.commit()
+    return SellerProductBulkDeleteResponse(
+        deleted_count=deleted_count,
+        failed=failed,
         fail_count=len(failed),
     )
 

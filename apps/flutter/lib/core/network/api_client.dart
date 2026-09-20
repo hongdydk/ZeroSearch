@@ -1116,6 +1116,14 @@ class ApiClient {
     }
   }
 
+  Future<void> sellerBulkDeleteProducts(List<String> ids) async {
+    try {
+      await _dio.delete<void>('seller/products/bulk', data: {'ids': ids});
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<List<IntakeDraftModel>> sellerCardDrafts() async {
     try {
       final response = await _dio.get<Map<String, dynamic>>(

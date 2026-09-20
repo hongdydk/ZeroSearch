@@ -3387,6 +3387,51 @@
         "title": "SellerOrderItemStatusUpdate",
         "type": "object"
       },
+      "SellerProductBulkDeleteRequest": {
+        "properties": {
+          "ids": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Ids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "ids"
+        ],
+        "title": "SellerProductBulkDeleteRequest",
+        "type": "object"
+      },
+      "SellerProductBulkDeleteResponse": {
+        "properties": {
+          "deletedCount": {
+            "title": "Deletedcount",
+            "type": "integer"
+          },
+          "failCount": {
+            "title": "Failcount",
+            "type": "integer"
+          },
+          "failed": {
+            "items": {
+              "$ref": "#/components/schemas/SellerProductBulkFailure"
+            },
+            "title": "Failed",
+            "type": "array"
+          }
+        },
+        "required": [
+          "deletedCount",
+          "failed",
+          "failCount"
+        ],
+        "title": "SellerProductBulkDeleteResponse",
+        "type": "object"
+      },
       "SellerProductBulkFailure": {
         "properties": {
           "detail": {
@@ -8815,6 +8860,50 @@
       }
     },
     "/seller/products/bulk": {
+      "delete": {
+        "operationId": "seller_bulk_delete_products_seller_products_bulk_delete",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerProductBulkDeleteRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerProductBulkDeleteResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Seller Bulk Delete Products",
+        "tags": [
+          "seller"
+        ]
+      },
       "post": {
         "operationId": "seller_bulk_update_products_seller_products_bulk_post",
         "requestBody": {

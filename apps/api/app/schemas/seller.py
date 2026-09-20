@@ -203,6 +203,12 @@ class SellerProductBulkRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class SellerProductBulkDeleteRequest(BaseModel):
+    ids: list[UUID] = Field(min_length=1, max_length=100)
+
+    model_config = {"populate_by_name": True}
+
+
 class SellerImageUploadResponse(BaseModel):
 
     image_url: str = Field(alias="imageUrl")

@@ -143,3 +143,11 @@ class SellerProductBulkResponse(BaseModel):
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
 
+class SellerProductBulkDeleteResponse(BaseModel):
+    deleted_count: int = Field(alias="deletedCount")
+    failed: list[SellerProductBulkFailure]
+    fail_count: int = Field(alias="failCount")
+
+    model_config = {"populate_by_name": True, "ser_json_by_alias": True}
+
+

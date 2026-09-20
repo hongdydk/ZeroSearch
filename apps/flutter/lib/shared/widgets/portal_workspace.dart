@@ -468,7 +468,6 @@ List<_PortalMenuGroup> _menuGroups(PortalWorkspaceRole role) {
           '통계',
           '/seller/stats',
           Icons.bar_chart_outlined,
-          soon: true,
         ),
         _PortalMenuItem(
           '알림',

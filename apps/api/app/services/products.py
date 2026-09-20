@@ -10,6 +10,7 @@ from app.schemas.seller import (
     SellerOfferFilter,
     SellerOfferSort,
     SellerProductBulkRequest,
+    SellerProductBulkDeleteRequest,
     SellerProductCreateRequest,
     SellerProductUpdateRequest,
     SellerSummary,
@@ -365,6 +366,35 @@ def delete_seller_product(db: Session, seller: Seller, product_id: UUID) -> None
     )
     db.delete(product)
     db.flush()
+
+
+def bulk_delete_seller_products(
+    db: Session, seller: Seller, payload: SellerProductBulkDeleteRequest
+) -> tuple[int, list[SellerProductBulkFailure]]:
+    ids = list(dict.fromkeys(payload.ids))
+    products = db.scalars(
+        select(Product).where(Product.seller_id == seller.id, Product.id.in_(ids))
+    ).all()
+    by_id = {product.id: product for product in products}
+    failed: list[SellerProductBulkFailure] = []
+    deleted = 0
+    for product_id in ids:
+        product = by_id.get(product_id)
+        if product is None:
+            failed.append(
+                SellerProductBulkFailure(id=str(product_id), detail="상품을 찾을 수 없습니다.")
+            )
+            continue
+        db.execute(delete(CartItem).where(CartItem.product_id == product.id))
+        db.execute(
+            update(CatalogIntakeDraft)
+            .where(CatalogIntakeDraft.product_id == product.id)
+            .values(product_id=None)
+        )
+        db.delete(product)
+        deleted += 1
+    db.flush()
+    return deleted, failed
 
 
 def product_to_response(product: Product) -> ProductResponse:

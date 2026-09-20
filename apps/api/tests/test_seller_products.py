@@ -9,8 +9,13 @@ from fastapi import HTTPException
 from app.deps import require_active_seller
 from app.models import Product, Seller
 from app.schemas.product import SellerProductCounts
-from app.schemas.seller import SellerProductBulkRequest, SellerProductUpdateRequest
+from app.schemas.seller import (
+    SellerProductBulkDeleteRequest,
+    SellerProductBulkRequest,
+    SellerProductUpdateRequest,
+)
 from app.services.products import (
+    bulk_delete_seller_products,
     delete_seller_product,
     bulk_update_seller_products,
     list_seller_products,
@@ -282,6 +287,28 @@ def test_delete_removes_offer_and_its_live_references():
     assert "catalog_intake_drafts" in str(db.execute.call_args_list[1].args[0]).lower()
 
 
+def test_bulk_delete_removes_owned_offers_and_records_missing_ids():
+    seller = _seller()
+    first = _product(seller)
+    second = _product(seller)
+    missing = uuid.uuid4()
+    db = MagicMock()
+    db.scalars.return_value.all.return_value = [first, second]
+
+    deleted, failed = bulk_delete_seller_products(
+        db,
+        seller,
+        SellerProductBulkDeleteRequest(ids=[first.id, missing, second.id]),
+    )
+
+    assert deleted == 2
+    assert {row.id: row.detail for row in failed} == {
+        str(missing): "상품을 찾을 수 없습니다."
+    }
+    assert db.delete.call_args_list == [((first,), {}), ((second,), {})]
+    assert db.execute.call_count == 4
+
+
 def test_seller_list_route_returns_hidden_option_fields(client):
     user = make_user()
     seller = _seller(user_id=user.id)
@@ -434,6 +461,47 @@ def test_seller_bulk_route_rejects_empty_action(client):
 
     assert response.status_code == 400
     assert "가격" in response.json()["detail"]
+
+
+def test_seller_bulk_delete_route_returns_summary(client):
+    user = make_user()
+    seller = _seller(user_id=user.id)
+    product_id = uuid.uuid4()
+    missing_id = uuid.uuid4()
+    override_current_user(user)
+    override_db(MagicMock())
+    from app.schemas.product import SellerProductBulkFailure
+    from main import app
+
+    app.dependency_overrides[require_active_seller] = lambda: seller
+    try:
+        with patch(
+            "app.routers.seller.bulk_delete_seller_products",
+            return_value=(
+                1,
+                [
+                    SellerProductBulkFailure(
+                        id=str(missing_id), detail="상품을 찾을 수 없습니다."
+                    )
+                ],
+            ),
+        ) as mock_bulk_delete:
+            response = client.request(
+                "DELETE",
+                "/seller/products/bulk",
+                json={"ids": [str(product_id), str(missing_id)]},
+                headers={"Authorization": "Bearer fake"},
+            )
+    finally:
+        app.dependency_overrides.pop(require_active_seller, None)
+
+    assert response.status_code == 200
+    mock_bulk_delete.assert_called_once()
+    assert response.json() == {
+        "deletedCount": 1,
+        "failed": [{"id": str(missing_id), "detail": "상품을 찾을 수 없습니다."}],
+        "failCount": 1,
+    }
 
 
 def test_create_without_price_derives_per_unit_volume(client):

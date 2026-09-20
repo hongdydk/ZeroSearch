@@ -240,6 +240,32 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
     await _applyBulk(status: 'published');
   }
 
+  Future<void> _bulkDelete() async {
+    if (_selectedIds.isEmpty || isBusy('bulk')) return;
+    final ok = await _confirmBulk(
+      '선택 오퍼 영구 삭제',
+      '${_selectedIds.length}건의 연결된 오퍼를 영구 삭제할까요? 기존 주문과 판매 기록은 유지됩니다.',
+    );
+    if (!ok || !mounted) return;
+    final ids = _selectedIds.toList();
+    await runBusy('bulk', () async {
+      try {
+        await ref.read(apiClientProvider).sellerBulkDeleteProducts(ids);
+        if (!mounted) return;
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('${ids.length}건의 오퍼를 삭제했습니다.')),
+        );
+        setState(_selectedIds.clear);
+        await _load(silent: true);
+      } on ApiException catch (e) {
+        if (!mounted) return;
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
+  }
+
   Future<void> _applyBulk({
     int? priceCredits,
     int? stock,
@@ -359,6 +385,13 @@ class _SellerProductsScreenState extends ConsumerState<SellerProductsScreen>
                 OutlinedButton(
                   onPressed: bulkBusy ? null : _bulkUnhide,
                   child: const Text('숨김 해제'),
+                ),
+                OutlinedButton(
+                  onPressed: bulkBusy ? null : _bulkDelete,
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Theme.of(context).colorScheme.error,
+                  ),
+                  child: const Text('영구 삭제'),
                 ),
               ],
             ),
