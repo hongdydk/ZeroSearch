@@ -1349,6 +1349,18 @@ class ApiClient {
     }
   }
 
+  Future<AdminSellerPage> adminSellerPage({String? q, String? status, int offset = 0, int limit = 30}) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('admin/sellers', queryParameters: {
+        if (q != null && q.isNotEmpty) 'q': q,
+        if (status != null && status.isNotEmpty) 'status': status,
+        'offset': offset,
+        'limit': limit,
+      });
+      return AdminSellerPage.fromJson(response.data ?? const {});
+    } on DioException catch (e) { throw _apiExceptionFromDio(e); }
+  }
+
   Future<AdminSellerModel> _adminSellerAction(
     String path, {
     String? reason,

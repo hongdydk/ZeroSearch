@@ -890,6 +890,20 @@ class CatalogVariantModel {
   String get displayLabel => name == '기본' ? optionLabel : '$name · $optionLabel';
 }
 
+class AdminSellerPage {
+  const AdminSellerPage({required this.items, required this.total, required this.offset, required this.limit});
+  factory AdminSellerPage.fromJson(Map<String, dynamic> json) => AdminSellerPage(
+    items: (json['items'] as List<dynamic>? ?? []).whereType<Map>().map((row) => AdminSellerModel.fromJson(Map<String, dynamic>.from(row))).toList(),
+    total: json['total'] as int? ?? 0,
+    offset: json['offset'] as int? ?? 0,
+    limit: json['limit'] as int? ?? 30,
+  );
+  final List<AdminSellerModel> items;
+  final int total;
+  final int offset;
+  final int limit;
+}
+
 class CatalogProductModel {
   CatalogProductModel({
     required this.id,

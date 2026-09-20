@@ -6,6 +6,7 @@ import '../auth/login_portal.dart';
 import '../providers/app_providers.dart';
 import 'safe_next_path.dart';
 import '../../features/admin/admin_screen.dart';
+import '../../features/admin/admin_seller_directory_screen.dart';
 import '../../features/admin/admin_operations_screens.dart';
 import '../../features/auth/buyer_auth_gate.dart';
 import '../../features/auth/login_screen.dart';
@@ -287,7 +288,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/admin/sellers',
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.admin,
-              child: AdminScreen(section: AdminSection.sellers),
+              child: AdminSellerDirectoryScreen(),
             ),
           ),
           GoRoute(
