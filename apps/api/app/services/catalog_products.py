@@ -268,6 +268,7 @@ def _offer_browse_item(offer: Product) -> CatalogOfferBrowseItem:
         seller=SellerSummary(
             id=str(seller.id),
             shop_name=seller.shop_name,
+            slug=seller.slug,
             seller_type=seller.seller_type,  # type: ignore[arg-type]
         ),
     )
@@ -455,8 +456,10 @@ def list_catalog_products(
         )
 
     catalogs = db.scalars(
-        select(CatalogProduct).where(CatalogProduct.id.in_(page_ids))
-    ).all()
+        select(CatalogProduct)
+        .where(CatalogProduct.id.in_(page_ids))
+        .options(joinedload(CatalogProduct.variants))
+    ).unique().all()
     by_id = {catalog.id: catalog for catalog in catalogs}
     ordered = [by_id[cid] for cid in page_ids if cid in by_id]
 
@@ -576,6 +579,7 @@ def get_catalog_product(
             seller=SellerSummary(
                 id=str(o.seller.id),
                 shop_name=o.seller.shop_name,
+                slug=o.seller.slug,
                 seller_type=o.seller.seller_type,  # type: ignore[arg-type]
             ),
         )

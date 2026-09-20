@@ -695,6 +695,7 @@ def test_offer_browse_item_keeps_seller_and_price_not_identity():
     assert item.manufacturer == "농심"
     assert item.price_credits == 4200
     assert item.seller.shop_name == "면사랑마트"
+    assert item.seller.slug == seller.slug
     assert item.image_url == "https://img.example/nongshim.png"
 
 
