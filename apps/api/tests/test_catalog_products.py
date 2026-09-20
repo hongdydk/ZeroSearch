@@ -9,6 +9,7 @@ from sqlalchemy.dialects import postgresql
 
 from app.models import CatalogProduct, Product, Seller
 from app.schemas.catalog_product import CatalogProductListItem
+from app.services.catalog_identity import matches_brand_axis, matches_menu_axis
 from app.services.catalog_products import (
     CatalogIdentityRow,
     CatalogListResult,
@@ -17,7 +18,9 @@ from app.services.catalog_products import (
     _catalog_search_filter,
     _offer_browse_item,
     get_catalog_product,
+    member_ids_for_survivors,
     offer_filter_facets,
+    pick_identity_groups,
     pick_identity_survivor_ids,
 )
 from tests.factories import override_db
@@ -544,6 +547,116 @@ def test_pick_identity_keeps_unique_zero_offer_card():
     ) == [only]
 
 
+def test_pick_identity_collapses_flavor_variants_on_same_company_item():
+    peach = uuid.uuid4()
+    tropical = uuid.uuid4()
+    apple = uuid.uuid4()
+    grape = uuid.uuid4()
+    survivors = pick_identity_survivor_ids(
+        [
+            CatalogIdentityRow(
+                id=peach,
+                manufacturer="Dole 코리아",
+                title="Dole 후룻볼 복숭아 4입 100%주스",
+                offer_count=0,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=tropical,
+                manufacturer="Dole 코리아",
+                title="Dole 후룻볼 트로피칼 4입 100%주스",
+                offer_count=1,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=apple,
+                manufacturer="CJ제일제당",
+                title="CJ 쁘띠첼워터젤리사과 130ML",
+                offer_count=0,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=grape,
+                manufacturer="씨제이제일제당",
+                title="씨제이쁘띠첼워터젤리포도",
+                offer_count=0,
+                created_at=None,
+            ),
+        ]
+    )
+    assert tropical in survivors
+    assert len(survivors) == 2
+    assert len({apple, grape} & set(survivors)) == 1
+
+
+def test_brand_and_menu_axes_share_the_same_flavor_card_ids():
+    peach = uuid.uuid4()
+    tropical = uuid.uuid4()
+    jelly = uuid.uuid4()
+    rows = [
+        CatalogIdentityRow(
+            id=peach,
+            manufacturer="Dole 코리아",
+            title="Dole 후룻볼 복숭아 4입 100%주스",
+            offer_count=2,
+            created_at=None,
+        ),
+        CatalogIdentityRow(
+            id=tropical,
+            manufacturer="Dole 코리아",
+            title="Dole 후룻볼 트로피칼 4입 100%주스",
+            offer_count=1,
+            created_at=None,
+        ),
+        CatalogIdentityRow(
+            id=jelly,
+            manufacturer="CJ제일제당",
+            title="CJ 쁘띠첼워터젤리사과 130ML",
+            offer_count=1,
+            created_at=None,
+        ),
+    ]
+    brand_rows = [
+        row for row in rows if matches_brand_axis(row.manufacturer, "Dole 코리아")
+    ]
+    menu_rows = [
+        row
+        for row in rows
+        if matches_menu_axis(row.manufacturer, row.title, "후룻볼")
+    ]
+    brand_ids = pick_identity_survivor_ids(brand_rows)
+    menu_ids = pick_identity_survivor_ids(menu_rows)
+    assert brand_ids == [peach]
+    assert menu_ids == brand_ids
+
+
+def test_identity_groups_keep_flavor_member_ids_for_offer_aggregation():
+    peach = uuid.uuid4()
+    tropical = uuid.uuid4()
+    groups = pick_identity_groups(
+        [
+            CatalogIdentityRow(
+                id=peach,
+                manufacturer="Dole 코리아",
+                title="Dole 후룻볼 복숭아 4입 100%주스",
+                offer_count=2,
+                created_at=None,
+            ),
+            CatalogIdentityRow(
+                id=tropical,
+                manufacturer="Dole 코리아",
+                title="Dole 후룻볼 트로피칼 4입 100%주스",
+                offer_count=1,
+                created_at=None,
+            ),
+        ]
+    )
+    assert len(groups) == 1
+    assert groups[0].survivor_id == peach
+    assert set(groups[0].member_ids) == {peach, tropical}
+    assert member_ids_for_survivors(groups, [peach]) == [peach, tropical]
+
+
 def test_offer_filter_facets_do_not_leak_water_flavors_into_sikhye():
     flavors, has_volume = offer_filter_facets(
         [None, None, ""],
@@ -582,6 +695,7 @@ def test_offer_browse_item_keeps_seller_and_price_not_identity():
     assert item.manufacturer == "농심"
     assert item.price_credits == 4200
     assert item.seller.shop_name == "면사랑마트"
+    assert item.seller.slug == seller.slug
     assert item.image_url == "https://img.example/nongshim.png"
 
 

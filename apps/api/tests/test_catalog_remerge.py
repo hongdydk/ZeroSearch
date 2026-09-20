@@ -68,7 +68,7 @@ def test_csv_full_dry_run_canonical_reduces_cards():
     ]
     assert len(gamtul) == 1
     assert len(gamtul[0].members) >= 4
-    assert gamtul[0].canonical_title == "롯데제주사랑감귤"
+    assert gamtul[0].canonical_title == "제주사랑감귤"
 
 
 def test_resolve_catalog_product_via_alias():

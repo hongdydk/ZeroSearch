@@ -14,6 +14,7 @@ from app.services.guest_l1 import (
     infer_l1_tags,
     normalize_l1_tags,
 )
+from app.services.catalog_identity import collapse_axis_facets
 from app.services.guest_l2 import infer_l2_tags, is_guest_l2, l2s_for, normalize_l2_tags
 
 
@@ -171,18 +172,12 @@ def list_l1_facets(
         return _empty_facets(tag, l2)
     filters.append(CatalogProduct.status == "active")
 
-    brand_rows = db.execute(
-        select(CatalogProduct.manufacturer, func.count())
-        .where(*filters, CatalogProduct.manufacturer != "")
-        .group_by(CatalogProduct.manufacturer)
-        .order_by(func.count().desc(), CatalogProduct.manufacturer)
+    rows = db.execute(
+        select(CatalogProduct.manufacturer, CatalogProduct.title).where(*filters)
     ).all()
-    menu_rows = db.execute(
-        select(CatalogProduct.title, func.count())
-        .where(*filters)
-        .group_by(CatalogProduct.title)
-        .order_by(func.count().desc(), CatalogProduct.title)
-    ).all()
+    brands, menus = collapse_axis_facets(
+        (manufacturer or "", title or "") for manufacturer, title in rows
+    )
 
     axis: Axis = default_axis_for(tag) if tag else "brand"
     return {
@@ -190,6 +185,6 @@ def list_l1_facets(
         "l2_tag": l2,
         "l2s": list(l2s_for(tag)) if tag in GUEST_L1_SET else [],
         "default_axis": axis,
-        "brands": [{"name": name, "count": count} for name, count in brand_rows if name],
-        "menus": [{"name": name, "count": count} for name, count in menu_rows if name],
+        "brands": brands,
+        "menus": menus,
     }

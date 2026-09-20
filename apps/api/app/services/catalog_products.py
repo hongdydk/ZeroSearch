@@ -17,7 +17,7 @@ from app.schemas.catalog_product import (
     CatalogReferenceVariant,
 )
 from app.schemas.seller import SellerSummary
-from app.services.catalog_identity import card_identity_key
+from app.services.catalog_identity import card_identity_key, matches_brand_axis, matches_menu_axis
 from app.services.catalog_l1 import l1_tag_filter, l2_tag_filter
 from app.services.catalog_remerge import resolve_catalog_product
 
@@ -48,20 +48,54 @@ class CatalogOfferListResult:
     total: int
 
 
-def pick_identity_survivor_ids(rows: list[CatalogIdentityRow]) -> list[UUID]:
-    """같은 회사+품목은 오퍼가 있는 카드 1장만 남긴다."""
+@dataclass(frozen=True)
+class CatalogIdentityGroup:
+    survivor_id: UUID
+    member_ids: tuple[UUID, ...]
+
+
+def pick_identity_groups(rows: list[CatalogIdentityRow]) -> list[CatalogIdentityGroup]:
+    """같은 회사+품목의 카드들을 한 그룹으로 묶고 대표 ID를 고른다."""
     best: dict[tuple[str, str], CatalogIdentityRow] = {}
+    members: dict[tuple[str, str], list[UUID]] = {}
     order: list[tuple[str, str]] = []
     for row in rows:
         key = card_identity_key(row.manufacturer, row.title)
-        prev = best.get(key)
-        if prev is None:
+        bucket = members.get(key)
+        if bucket is None:
+            members[key] = [row.id]
             best[key] = row
             order.append(key)
             continue
-        if _identity_row_beats(row, prev):
+        bucket.append(row.id)
+        if _identity_row_beats(row, best[key]):
             best[key] = row
-    return [best[key].id for key in order]
+    return [
+        CatalogIdentityGroup(survivor_id=best[key].id, member_ids=tuple(members[key]))
+        for key in order
+    ]
+
+
+def pick_identity_survivor_ids(rows: list[CatalogIdentityRow]) -> list[UUID]:
+    """같은 회사+품목은 오퍼가 있는 카드 1장만 남긴다."""
+    return [group.survivor_id for group in pick_identity_groups(rows)]
+
+
+def member_ids_for_survivors(
+    groups: list[CatalogIdentityGroup],
+    survivor_ids: list[UUID],
+) -> list[UUID]:
+    wanted = set(survivor_ids)
+    ids: list[UUID] = []
+    seen: set[UUID] = set()
+    for group in groups:
+        if group.survivor_id not in wanted:
+            continue
+        for member_id in group.member_ids:
+            if member_id not in seen:
+                seen.add(member_id)
+                ids.append(member_id)
+    return ids
 
 
 def _identity_row_beats(row: CatalogIdentityRow, prev: CatalogIdentityRow) -> bool:
@@ -174,10 +208,6 @@ def _catalog_search_filter(
         filters.append(l2_tag_filter(l1_tag, l2_tag))
     if storage in {"상온", "냉장", "냉동"}:
         filters.append(CatalogProduct.storage == storage)
-    if brand:
-        filters.append(CatalogProduct.manufacturer == brand)
-    if menu:
-        filters.append(CatalogProduct.title == menu)
     return filters
 
 
@@ -238,6 +268,7 @@ def _offer_browse_item(offer: Product) -> CatalogOfferBrowseItem:
         seller=SellerSummary(
             id=str(seller.id),
             shop_name=seller.shop_name,
+            slug=seller.slug,
             seller_type=seller.seller_type,  # type: ignore[arg-type]
         ),
     )
@@ -273,6 +304,22 @@ def list_catalog_offers(
         brand=brand,
         menu=menu,
     )
+    if brand or menu:
+        scoped_ids = [
+            row.id
+            for row in db.execute(
+                select(
+                    CatalogProduct.id,
+                    CatalogProduct.manufacturer,
+                    CatalogProduct.title,
+                ).where(*catalog_filters)
+            ).all()
+            if matches_brand_axis(row.manufacturer or "", brand or "")
+            and matches_menu_axis(row.manufacturer or "", row.title, menu or "")
+        ]
+        if not scoped_ids:
+            return CatalogOfferListResult(items=[], total=0)
+        catalog_filters = [CatalogProduct.id.in_(scoped_ids)]
     offer_filters = _public_offer_filters(
         flavor=flavor, volume_ml_min=volume_ml_min, volume_ml_max=volume_ml_max
     )
@@ -362,7 +409,12 @@ def list_catalog_products(
         id_stmt = id_stmt.where(has_offers)
 
     id_stmt = id_stmt.order_by(CatalogProduct.manufacturer, CatalogProduct.title)
-    identity_rows = db.execute(id_stmt).all()
+    identity_rows = [
+        row
+        for row in db.execute(id_stmt).all()
+        if matches_brand_axis(row.manufacturer or "", brand or "")
+        and matches_menu_axis(row.manufacturer or "", row.title, menu or "")
+    ]
     if not identity_rows:
         return CatalogListResult(items=[], total=0, available_flavors=[], has_volume_min_2000=False)
 
@@ -377,7 +429,7 @@ def list_catalog_products(
     ):
         offer_counts[catalog_id] = int(count)
 
-    survivors = pick_identity_survivor_ids(
+    groups = pick_identity_groups(
         [
             CatalogIdentityRow(
                 id=row.id,
@@ -390,10 +442,12 @@ def list_catalog_products(
             for row in identity_rows
         ]
     )
+    survivors = [group.survivor_id for group in groups]
+    all_member_ids = member_ids_for_survivors(groups, survivors)
     total = len(survivors)
     page_ids = survivors[offset : offset + limit]
     if not page_ids:
-        flavors, has_volume = _result_set_offer_facets(db, survivors)
+        flavors, has_volume = _result_set_offer_facets(db, all_member_ids)
         return CatalogListResult(
             items=[],
             total=total,
@@ -402,26 +456,37 @@ def list_catalog_products(
         )
 
     catalogs = db.scalars(
-        select(CatalogProduct).where(CatalogProduct.id.in_(page_ids))
-    ).all()
+        select(CatalogProduct)
+        .where(CatalogProduct.id.in_(page_ids))
+        .options(joinedload(CatalogProduct.variants))
+    ).unique().all()
     by_id = {catalog.id: catalog for catalog in catalogs}
     ordered = [by_id[cid] for cid in page_ids if cid in by_id]
 
     offer_filters = _public_offer_filters(
         flavor=flavor, volume_ml_min=volume_ml_min, volume_ml_max=volume_ml_max
     )
+    page_member_ids = member_ids_for_survivors(groups, page_ids)
     offers = db.scalars(
         select(Product)
         .join(Seller, Product.seller_id == Seller.id)
-        .where(Product.catalog_product_id.in_(page_ids), *offer_filters)
+        .where(Product.catalog_product_id.in_(page_member_ids), *offer_filters)
         .options(joinedload(Product.seller))
     ).unique().all()
+    survivor_for_member = {
+        member_id: group.survivor_id
+        for group in groups
+        for member_id in group.member_ids
+        if group.survivor_id in page_ids
+    }
     by_catalog: dict[UUID, list[Product]] = {cid: [] for cid in page_ids}
     for offer in offers:
-        by_catalog[offer.catalog_product_id].append(offer)
+        survivor_id = survivor_for_member.get(offer.catalog_product_id)
+        if survivor_id is not None:
+            by_catalog[survivor_id].append(offer)
 
     items = [_list_item(catalog, by_catalog[catalog.id]) for catalog in ordered]
-    flavors, has_volume = _result_set_offer_facets(db, survivors)
+    flavors, has_volume = _result_set_offer_facets(db, all_member_ids)
     return CatalogListResult(
         items=items,
         total=total,
@@ -463,6 +528,21 @@ def search_seller_catalog_products(
     return result.items, result.total
 
 
+def _active_identity_member_ids(db: Session, catalog: CatalogProduct) -> list[UUID]:
+    key = card_identity_key(catalog.manufacturer or "", catalog.title)
+    rows = db.execute(
+        select(CatalogProduct.id, CatalogProduct.manufacturer, CatalogProduct.title).where(
+            CatalogProduct.status == "active"
+        )
+    ).all()
+    ids = [
+        row.id
+        for row in rows
+        if card_identity_key(row.manufacturer or "", row.title) == key
+    ]
+    return ids or [catalog.id]
+
+
 def get_catalog_product(
     db: Session,
     catalog_id: UUID,
@@ -478,10 +558,11 @@ def get_catalog_product(
     offer_filters = _public_offer_filters(
         flavor=flavor, volume_ml_min=volume_ml_min, volume_ml_max=volume_ml_max
     )
+    sibling_ids = _active_identity_member_ids(db, catalog)
     offers = db.scalars(
         select(Product)
         .join(Seller, Product.seller_id == Seller.id)
-        .where(Product.catalog_product_id == catalog.id, *offer_filters)
+        .where(Product.catalog_product_id.in_(sibling_ids), *offer_filters)
         .options(joinedload(Product.seller))
         .order_by(Product.price_credits)
     ).unique().all()
@@ -498,6 +579,7 @@ def get_catalog_product(
             seller=SellerSummary(
                 id=str(o.seller.id),
                 shop_name=o.seller.shop_name,
+                slug=o.seller.slug,
                 seller_type=o.seller.seller_type,  # type: ignore[arg-type]
             ),
         )
