@@ -3249,6 +3249,17 @@
           "reason": {
             "title": "Reason",
             "type": "string"
+          },
+          "shopName": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Shopname"
           }
         },
         "required": [
@@ -4922,6 +4933,32 @@
           }
         },
         "summary": "Root"
+      }
+    },
+    "/admin/audit": {
+      "get": {
+        "operationId": "list_admin_audit_admin_audit_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerModerationEventListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "List Admin Audit",
+        "tags": [
+          "admin"
+        ]
       }
     },
     "/admin/catalog/drafts": {

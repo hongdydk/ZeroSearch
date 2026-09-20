@@ -136,6 +136,7 @@ class SellerModerationEventItem(BaseModel):
     reason: str
     created_at: datetime = Field(alias="createdAt")
     admin_email: str | None = Field(default=None, alias="adminEmail")
+    shop_name: str | None = Field(default=None, alias="shopName")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

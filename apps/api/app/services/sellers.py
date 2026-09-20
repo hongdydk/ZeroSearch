@@ -233,13 +233,28 @@ def list_moderation_events(db: Session, seller_id: UUID) -> list[SellerModeratio
     )
 
 
-def moderation_event_item(event: SellerModerationEvent, admin_email: str | None = None) -> SellerModerationEventItem:
+def list_all_moderation_events(db: Session, limit: int = 100) -> list[SellerModerationEvent]:
+    return list(
+        db.scalars(
+            select(SellerModerationEvent)
+            .order_by(SellerModerationEvent.created_at.desc())
+            .limit(limit)
+        ).all()
+    )
+
+
+def moderation_event_item(
+    event: SellerModerationEvent,
+    admin_email: str | None = None,
+    shop_name: str | None = None,
+) -> SellerModerationEventItem:
     return SellerModerationEventItem(
         id=str(event.id),
         action=event.action,
         reason=event.reason,
         created_at=event.created_at,
         admin_email=admin_email,
+        shop_name=shop_name,
     )
 
 

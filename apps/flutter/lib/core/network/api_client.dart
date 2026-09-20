@@ -1429,6 +1429,23 @@ class ApiClient {
     }
   }
 
+  Future<List<SellerModerationEventModel>> adminAuditEvents() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('admin/audit');
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map(
+            (e) => SellerModerationEventModel.fromJson(
+              Map<String, dynamic>.from(e),
+            ),
+          )
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<AdminCatalogProductPageModel> adminCatalogProducts({
     String? q,
     bool includeRetired = false,

@@ -1348,6 +1348,7 @@ class SellerModerationEventModel {
     required this.reason,
     this.createdAt,
     this.adminEmail,
+    this.shopName,
   });
 
   factory SellerModerationEventModel.fromJson(Map<String, dynamic> json) {
@@ -1357,6 +1358,7 @@ class SellerModerationEventModel {
       reason: json['reason'] as String? ?? '',
       createdAt: json['createdAt'] as String?,
       adminEmail: json['adminEmail'] as String?,
+      shopName: json['shopName'] as String?,
     );
   }
 
@@ -1365,6 +1367,7 @@ class SellerModerationEventModel {
   final String reason;
   final String? createdAt;
   final String? adminEmail;
+  final String? shopName;
 
   String get actionLabel => switch (action) {
         'warn' => '경고',

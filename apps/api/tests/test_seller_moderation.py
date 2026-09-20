@@ -7,6 +7,7 @@ from fastapi import HTTPException
 
 from app.models import Seller, SellerModerationEvent
 from app.services.sellers import (
+    list_all_moderation_events,
     remove_seller,
     restore_seller,
     suspend_seller,
@@ -203,3 +204,29 @@ def test_admin_warn_endpoint(client):
     assert response.json()["status"] == "active"
     assert response.json()["warningCount"] == 1
     assert response.json()["lastModerationAction"] == "warn"
+
+
+def test_list_all_moderation_events_limits_newest_rows():
+    db = MagicMock()
+    result = list_all_moderation_events(db, limit=25)
+    sql = str(db.scalars.call_args.args[0]).lower()
+    assert "seller_moderation_events" in sql
+    assert "limit" in sql
+    assert result == list(db.scalars.return_value.all.return_value)
+
+
+def test_admin_audit_endpoint_returns_events_with_seller_name(client):
+    admin = make_user(is_admin=True)
+    seller = _seller(shop_name="한결마트")
+    event = SellerModerationEvent(
+        id=uuid.uuid4(), seller_id=seller.id, admin_user_id=admin.id, action="warn", reason="재고 확인"
+    )
+    event.created_at = datetime.now(UTC)
+    mock_db = MagicMock()
+    mock_db.get.side_effect = lambda model, value: admin if value == admin.id else seller
+    override_current_user(admin)
+    override_db(mock_db)
+    with patch("app.routers.admin.list_all_moderation_events", return_value=[event]):
+        response = client.get("/admin/audit", headers={"Authorization": "Bearer fake"})
+    assert response.status_code == 200
+    assert response.json()["items"][0]["shopName"] == "한결마트"

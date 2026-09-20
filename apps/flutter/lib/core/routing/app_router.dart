@@ -6,6 +6,7 @@ import '../auth/login_portal.dart';
 import '../providers/app_providers.dart';
 import 'safe_next_path.dart';
 import '../../features/admin/admin_screen.dart';
+import '../../features/admin/admin_operations_screens.dart';
 import '../../features/auth/buyer_auth_gate.dart';
 import '../../features/auth/login_screen.dart';
 import '../../features/auth/portal_auth_gate.dart';
@@ -24,6 +25,7 @@ import '../../features/product_detail/product_detail_screen.dart';
 import '../../features/seller/seller_offer_register_screen.dart';
 import '../../features/seller/seller_stats_screen.dart';
 import '../../features/seller/seller_orders_screen.dart';
+import '../../features/seller/seller_operations_screens.dart';
 import '../../features/seller/seller_product_detail_screen.dart';
 import '../../features/seller/seller_products_screen.dart';
 import '../../features/seller/seller_screen.dart';
@@ -238,13 +240,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/seller/alerts',
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.seller,
-              child: PortalComingSoonScreen(
-                role: PortalWorkspaceRole.seller,
-                activePath: '/seller/alerts',
-                title: '알림',
-                description: '즉시 확인해야 할 판매 운영 변화를 모아 보는 화면입니다.',
-                items: ['신규 주문', '재고 부족·품절', '카탈로그 검수 결과'],
-              ),
+              child: SellerAlertsScreen(),
             ),
           ),
           GoRoute(
@@ -264,13 +260,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/seller/activity',
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.seller,
-              child: PortalComingSoonScreen(
-                role: PortalWorkspaceRole.seller,
-                activePath: '/seller/activity',
-                title: '작업 기록',
-                description: '오퍼와 주문 상태 변경 이력을 확인하는 화면입니다.',
-                items: ['가격·재고 변경', '노출 상태 변경', '주문 배송 상태 변경'],
-              ),
+              child: SellerActivityScreen(),
             ),
           ),
         ],
@@ -332,13 +322,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/admin/alerts',
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.admin,
-              child: PortalComingSoonScreen(
-                role: PortalWorkspaceRole.admin,
-                activePath: '/admin/alerts',
-                title: '알림',
-                description: '운영자가 처리할 대기·지연 항목을 모아 보는 화면입니다.',
-                items: ['입점 승인 대기', '카탈로그 연결 충돌', '오래 멈춘 주문 줄'],
-              ),
+              child: AdminAlertsScreen(),
             ),
           ),
           GoRoute(
@@ -358,13 +342,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             path: '/admin/audit',
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.admin,
-              child: PortalComingSoonScreen(
-                role: PortalWorkspaceRole.admin,
-                activePath: '/admin/audit',
-                title: '감사 로그',
-                description: '관리자 변경 작업의 주체와 전후 상태를 확인하는 화면입니다.',
-                items: ['입점 승인·정지', '카드 연결·승격', '주문 상태 보정'],
-              ),
+              child: AdminAuditScreen(),
             ),
           ),
         ],

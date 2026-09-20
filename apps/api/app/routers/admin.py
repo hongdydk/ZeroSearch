@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.database import get_db
 from app.deps import require_admin
-from app.models import CatalogProduct, User
+from app.models import CatalogProduct, Seller, User
 from app.schemas.catalog_variant import CatalogVariantCreateRequest, CatalogVariantItem, CatalogVariantsCreateRequest
 from app.services.catalog_variants import add_catalog_variant, variant_to_item
 from app.schemas.admin import (
@@ -75,6 +75,7 @@ from app.services.sellers import (
     approve_seller,
     list_admin_sellers,
     list_moderation_events,
+    list_all_moderation_events,
     moderation_event_item,
     _moderation_summaries,
     remove_seller,
@@ -410,6 +411,35 @@ def list_seller_moderation(
             emails[admin_id] = user.email
     items = [
         moderation_event_item(event, emails.get(event.admin_user_id) if event.admin_user_id else None)
+        for event in events
+    ]
+    return SellerModerationEventListResponse(items=items, total=len(items))
+
+
+@router.get("/audit", response_model=SellerModerationEventListResponse)
+def list_admin_audit(
+    _: Annotated[User, Depends(require_admin)],
+    db: Annotated[Session, Depends(get_db)],
+) -> SellerModerationEventListResponse:
+    events = list_all_moderation_events(db)
+    admin_ids = {event.admin_user_id for event in events if event.admin_user_id}
+    seller_ids = {event.seller_id for event in events}
+    emails = {
+        user_id: user.email
+        for user_id in admin_ids
+        if (user := db.get(User, user_id)) is not None
+    }
+    shop_names = {
+        seller_id: seller.shop_name
+        for seller_id in seller_ids
+        if (seller := db.get(Seller, seller_id)) is not None
+    }
+    items = [
+        moderation_event_item(
+            event,
+            emails.get(event.admin_user_id) if event.admin_user_id else None,
+            shop_names.get(event.seller_id),
+        )
         for event in events
     ]
     return SellerModerationEventListResponse(items=items, total=len(items))
