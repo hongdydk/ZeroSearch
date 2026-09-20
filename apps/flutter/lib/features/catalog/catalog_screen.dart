@@ -795,6 +795,16 @@ class _LandingViewState extends State<_LandingView> {
                 },
               ),
               const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: const Icon(Icons.storefront_outlined),
+                  title: const Text('입점 판매자 둘러보기'),
+                  subtitle: const Text('상품이 준비 중인 판매자 사이트도 미리 확인할 수 있습니다.'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => context.go('/stores'),
+                ),
+              ),
+              const SizedBox(height: 20),
               KeyedSubtree(
                 key: _tableKey,
                 child: Column(

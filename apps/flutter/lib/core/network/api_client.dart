@@ -276,6 +276,30 @@ class ApiClient {
     }
   }
 
+  Future<List<StorefrontModel>> storefronts() async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('stores');
+      final items = response.data?['items'] as List<dynamic>? ?? [];
+      return items
+          .whereType<Map>()
+          .map((item) => StorefrontModel.fromJson(Map<String, dynamic>.from(item)))
+          .toList();
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<StorefrontDetailModel> storefront(String slug) async {
+    try {
+      final response = await _dio.get<Map<String, dynamic>>('stores/$slug');
+      final data = response.data;
+      if (data == null) throw ApiException('판매자 사이트를 불러오지 못했습니다.');
+      return StorefrontDetailModel.fromJson(data);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<GuestL1FacetsModel> guestL1Facets({
     String? l1Tag,
     String? l2Tag,

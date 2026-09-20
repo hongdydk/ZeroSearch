@@ -4208,6 +4208,108 @@
         "title": "ShippingSnapshot",
         "type": "object"
       },
+      "StorefrontDetailResponse": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "productCount": {
+            "title": "Productcount",
+            "type": "integer"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/ProductResponse"
+            },
+            "title": "Products",
+            "type": "array"
+          },
+          "sellerType": {
+            "enum": [
+              "platform",
+              "merchant"
+            ],
+            "title": "Sellertype",
+            "type": "string"
+          },
+          "shopName": {
+            "title": "Shopname",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "shopName",
+          "slug",
+          "sellerType",
+          "productCount"
+        ],
+        "title": "StorefrontDetailResponse",
+        "type": "object"
+      },
+      "StorefrontItem": {
+        "properties": {
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "productCount": {
+            "title": "Productcount",
+            "type": "integer"
+          },
+          "sellerType": {
+            "enum": [
+              "platform",
+              "merchant"
+            ],
+            "title": "Sellertype",
+            "type": "string"
+          },
+          "shopName": {
+            "title": "Shopname",
+            "type": "string"
+          },
+          "slug": {
+            "title": "Slug",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "shopName",
+          "slug",
+          "sellerType",
+          "productCount"
+        ],
+        "title": "StorefrontItem",
+        "type": "object"
+      },
+      "StorefrontListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/StorefrontItem"
+            },
+            "title": "Items",
+            "type": "array"
+          },
+          "total": {
+            "title": "Total",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "StorefrontListResponse",
+        "type": "object"
+      },
       "SubscribeRequest": {
         "properties": {
           "planSlug": {
@@ -8748,6 +8850,69 @@
         "summary": "Seller Upload Image",
         "tags": [
           "seller"
+        ]
+      }
+    },
+    "/stores": {
+      "get": {
+        "operationId": "list_storefronts_stores_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorefrontListResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "List Storefronts",
+        "tags": [
+          "storefronts"
+        ]
+      }
+    },
+    "/stores/{slug}": {
+      "get": {
+        "operationId": "get_storefront_stores__slug__get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "title": "Slug",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StorefrontDetailResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Get Storefront",
+        "tags": [
+          "storefronts"
         ]
       }
     }

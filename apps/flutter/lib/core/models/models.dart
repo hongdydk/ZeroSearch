@@ -1347,3 +1347,57 @@ class SellerModerationEventModel {
         _ => action,
       };
 }
+
+class StorefrontModel {
+  const StorefrontModel({
+    required this.id,
+    required this.shopName,
+    required this.slug,
+    required this.sellerType,
+    required this.productCount,
+  });
+
+  factory StorefrontModel.fromJson(Map<String, dynamic> json) => StorefrontModel(
+        id: json['id'] as String? ?? '',
+        shopName: json['shopName'] as String? ?? '',
+        slug: json['slug'] as String? ?? '',
+        sellerType: json['sellerType'] as String? ?? 'merchant',
+        productCount: json['productCount'] as int? ?? 0,
+      );
+
+  final String id;
+  final String shopName;
+  final String slug;
+  final String sellerType;
+  final int productCount;
+
+  bool get isOfficial => sellerType == 'platform';
+}
+
+class StorefrontDetailModel extends StorefrontModel {
+  const StorefrontDetailModel({
+    required super.id,
+    required super.shopName,
+    required super.slug,
+    required super.sellerType,
+    required super.productCount,
+    required this.products,
+  });
+
+  factory StorefrontDetailModel.fromJson(Map<String, dynamic> json) {
+    final store = StorefrontModel.fromJson(json);
+    return StorefrontDetailModel(
+      id: store.id,
+      shopName: store.shopName,
+      slug: store.slug,
+      sellerType: store.sellerType,
+      productCount: store.productCount,
+      products: (json['products'] as List<dynamic>? ?? [])
+          .whereType<Map>()
+          .map((item) => ProductModel.fromJson(Map<String, dynamic>.from(item)))
+          .toList(),
+    );
+  }
+
+  final List<ProductModel> products;
+}

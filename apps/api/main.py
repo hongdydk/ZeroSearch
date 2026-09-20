@@ -22,6 +22,7 @@ from app.routers import (
     payments,
     products,
     seller,
+    storefronts,
 )
 from seed import ensure_admin_user, ensure_catalog_seed
 
@@ -69,6 +70,7 @@ app.include_router(orders.router)
 app.include_router(payments.router)
 app.include_router(membership.router)
 app.include_router(seller.router)
+app.include_router(storefronts.router)
 
 _uploads = Path(_settings.upload_dir)
 _uploads.mkdir(parents=True, exist_ok=True)

@@ -28,6 +28,7 @@ import '../../features/seller/seller_product_detail_screen.dart';
 import '../../features/seller/seller_products_screen.dart';
 import '../../features/seller/seller_screen.dart';
 import '../../features/settings/settings_screen.dart';
+import '../../features/storefront/storefront_screens.dart';
 import '../../shared/widgets/adaptive_shell.dart';
 import '../../shared/widgets/portal_shell.dart';
 import '../../shared/widgets/portal_workspace.dart';
@@ -86,6 +87,11 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (context, state, child) => AdaptiveShell(child: child),
         routes: [
           GoRoute(path: '/', builder: (_, _) => const CatalogScreen()),
+          GoRoute(path: '/stores', builder: (_, _) => const StorefrontListScreen()),
+          GoRoute(
+            path: '/stores/:slug',
+            builder: (_, state) => StorefrontDetailScreen(slug: state.pathParameters['slug']!),
+          ),
           GoRoute(
             path: '/catalog/:id',
             builder: (_, state) =>
