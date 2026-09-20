@@ -105,6 +105,11 @@ class AdminSellerItem(BaseModel):
     warning_count: int = Field(default=0, alias="warningCount")
     last_moderation_action: str | None = Field(default=None, alias="lastModerationAction")
     last_moderation_reason: str | None = Field(default=None, alias="lastModerationReason")
+    offer_count: int = Field(default=0, alias="offerCount")
+    published_offer_count: int = Field(default=0, alias="publishedOfferCount")
+    sold_out_offer_count: int = Field(default=0, alias="soldOutOfferCount")
+    hidden_offer_count: int = Field(default=0, alias="hiddenOfferCount")
+    pending_draft_count: int = Field(default=0, alias="pendingDraftCount")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 
@@ -112,6 +117,8 @@ class AdminSellerItem(BaseModel):
 class AdminSellerListResponse(BaseModel):
     items: list[AdminSellerItem]
     total: int
+    offset: int = 0
+    limit: int = 30
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

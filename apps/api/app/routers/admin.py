@@ -78,6 +78,7 @@ from app.services.sellers import (
     list_all_moderation_events,
     moderation_event_item,
     _moderation_summaries,
+    seller_operations_summaries,
     remove_seller,
     suspend_seller,
     unsuspend_seller,
@@ -311,14 +312,18 @@ def list_sellers(
     _: Annotated[User, Depends(require_admin)],
     db: Annotated[Session, Depends(get_db)],
     status_filter: Annotated[str | None, Query(alias="status")] = None,
+    q: Annotated[str | None, Query()] = None,
+    offset: Annotated[int, Query(ge=0)] = 0,
+    limit: Annotated[int, Query(ge=1, le=100)] = 30,
 ) -> AdminSellerListResponse:
-    rows = list_admin_sellers(db, status_filter)
+    rows, total = list_admin_sellers(db, status_filter, q, offset, limit)
     summaries = _moderation_summaries(db, [seller.id for seller, _ in rows])
+    operations = seller_operations_summaries(db, [seller.id for seller, _ in rows])
     items = [
-        admin_seller_item(seller, user, summaries.get(seller.id))
+        admin_seller_item(seller, user, summaries.get(seller.id), operations.get(seller.id))
         for seller, user in rows
     ]
-    return AdminSellerListResponse(items=items, total=len(items))
+    return AdminSellerListResponse(items=items, total=total, offset=offset, limit=limit)
 
 
 def _seller_item_after_action(db: Session, seller) -> AdminSellerItem:

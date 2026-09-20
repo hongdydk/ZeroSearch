@@ -3,11 +3,11 @@ import uuid
 from uuid import UUID
 
 from fastapi import HTTPException, status
-from sqlalchemy import func, select
+from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Seller, SellerModerationEvent, User
+from app.models import CatalogIntakeDraft, Product, Seller, SellerModerationEvent, User
 from app.schemas.admin import AdminSellerItem, SellerModerationEventItem
 
 PLATFORM_SHOP_NAME = "Shopping Mall 공식"
@@ -286,8 +286,24 @@ def _moderation_summaries(db: Session, seller_ids: list[UUID]) -> dict[UUID, tup
     }
 
 
-def admin_seller_item(seller: Seller, user: User | None, summary: tuple[int, str | None, str | None] | None = None) -> AdminSellerItem:
+def seller_operations_summaries(db: Session, seller_ids: list[UUID]) -> dict[UUID, tuple[int, int, int, int, int]]:
+    if not seller_ids:
+        return {}
+    rows = db.execute(select(
+        Product.seller_id,
+        func.count().label("all_count"),
+        func.coalesce(func.sum(case((and_(Product.status == "published", Product.stock > 0), 1), else_=0)), 0).label("published"),
+        func.coalesce(func.sum(case((and_(Product.status == "published", Product.stock <= 0), 1), else_=0)), 0).label("sold_out"),
+        func.coalesce(func.sum(case((Product.status == "archived", 1), else_=0)), 0).label("hidden"),
+    ).where(Product.seller_id.in_(seller_ids)).group_by(Product.seller_id)).all()
+    offers = {row.seller_id: (int(row.all_count or 0), int(row.published or 0), int(row.sold_out or 0), int(row.hidden or 0)) for row in rows}
+    drafts = dict(db.execute(select(CatalogIntakeDraft.seller_id, func.count()).where(CatalogIntakeDraft.seller_id.in_(seller_ids), CatalogIntakeDraft.status == "pending").group_by(CatalogIntakeDraft.seller_id)).all())
+    return {seller_id: (*offers.get(seller_id, (0, 0, 0, 0)), int(drafts.get(seller_id, 0))) for seller_id in seller_ids}
+
+
+def admin_seller_item(seller: Seller, user: User | None, summary: tuple[int, str | None, str | None] | None = None, operations: tuple[int, int, int, int, int] | None = None) -> AdminSellerItem:
     warning_count, last_action, last_reason = summary or (0, None, None)
+    offer_count, published_count, sold_out_count, hidden_count, draft_count = operations or (0, 0, 0, 0, 0)
     return AdminSellerItem(
         id=str(seller.id),
         user_id=str(seller.user_id),
@@ -300,12 +316,25 @@ def admin_seller_item(seller: Seller, user: User | None, summary: tuple[int, str
         warning_count=warning_count,
         last_moderation_action=last_action,
         last_moderation_reason=last_reason,
+        offer_count=offer_count, published_offer_count=published_count, sold_out_offer_count=sold_out_count, hidden_offer_count=hidden_count, pending_draft_count=draft_count,
     )
 
 
-def list_admin_sellers(db: Session, status_filter: str | None = None) -> list[tuple[Seller, User | None]]:
+def list_admin_sellers(
+    db: Session,
+    status_filter: str | None = None,
+    q: str | None = None,
+    offset: int = 0,
+    limit: int = 30,
+) -> tuple[list[tuple[Seller, User | None]], int]:
     query = select(Seller).options(joinedload(Seller.user))
     if status_filter:
         query = query.where(Seller.status == status_filter)
-    sellers = db.scalars(query.order_by(Seller.created_at.desc())).unique().all()
-    return [(seller, seller.user) for seller in sellers]
+    if q and q.strip():
+        term = f"%{q.strip()}%"
+        query = query.join(User, Seller.user_id == User.id, isouter=True).where(
+            or_(Seller.shop_name.ilike(term), Seller.slug.ilike(term), User.email.ilike(term))
+        )
+    total = int(db.scalar(select(func.count()).select_from(query.subquery())) or 0)
+    sellers = db.scalars(query.order_by(Seller.created_at.desc()).offset(offset).limit(limit)).unique().all()
+    return [(seller, seller.user) for seller in sellers], total

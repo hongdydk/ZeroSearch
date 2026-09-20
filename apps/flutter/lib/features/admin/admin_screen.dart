@@ -5,6 +5,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:web/web.dart' as web;
 
 import '../../core/catalog/guest_l1.dart';
@@ -1562,7 +1563,10 @@ class _SellerModerationTile extends StatelessWidget {
         seller.lastModerationReason!.isNotEmpty) {
       subtitle.write(' · ${seller.lastModerationReason}');
     }
+    subtitle.write(' · 공개 ${seller.publishedOfferCount} · 품절 ${seller.soldOutOfferCount} · 숨김 ${seller.hiddenOfferCount}');
+    if (seller.pendingDraftCount > 0) subtitle.write(' · 제안 대기 ${seller.pendingDraftCount}');
     return ListTile(
+      onTap: () => context.push('/stores/${seller.slug}'),
       leading: Icon(
         seller.status == 'removed'
             ? Icons.store_mall_directory_outlined

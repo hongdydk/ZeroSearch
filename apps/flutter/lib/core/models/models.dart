@@ -365,6 +365,11 @@ class AdminSellerModel {
     this.warningCount = 0,
     this.lastModerationAction,
     this.lastModerationReason,
+    this.offerCount = 0,
+    this.publishedOfferCount = 0,
+    this.soldOutOfferCount = 0,
+    this.hiddenOfferCount = 0,
+    this.pendingDraftCount = 0,
   });
 
   factory AdminSellerModel.fromJson(Map<String, dynamic> json) {
@@ -377,6 +382,11 @@ class AdminSellerModel {
       warningCount: json['warningCount'] as int? ?? 0,
       lastModerationAction: json['lastModerationAction'] as String?,
       lastModerationReason: json['lastModerationReason'] as String?,
+      offerCount: json['offerCount'] as int? ?? 0,
+      publishedOfferCount: json['publishedOfferCount'] as int? ?? 0,
+      soldOutOfferCount: json['soldOutOfferCount'] as int? ?? 0,
+      hiddenOfferCount: json['hiddenOfferCount'] as int? ?? 0,
+      pendingDraftCount: json['pendingDraftCount'] as int? ?? 0,
     );
   }
 
@@ -388,6 +398,11 @@ class AdminSellerModel {
   final int warningCount;
   final String? lastModerationAction;
   final String? lastModerationReason;
+  final int offerCount;
+  final int publishedOfferCount;
+  final int soldOutOfferCount;
+  final int hiddenOfferCount;
+  final int pendingDraftCount;
 
   bool get isPlatform => sellerType == 'platform';
 

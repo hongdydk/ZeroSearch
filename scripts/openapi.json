@@ -495,6 +495,11 @@
             "title": "Createdat",
             "type": "string"
           },
+          "hiddenOfferCount": {
+            "default": 0,
+            "title": "Hiddenoffercount",
+            "type": "integer"
+          },
           "id": {
             "title": "Id",
             "type": "string"
@@ -521,6 +526,21 @@
             ],
             "title": "Lastmoderationreason"
           },
+          "offerCount": {
+            "default": 0,
+            "title": "Offercount",
+            "type": "integer"
+          },
+          "pendingDraftCount": {
+            "default": 0,
+            "title": "Pendingdraftcount",
+            "type": "integer"
+          },
+          "publishedOfferCount": {
+            "default": 0,
+            "title": "Publishedoffercount",
+            "type": "integer"
+          },
           "sellerType": {
             "title": "Sellertype",
             "type": "string"
@@ -532,6 +552,11 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "soldOutOfferCount": {
+            "default": 0,
+            "title": "Soldoutoffercount",
+            "type": "integer"
           },
           "status": {
             "title": "Status",
@@ -572,6 +597,16 @@
             },
             "title": "Items",
             "type": "array"
+          },
+          "limit": {
+            "default": 30,
+            "title": "Limit",
+            "type": "integer"
+          },
+          "offset": {
+            "default": 0,
+            "title": "Offset",
+            "type": "integer"
           },
           "total": {
             "title": "Total",
@@ -5862,6 +5897,45 @@
                 }
               ],
               "title": "Status"
+            }
+          },
+          {
+            "in": "query",
+            "name": "q",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Q"
+            }
+          },
+          {
+            "in": "query",
+            "name": "offset",
+            "required": false,
+            "schema": {
+              "default": 0,
+              "minimum": 0,
+              "title": "Offset",
+              "type": "integer"
+            }
+          },
+          {
+            "in": "query",
+            "name": "limit",
+            "required": false,
+            "schema": {
+              "default": 30,
+              "maximum": 100,
+              "minimum": 1,
+              "title": "Limit",
+              "type": "integer"
             }
           }
         ],
