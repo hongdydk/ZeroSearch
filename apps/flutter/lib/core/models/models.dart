@@ -360,6 +360,7 @@ class AdminSellerModel {
     required this.id,
     required this.shopName,
     required this.userEmail,
+    required this.slug,
     required this.status,
     required this.sellerType,
     this.warningCount = 0,
@@ -377,6 +378,7 @@ class AdminSellerModel {
       id: json['id'] as String? ?? '',
       shopName: json['shopName'] as String? ?? '',
       userEmail: json['userEmail'] as String? ?? '',
+      slug: json['slug'] as String? ?? '',
       status: json['status'] as String? ?? '',
       sellerType: json['sellerType'] as String? ?? 'merchant',
       warningCount: json['warningCount'] as int? ?? 0,
@@ -393,6 +395,7 @@ class AdminSellerModel {
   final String id;
   final String shopName;
   final String userEmail;
+  final String slug;
   final String status;
   final String sellerType;
   final int warningCount;
@@ -416,6 +419,7 @@ class AdminSellerModel {
       id: id,
       shopName: shopName,
       userEmail: userEmail,
+      slug: slug,
       status: status ?? this.status,
       sellerType: sellerType,
       warningCount: warningCount ?? this.warningCount,
