@@ -24,6 +24,8 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
   String? _bannerUrl;
   bool _loading = true;
   SellerModel? _seller;
+  List<ProductModel> _storeProducts = [];
+  Set<String> _featuredProductIds = {};
 
   @override
   void initState() {
@@ -39,13 +41,22 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
 
   Future<void> _load() async {
     try {
-      final seller = await ref.read(apiClientProvider).sellerMe();
+      final api = ref.read(apiClientProvider);
+      final results = await Future.wait([api.sellerMe(), api.sellerProducts(limit: 100)]);
+      final seller = results[0] as SellerModel?;
+      final productPage = results[1] as SellerProductListPage;
       if (seller == null || !mounted) return;
       setState(() {
         _seller = seller;
         _description.text = seller.storeDescription ?? '';
         _logoUrl = seller.storeLogoUrl;
         _bannerUrl = seller.storeBannerUrl;
+        _storeProducts = productPage.items.where((product) => product.status == 'published').toList()
+          ..sort((a, b) => a.storefrontRank.compareTo(b.storefrontRank));
+        _featuredProductIds = productPage.items
+            .where((product) => product.status == 'published' && product.storefrontFeatured)
+            .map((product) => product.id)
+            .toSet();
         _loading = false;
       });
     } catch (_) {
@@ -77,6 +88,46 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
       } on ApiException catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
       }
+    });
+  }
+
+  Future<void> _saveLayout() async {
+    if (isBusy('layout')) return;
+    await runBusy('layout', () async {
+      try {
+        await ref.read(apiClientProvider).sellerUpdateStorefrontLayout(
+          productIds: _storeProducts.map((product) => product.id).toList(),
+          featuredProductIds: _featuredProductIds.toList(),
+        );
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('상품 진열을 저장했습니다.')));
+      } on ApiException catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
+  }
+
+  void _moveProduct(int index, int delta) {
+    final next = index + delta;
+    if (next < 0 || next >= _storeProducts.length) return;
+    setState(() {
+      final products = [..._storeProducts];
+      final product = products.removeAt(index);
+      products.insert(next, product);
+      _storeProducts = products;
+    });
+  }
+
+  void _toggleFeatured(String productId) {
+    setState(() {
+      final featured = {..._featuredProductIds};
+      if (featured.contains(productId)) {
+        featured.remove(productId);
+      } else if (featured.length < 6) {
+        featured.add(productId);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('추천 상품은 최대 6개까지 고를 수 있습니다.')));
+      }
+      _featuredProductIds = featured;
     });
   }
 
@@ -142,11 +193,58 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
             TextField(controller: _description, minLines: 3, maxLines: 5, maxLength: 500, decoration: const InputDecoration(labelText: '스토어 소개', hintText: '판매자 사이트에 보여 줄 소개를 입력하세요.')),
             const SizedBox(height: 8),
             FilledButton(onPressed: isBusy('save') ? null : _save, child: Text(isBusy('save') ? '저장 중…' : '판매자 사이트 저장')),
+            const SizedBox(height: 24),
+            PortalSection(
+              title: '상품 진열',
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: _storeProducts.isEmpty
+                    ? const Text('공개된 상품이 생기면 여기서 사이트 진열 순서와 추천 상품을 정할 수 있습니다.')
+                    : Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+                        Text('위·아래 버튼으로 상품 순서를 정하고, 별표를 누르면 사이트 상단의 추천 상품으로 표시됩니다.', style: Theme.of(context).textTheme.bodySmall),
+                        const SizedBox(height: 10),
+                        for (var index = 0; index < _storeProducts.length; index++)
+                          _MerchandisingProductRow(
+                            product: _storeProducts[index],
+                            featured: _featuredProductIds.contains(_storeProducts[index].id),
+                            onMoveUp: index == 0 ? null : () => _moveProduct(index, -1),
+                            onMoveDown: index == _storeProducts.length - 1 ? null : () => _moveProduct(index, 1),
+                            onToggleFeatured: () => _toggleFeatured(_storeProducts[index].id),
+                          ),
+                        const SizedBox(height: 8),
+                        FilledButton.icon(onPressed: isBusy('layout') ? null : _saveLayout, icon: const Icon(Icons.save_outlined), label: Text(isBusy('layout') ? '저장 중…' : '상품 진열 저장')),
+                      ]),
+              ),
+            ),
           ]),
         ),
       ),
     );
   }
+}
+
+class _MerchandisingProductRow extends StatelessWidget {
+  const _MerchandisingProductRow({required this.product, required this.featured, required this.onMoveUp, required this.onMoveDown, required this.onToggleFeatured});
+  final ProductModel product;
+  final bool featured;
+  final VoidCallback? onMoveUp;
+  final VoidCallback? onMoveDown;
+  final VoidCallback onToggleFeatured;
+
+  @override
+  Widget build(BuildContext context) => Card(
+    margin: const EdgeInsets.only(bottom: 8),
+    child: ListTile(
+      leading: SizedBox(width: 44, height: 44, child: ProductImage(imageUrl: product.imageUrl, title: product.title)),
+      title: Text(product.title, maxLines: 1, overflow: TextOverflow.ellipsis),
+      subtitle: Text('${product.priceCredits}원'),
+      trailing: Wrap(spacing: 0, children: [
+        IconButton(onPressed: onToggleFeatured, tooltip: '추천 상품', icon: Icon(featured ? Icons.star : Icons.star_border, color: featured ? Colors.amber.shade700 : null)),
+        IconButton(onPressed: onMoveUp, tooltip: '위로', icon: const Icon(Icons.keyboard_arrow_up)),
+        IconButton(onPressed: onMoveDown, tooltip: '아래로', icon: const Icon(Icons.keyboard_arrow_down)),
+      ]),
+    ),
+  );
 }
 
 class _ImageField extends StatelessWidget {

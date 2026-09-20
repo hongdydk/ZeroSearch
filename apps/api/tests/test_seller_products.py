@@ -66,6 +66,8 @@ def test_product_to_response_keeps_option_fields():
     assert body["volumeMl"] == 10000
     assert body["catalogProductId"] == str(product.catalog_product_id)
     assert body["detailImageUrls"] == ["/uploads/detail.jpg"]
+    assert body["storefrontRank"] == 0
+    assert body["storefrontFeatured"] is False
 
 
 def _empty_counts_row(**kwargs) -> SimpleNamespace:

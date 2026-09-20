@@ -108,6 +108,13 @@ class SellerStorefrontUpdateRequest(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class SellerStorefrontLayoutRequest(BaseModel):
+    product_ids: list[UUID] = Field(alias="productIds", max_length=100)
+    featured_product_ids: list[UUID] = Field(default_factory=list, alias="featuredProductIds", max_length=6)
+
+    model_config = {"populate_by_name": True}
+
+
 
 
 

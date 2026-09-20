@@ -30,6 +30,8 @@ class ProductModel {
     this.description,
     this.imageUrl,
     this.detailImageUrls = const [],
+    this.storefrontRank = 0,
+    this.storefrontFeatured = false,
     this.status = 'published',
     this.catalogProductId,
     this.variantId,
@@ -58,6 +60,8 @@ class ProductModel {
           .whereType<String>()
           .where((url) => url.isNotEmpty)
           .toList(),
+      storefrontRank: json['storefrontRank'] as int? ?? 0,
+      storefrontFeatured: json['storefrontFeatured'] as bool? ?? false,
       status: json['status'] as String? ?? 'published',
       catalogProductId: json['catalogProductId'] as String?,
       variantId: json['variantId'] as String?,
@@ -79,6 +83,8 @@ class ProductModel {
   final String? description;
   final String? imageUrl;
   final List<String> detailImageUrls;
+  final int storefrontRank;
+  final bool storefrontFeatured;
   final String status;
   final String? catalogProductId;
   final String? variantId;
@@ -102,6 +108,8 @@ class ProductModel {
     String? description,
     String? imageUrl,
     List<String>? detailImageUrls,
+    int? storefrontRank,
+    bool? storefrontFeatured,
     String? status,
     String? catalogProductId,
     String? variantId,
@@ -122,6 +130,8 @@ class ProductModel {
       description: description ?? this.description,
       imageUrl: imageUrl ?? this.imageUrl,
       detailImageUrls: detailImageUrls ?? this.detailImageUrls,
+      storefrontRank: storefrontRank ?? this.storefrontRank,
+      storefrontFeatured: storefrontFeatured ?? this.storefrontFeatured,
       status: status ?? this.status,
       catalogProductId: catalogProductId ?? this.catalogProductId,
       variantId: variantId ?? this.variantId,

@@ -42,6 +42,9 @@ class ProductResponse(BaseModel):
 
     detail_image_urls: list[str] = Field(default_factory=list, alias="detailImageUrls")
 
+    storefront_rank: int = Field(default=0, alias="storefrontRank")
+    storefront_featured: bool = Field(default=False, alias="storefrontFeatured")
+
     status: ProductStatus = "published"
 
     catalog_product_id: str = Field(alias="catalogProductId")

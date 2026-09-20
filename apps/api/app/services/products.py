@@ -28,6 +28,8 @@ def _product_response(product: Product) -> ProductResponse:
         category=product.category,
         image_url=product.image_url,
         detail_image_urls=product.detail_image_urls or [],
+        storefront_rank=product.storefront_rank or 0,
+        storefront_featured=bool(product.storefront_featured),
         status=product.status,  # type: ignore[arg-type]
         catalog_product_id=str(product.catalog_product_id),
         variant_id=str(product.variant_id) if product.variant_id else None,
@@ -286,6 +288,31 @@ def update_seller_product(
     _apply_seller_product_update(product, payload)
     db.flush()
     return product
+
+
+def update_seller_storefront_layout(
+    db: Session, seller: Seller, *, product_ids: list[UUID], featured_product_ids: list[UUID]
+) -> None:
+    ordered_ids = list(dict.fromkeys(product_ids))
+    featured_ids = set(featured_product_ids)
+    if not featured_ids.issubset(ordered_ids):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="추천 상품은 진열 상품 안에서 고르세요.")
+    products = list(
+        db.scalars(
+            select(Product).where(Product.seller_id == seller.id, Product.id.in_(ordered_ids))
+        ).all()
+    ) if ordered_ids else []
+    if len(products) != len(ordered_ids):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="진열할 상품을 찾을 수 없습니다.")
+    for product in db.scalars(select(Product).where(Product.seller_id == seller.id)):
+        product.storefront_rank = 1000
+        product.storefront_featured = False
+    by_id = {product.id: product for product in products}
+    for rank, product_id in enumerate(ordered_ids):
+        product = by_id[product_id]
+        product.storefront_rank = rank
+        product.storefront_featured = product_id in featured_ids
+    db.flush()
 
 
 def bulk_update_seller_products(

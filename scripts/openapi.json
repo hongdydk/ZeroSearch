@@ -2651,6 +2651,16 @@
             "title": "Stock",
             "type": "integer"
           },
+          "storefrontFeatured": {
+            "default": false,
+            "title": "Storefrontfeatured",
+            "type": "boolean"
+          },
+          "storefrontRank": {
+            "default": 0,
+            "title": "Storefrontrank",
+            "type": "integer"
+          },
           "title": {
             "title": "Title",
             "type": "string"
@@ -4008,6 +4018,33 @@
           "sellerType"
         ],
         "title": "SellerResponse",
+        "type": "object"
+      },
+      "SellerStorefrontLayoutRequest": {
+        "properties": {
+          "featuredProductIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 6,
+            "title": "Featuredproductids",
+            "type": "array"
+          },
+          "productIds": {
+            "items": {
+              "format": "uuid",
+              "type": "string"
+            },
+            "maxItems": 100,
+            "title": "Productids",
+            "type": "array"
+          }
+        },
+        "required": [
+          "productIds"
+        ],
+        "title": "SellerStorefrontLayoutRequest",
         "type": "object"
       },
       "SellerStorefrontUpdateRequest": {
@@ -9019,6 +9056,45 @@
           }
         ],
         "summary": "Update Seller Storefront",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront/products": {
+      "put": {
+        "operationId": "update_seller_storefront_products_seller_storefront_products_put",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerStorefrontLayoutRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Seller Storefront Products",
         "tags": [
           "seller"
         ]

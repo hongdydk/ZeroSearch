@@ -52,7 +52,7 @@ def get_storefront(
             select(Product)
             .where(Product.seller_id == seller.id, Product.status == "published")
             .options(joinedload(Product.seller))
-            .order_by(Product.created_at.desc())
+            .order_by(Product.storefront_featured.desc(), Product.storefront_rank.asc(), Product.created_at.desc())
         ).all()
     )
     return StorefrontDetailResponse(

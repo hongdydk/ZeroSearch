@@ -165,6 +165,8 @@ class _StorefrontDetailScreenState extends ConsumerState<StorefrontDetailScreen>
             return _MessageState(message: message, actionLabel: '판매자 목록', onAction: () => context.go('/stores'));
           }
           final store = snapshot.data!;
+          final featuredProducts = store.products.where((product) => product.storefrontFeatured).toList();
+          final regularProducts = store.products.where((product) => !product.storefrontFeatured).toList();
           return Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -188,26 +190,15 @@ class _StorefrontDetailScreenState extends ConsumerState<StorefrontDetailScreen>
                 const _MessageState(message: '상품을 준비하고 있습니다. 판매자 사이트는 정상적으로 열렸습니다.')
               else
                 Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                  Text('스토어 상품', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                  if (featuredProducts.isNotEmpty) ...[
+                    Text('추천 상품', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 12),
+                    _StoreProductGrid(products: featuredProducts, slug: store.slug),
+                    const SizedBox(height: 24),
+                  ],
+                  Text('전체 상품', style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
                   const SizedBox(height: 12),
-                  LayoutBuilder(builder: (context, constraints) {
-                    final columns = constraints.maxWidth >= 700 ? 3 : constraints.maxWidth >= 470 ? 2 : 1;
-                    return GridView.count(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 12,
-                      mainAxisSpacing: 12,
-                      childAspectRatio: columns == 1 ? 2.6 : .72,
-                      shrinkWrap: true,
-                      physics: const NeverScrollableScrollPhysics(),
-                      children: [
-                        for (final product in store.products)
-                          _StoreProductTile(
-                            product: product,
-                            onTap: () => context.push('/stores/${store.slug}/products/${product.id}'),
-                          ),
-                      ],
-                    );
-                  }),
+                  _StoreProductGrid(products: regularProducts, slug: store.slug),
                 ]),
             ],
           );
@@ -215,6 +206,32 @@ class _StorefrontDetailScreenState extends ConsumerState<StorefrontDetailScreen>
       ),
     );
   }
+}
+
+class _StoreProductGrid extends StatelessWidget {
+  const _StoreProductGrid({required this.products, required this.slug});
+  final List<ProductModel> products;
+  final String slug;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
+    final columns = constraints.maxWidth >= 700 ? 3 : constraints.maxWidth >= 470 ? 2 : 1;
+    return GridView.count(
+      crossAxisCount: columns,
+      crossAxisSpacing: 12,
+      mainAxisSpacing: 12,
+      childAspectRatio: columns == 1 ? 2.6 : .72,
+      shrinkWrap: true,
+      physics: const NeverScrollableScrollPhysics(),
+      children: [
+        for (final product in products)
+          _StoreProductTile(
+            product: product,
+            onTap: () => context.push('/stores/$slug/products/${product.id}'),
+          ),
+      ],
+    );
+  });
 }
 
 class _StoreProductTile extends StatelessWidget {

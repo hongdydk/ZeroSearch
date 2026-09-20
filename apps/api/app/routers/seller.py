@@ -46,6 +46,7 @@ from app.schemas.seller import (
 
     SellerProductUpdateRequest,
     SellerStorefrontUpdateRequest,
+    SellerStorefrontLayoutRequest,
 
     SellerImageUploadResponse,
 
@@ -78,6 +79,7 @@ from app.services.products import (
     product_to_response,
 
     update_seller_product,
+    update_seller_storefront_layout,
 
 )
 
@@ -165,6 +167,21 @@ def update_seller_storefront(
     db.commit()
     db.refresh(seller)
     return SellerResponse.model_validate(seller)
+
+
+@router.put("/storefront/products", status_code=status.HTTP_204_NO_CONTENT)
+def update_seller_storefront_products(
+    payload: SellerStorefrontLayoutRequest,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> None:
+    update_seller_storefront_layout(
+        db,
+        seller,
+        product_ids=payload.product_ids,
+        featured_product_ids=payload.featured_product_ids,
+    )
+    db.commit()
 
 
 @router.get("/moderation-events", response_model=SellerModerationEventListResponse)

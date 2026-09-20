@@ -1038,6 +1038,23 @@ class ApiClient {
     }
   }
 
+  Future<void> sellerUpdateStorefrontLayout({
+    required List<String> productIds,
+    required List<String> featuredProductIds,
+  }) async {
+    try {
+      await _dio.put<void>(
+        'seller/storefront/products',
+        data: {
+          'productIds': productIds,
+          'featuredProductIds': featuredProductIds,
+        },
+      );
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<SellerProductBulkResult> sellerBulkUpdateProducts({
     required List<String> ids,
     int? priceCredits,
