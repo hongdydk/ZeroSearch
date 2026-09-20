@@ -238,6 +238,7 @@ def _offer_browse_item(offer: Product) -> CatalogOfferBrowseItem:
         seller=SellerSummary(
             id=str(seller.id),
             shop_name=seller.shop_name,
+            slug=seller.slug,
             seller_type=seller.seller_type,  # type: ignore[arg-type]
         ),
     )
@@ -498,6 +499,7 @@ def get_catalog_product(
             seller=SellerSummary(
                 id=str(o.seller.id),
                 shop_name=o.seller.shop_name,
+                slug=o.seller.slug,
                 seller_type=o.seller.seller_type,  # type: ignore[arg-type]
             ),
         )

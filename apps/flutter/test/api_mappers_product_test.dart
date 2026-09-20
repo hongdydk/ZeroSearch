@@ -22,6 +22,7 @@ void main() {
             (s) => s
               ..id = 's1'
               ..shopName = '입점마트'
+              ..slug = 'ipjeom-mart'
               ..sellerType = gen.SellerSummarySellerTypeEnum.merchant,
           ),
         ),
