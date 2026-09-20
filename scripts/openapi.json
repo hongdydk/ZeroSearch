@@ -3935,6 +3935,39 @@
             ],
             "title": "Status",
             "type": "string"
+          },
+          "storeBannerUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storebannerurl"
+          },
+          "storeDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storedescription"
+          },
+          "storeLogoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storelogourl"
           }
         },
         "required": [
@@ -3945,6 +3978,48 @@
           "sellerType"
         ],
         "title": "SellerResponse",
+        "type": "object"
+      },
+      "SellerStorefrontUpdateRequest": {
+        "properties": {
+          "storeBannerUrl": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storebannerurl"
+          },
+          "storeDescription": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storedescription"
+          },
+          "storeLogoUrl": {
+            "anyOf": [
+              {
+                "maxLength": 500,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storelogourl"
+          }
+        },
+        "title": "SellerStorefrontUpdateRequest",
         "type": "object"
       },
       "SellerSummary": {
@@ -4240,6 +4315,39 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "storeBannerUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storebannerurl"
+          },
+          "storeDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storedescription"
+          },
+          "storeLogoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storelogourl"
           }
         },
         "required": [
@@ -4277,6 +4385,39 @@
           "slug": {
             "title": "Slug",
             "type": "string"
+          },
+          "storeBannerUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storebannerurl"
+          },
+          "storeDescription": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storedescription"
+          },
+          "storeLogoUrl": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Storelogourl"
           }
         },
         "required": [
@@ -8802,6 +8943,52 @@
           }
         ],
         "summary": "Seller Stats",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront": {
+      "patch": {
+        "operationId": "update_seller_storefront_seller_storefront_patch",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SellerStorefrontUpdateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SellerResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Update Seller Storefront",
         "tags": [
           "seller"
         ]

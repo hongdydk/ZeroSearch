@@ -45,6 +45,7 @@ from app.schemas.seller import (
     SellerProductCreateRequest,
 
     SellerProductUpdateRequest,
+    SellerStorefrontUpdateRequest,
 
     SellerImageUploadResponse,
 
@@ -149,6 +150,20 @@ def seller_me(
 
         return None
 
+    return SellerResponse.model_validate(seller)
+
+
+@router.patch("/storefront", response_model=SellerResponse)
+def update_seller_storefront(
+    payload: SellerStorefrontUpdateRequest,
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> SellerResponse:
+    seller.store_description = (payload.store_description or "").strip() or None
+    seller.store_logo_url = (payload.store_logo_url or "").strip() or None
+    seller.store_banner_url = (payload.store_banner_url or "").strip() or None
+    db.commit()
+    db.refresh(seller)
     return SellerResponse.model_validate(seller)
 
 

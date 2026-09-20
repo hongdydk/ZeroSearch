@@ -16,6 +16,8 @@ def _storefront_item(seller: Seller, product_count: int) -> StorefrontItem:
     return StorefrontItem(
         id=str(seller.id), shop_name=seller.shop_name, slug=seller.slug,
         seller_type=seller.seller_type, product_count=product_count,
+        store_description=seller.store_description, store_logo_url=seller.store_logo_url,
+        store_banner_url=seller.store_banner_url,
     )
 
 

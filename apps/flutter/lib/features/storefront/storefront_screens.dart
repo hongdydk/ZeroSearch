@@ -117,9 +117,19 @@ class _StorefrontDetailScreenState extends ConsumerState<StorefrontDetailScreen>
             children: [
               TextButton.icon(onPressed: () => context.go('/stores'), icon: const Icon(Icons.arrow_back), label: const Text('입점 판매자')),
               const SizedBox(height: 8),
+              if (store.storeBannerUrl != null)
+                ClipRRect(borderRadius: BorderRadius.circular(12), child: SizedBox(height: 180, width: double.infinity, child: ProductImage(imageUrl: store.storeBannerUrl, title: store.shopName))),
+              if (store.storeBannerUrl != null) const SizedBox(height: 14),
+              if (store.storeLogoUrl != null)
+                SizedBox(width: 64, height: 64, child: ClipOval(child: ProductImage(imageUrl: store.storeLogoUrl, title: store.shopName))),
+              if (store.storeLogoUrl != null) const SizedBox(height: 10),
               SellerBadge(shopName: store.shopName, isOfficial: store.isOfficial),
               const SizedBox(height: 14),
               Text('${store.shopName} 판매자 사이트', style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700)),
+              if ((store.storeDescription ?? '').isNotEmpty) ...[
+                const SizedBox(height: 8),
+                Text(store.storeDescription!),
+              ],
               const SizedBox(height: 18),
               if (store.products.isEmpty)
                 const _MessageState(message: '상품을 준비하고 있습니다. 판매자 사이트는 정상적으로 열렸습니다.')

@@ -27,6 +27,7 @@ import '../../features/seller/seller_orders_screen.dart';
 import '../../features/seller/seller_product_detail_screen.dart';
 import '../../features/seller/seller_products_screen.dart';
 import '../../features/seller/seller_screen.dart';
+import '../../features/seller/seller_storefront_screen.dart';
 import '../../features/settings/settings_screen.dart';
 import '../../features/storefront/storefront_screens.dart';
 import '../../shared/widgets/adaptive_shell.dart';
@@ -188,6 +189,13 @@ final routerProvider = Provider<GoRouter>((ref) {
             builder: (_, _) => const PortalAuthGate(
               portal: LoginPortal.seller,
               child: SellerProductsScreen(),
+            ),
+          ),
+          GoRoute(
+            path: '/seller/storefront',
+            builder: (_, _) => const PortalAuthGate(
+              portal: LoginPortal.seller,
+              child: SellerStorefrontScreen(),
             ),
           ),
           GoRoute(

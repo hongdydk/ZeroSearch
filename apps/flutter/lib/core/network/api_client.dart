@@ -765,6 +765,26 @@ class ApiClient {
     return sellerModelFromGenerated(data)!;
   }
 
+  Future<SellerModel> sellerUpdateStorefront({
+    String? storeDescription,
+    String? storeLogoUrl,
+    String? storeBannerUrl,
+  }) async {
+    try {
+      final response = await _dio.patch<Map<String, dynamic>>(
+        'seller/storefront',
+        data: {
+          'storeDescription': storeDescription,
+          'storeLogoUrl': storeLogoUrl,
+          'storeBannerUrl': storeBannerUrl,
+        },
+      );
+      return SellerModel.fromJson(response.data ?? {});
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<CatalogProductSearchPage> sellerSearchCatalog({
     String? q,
     String? category,

@@ -265,6 +265,9 @@ class SellerModel {
     required this.slug,
     required this.status,
     required this.sellerType,
+    this.storeDescription,
+    this.storeLogoUrl,
+    this.storeBannerUrl,
   });
 
   factory SellerModel.fromJson(Map<String, dynamic> json) {
@@ -274,6 +277,9 @@ class SellerModel {
       slug: json['slug'] as String? ?? '',
       status: json['status'] as String? ?? '',
       sellerType: json['sellerType'] as String? ?? 'merchant',
+      storeDescription: json['storeDescription'] as String?,
+      storeLogoUrl: json['storeLogoUrl'] as String?,
+      storeBannerUrl: json['storeBannerUrl'] as String?,
     );
   }
 
@@ -1355,6 +1361,9 @@ class StorefrontModel {
     required this.slug,
     required this.sellerType,
     required this.productCount,
+    this.storeDescription,
+    this.storeLogoUrl,
+    this.storeBannerUrl,
   });
 
   factory StorefrontModel.fromJson(Map<String, dynamic> json) => StorefrontModel(
@@ -1363,13 +1372,22 @@ class StorefrontModel {
         slug: json['slug'] as String? ?? '',
         sellerType: json['sellerType'] as String? ?? 'merchant',
         productCount: json['productCount'] as int? ?? 0,
+        storeDescription: json['storeDescription'] as String?,
+        storeLogoUrl: json['storeLogoUrl'] as String?,
+        storeBannerUrl: json['storeBannerUrl'] as String?,
       );
 
   final String id;
   final String shopName;
   final String slug;
   final String sellerType;
+  final String? storeDescription;
+  final String? storeLogoUrl;
+  final String? storeBannerUrl;
   final int productCount;
+  final String? storeDescription;
+  final String? storeLogoUrl;
+  final String? storeBannerUrl;
 
   bool get isOfficial => sellerType == 'platform';
 }
@@ -1381,6 +1399,9 @@ class StorefrontDetailModel extends StorefrontModel {
     required super.slug,
     required super.sellerType,
     required super.productCount,
+    super.storeDescription,
+    super.storeLogoUrl,
+    super.storeBannerUrl,
     required this.products,
   });
 
@@ -1392,6 +1413,9 @@ class StorefrontDetailModel extends StorefrontModel {
       slug: store.slug,
       sellerType: store.sellerType,
       productCount: store.productCount,
+      storeDescription: store.storeDescription,
+      storeLogoUrl: store.storeLogoUrl,
+      storeBannerUrl: store.storeBannerUrl,
       products: (json['products'] as List<dynamic>? ?? [])
           .whereType<Map>()
           .map((item) => ProductModel.fromJson(Map<String, dynamic>.from(item)))

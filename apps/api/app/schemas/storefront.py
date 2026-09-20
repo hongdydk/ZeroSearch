@@ -11,6 +11,9 @@ class StorefrontItem(BaseModel):
     slug: str
     seller_type: SellerType = Field(alias="sellerType")
     product_count: int = Field(alias="productCount")
+    store_description: str | None = Field(default=None, alias="storeDescription")
+    store_logo_url: str | None = Field(default=None, alias="storeLogoUrl")
+    store_banner_url: str | None = Field(default=None, alias="storeBannerUrl")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}
 

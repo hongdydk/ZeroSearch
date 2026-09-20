@@ -67,6 +67,9 @@ class SellerResponse(BaseModel):
     status: SellerStatus
 
     seller_type: SellerType = Field(alias="sellerType")
+    store_description: str | None = Field(default=None, alias="storeDescription")
+    store_logo_url: str | None = Field(default=None, alias="storeLogoUrl")
+    store_banner_url: str | None = Field(default=None, alias="storeBannerUrl")
 
     created_at: datetime | None = Field(default=None, alias="createdAt")
 
@@ -93,6 +96,14 @@ class SellerApplyRequest(BaseModel):
     shop_name: str = Field(alias="shopName", min_length=2, max_length=100)
 
 
+
+    model_config = {"populate_by_name": True}
+
+
+class SellerStorefrontUpdateRequest(BaseModel):
+    store_description: str | None = Field(default=None, alias="storeDescription", max_length=500)
+    store_logo_url: str | None = Field(default=None, alias="storeLogoUrl", max_length=500)
+    store_banner_url: str | None = Field(default=None, alias="storeBannerUrl", max_length=500)
 
     model_config = {"populate_by_name": True}
 

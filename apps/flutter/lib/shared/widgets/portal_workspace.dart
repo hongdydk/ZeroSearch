@@ -459,6 +459,7 @@ List<_PortalMenuGroup> _menuGroups(PortalWorkspaceRole role) {
     return const [
       _PortalMenuGroup('운영', [
         _PortalMenuItem('운영 홈', '/seller', Icons.dashboard_outlined),
+        _PortalMenuItem('판매자 사이트', '/seller/storefront', Icons.storefront_outlined),
         _PortalMenuItem('내 카탈로그', '/seller/products', Icons.inventory_2_outlined),
         _PortalMenuItem('주문 관리', '/seller/orders', Icons.receipt_long_outlined),
       ]),
