@@ -870,6 +870,20 @@
         "title": "Body_import_catalog_admin_catalog_import_post",
         "type": "object"
       },
+      "Body_import_seller_storefront_products_seller_storefront_products_import_post": {
+        "properties": {
+          "file": {
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "type": "string"
+          }
+        },
+        "required": [
+          "file"
+        ],
+        "title": "Body_import_seller_storefront_products_seller_storefront_products_import_post",
+        "type": "object"
+      },
       "Body_seller_upload_image_seller_uploads_image_post": {
         "properties": {
           "file": {
@@ -9095,6 +9109,90 @@
           }
         ],
         "summary": "Update Seller Storefront Products",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront/products/export": {
+      "get": {
+        "operationId": "export_seller_storefront_products_seller_storefront_products_export_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Seller Storefront Products",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront/products/export/template": {
+      "get": {
+        "operationId": "export_seller_storefront_products_template_seller_storefront_products_export_template_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Export Seller Storefront Products Template",
+        "tags": [
+          "seller"
+        ]
+      }
+    },
+    "/seller/storefront/products/import": {
+      "post": {
+        "operationId": "import_seller_storefront_products_seller_storefront_products_import_post",
+        "requestBody": {
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_seller_storefront_products_seller_storefront_products_import_post"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CatalogImportResponse"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ],
+        "summary": "Import Seller Storefront Products",
         "tags": [
           "seller"
         ]

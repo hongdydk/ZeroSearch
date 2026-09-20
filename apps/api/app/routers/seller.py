@@ -4,7 +4,8 @@ from uuid import UUID
 
 
 
-from fastapi import APIRouter, Depends, File, Query, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import Response
 
 from sqlalchemy.orm import Session
 
@@ -23,7 +24,7 @@ from app.schemas.catalog_intake import (
     SellerCardDraftCreateRequest,
     SellerCardDraftUpdateRequest,
 )
-from app.schemas.catalog_product import CatalogProductListResponse
+from app.schemas.catalog_product import CatalogImportResponse, CatalogProductListResponse
 from app.schemas.product import ProductResponse, SellerProductBulkResponse, SellerProductListResponse
 
 from app.schemas.seller import (
@@ -95,10 +96,17 @@ from app.services.seller_orders import _seller_order_item_response
 
 from app.services.sellers import apply_for_seller, get_seller_for_user, list_moderation_events, moderation_event_item
 from app.services.sales_stats import get_sales_stats
+from app.services.storefront_product_import import (
+    export_storefront_product_csv,
+    import_storefront_product_csv,
+    storefront_product_template_csv,
+)
 
 
 
 router = APIRouter(prefix="/seller", tags=["seller"])
+
+_MAX_STOREFRONT_CSV_BYTES = 4 * 1024 * 1024
 
 
 @router.get("/stats", response_model=SalesStatsResponse)
@@ -167,6 +175,39 @@ def update_seller_storefront(
     db.commit()
     db.refresh(seller)
     return SellerResponse.model_validate(seller)
+
+
+@router.post("/storefront/products/import", response_model=CatalogImportResponse)
+async def import_seller_storefront_products(
+    file: Annotated[UploadFile, File()],
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> CatalogImportResponse:
+    if not (file.filename or "").lower().endswith(".csv"):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="CSV 파일만 올릴 수 있습니다.")
+    content = await file.read()
+    if not content:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="빈 파일입니다.")
+    if len(content) > _MAX_STOREFRONT_CSV_BYTES:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="파일이 너무 큽니다. 4MB 이하 CSV를 올리세요.")
+    result = import_storefront_product_csv(db, seller, content)
+    db.commit()
+    return CatalogImportResponse(**result)
+
+
+@router.get("/storefront/products/export", response_class=Response)
+def export_seller_storefront_products(
+    db: Annotated[Session, Depends(get_db)],
+    seller: Annotated[Seller, Depends(require_active_seller)],
+) -> Response:
+    return Response(content=export_storefront_product_csv(db, seller), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="my-storefront-products.csv"'})
+
+
+@router.get("/storefront/products/export/template", response_class=Response)
+def export_seller_storefront_products_template(
+    _: Annotated[Seller, Depends(require_active_seller)],
+) -> Response:
+    return Response(content=storefront_product_template_csv(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="my-storefront-products-template.csv"'})
 
 
 @router.put("/storefront/products", status_code=status.HTTP_204_NO_CONTENT)

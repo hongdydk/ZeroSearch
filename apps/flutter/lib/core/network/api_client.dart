@@ -785,6 +785,37 @@ class ApiClient {
     }
   }
 
+  Future<Uint8List> sellerDownloadStorefrontProductsCsv({required bool template}) async {
+    try {
+      final response = await _dio.get<Uint8List>(
+        template ? 'seller/storefront/products/export/template' : 'seller/storefront/products/export',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return response.data ?? Uint8List(0);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
+  Future<({int sourceRows, int upserted})> sellerImportStorefrontProducts(
+    List<int> bytes,
+    String filename,
+  ) async {
+    if (bytes.length > _importMaxBytes) {
+      throw ApiException('파일이 너무 큽니다. 판매자 사이트 상품 템플릿 형식으로 4MB 이하 파일을 올리세요.');
+    }
+    try {
+      final response = await _dio.post<Map<String, dynamic>>(
+        'seller/storefront/products/import',
+        data: FormData.fromMap({'file': MultipartFile.fromBytes(bytes, filename: filename)}),
+      );
+      final data = response.data ?? const <String, dynamic>{};
+      return (sourceRows: data['sourceRows'] as int? ?? 0, upserted: data['upserted'] as int? ?? 0);
+    } on DioException catch (e) {
+      throw _apiExceptionFromDio(e);
+    }
+  }
+
   Future<CatalogProductSearchPage> sellerSearchCatalog({
     String? q,
     String? category,

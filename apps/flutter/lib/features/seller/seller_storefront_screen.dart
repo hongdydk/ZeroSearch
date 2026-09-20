@@ -1,7 +1,10 @@
+import 'dart:js_interop';
+
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:web/web.dart' as web;
 
 import '../../core/models/models.dart';
 import '../../core/network/api_exception.dart';
@@ -106,6 +109,41 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
     });
   }
 
+  Future<void> _importStorefrontProducts() async {
+    final picked = await FilePicker.platform.pickFiles(type: FileType.custom, allowedExtensions: const ['csv'], withData: true);
+    final file = picked?.files.single;
+    final bytes = file?.bytes;
+    if (file == null || bytes == null) return;
+    await runBusy('csvImport', () async {
+      try {
+        final result = await ref.read(apiClientProvider).sellerImportStorefrontProducts(bytes, file.name);
+        if (!mounted) return;
+        await _load();
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('상품 ${result.upserted}건을 반영했습니다.')));
+      } on ApiException catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
+  }
+
+  Future<void> _downloadStorefrontProducts({required bool template}) async {
+    final key = template ? 'csvTemplate' : 'csvCurrent';
+    await runBusy(key, () async {
+      try {
+        final bytes = await ref.read(apiClientProvider).sellerDownloadStorefrontProductsCsv(template: template);
+        final blob = web.Blob(<web.BlobPart>[bytes.toJS].toJS, web.BlobPropertyBag(type: 'text/csv;charset=utf-8'));
+        final url = web.URL.createObjectURL(blob);
+        final anchor = web.HTMLAnchorElement()
+          ..href = url
+          ..download = template ? 'my-storefront-products-template.csv' : 'my-storefront-products.csv';
+        anchor.click();
+        web.URL.revokeObjectURL(url);
+      } on ApiException catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message)));
+      }
+    });
+  }
+
   void _moveProduct(int index, int delta) {
     final next = index + delta;
     if (next < 0 || next >= _storeProducts.length) return;
@@ -193,6 +231,22 @@ class _SellerStorefrontScreenState extends ConsumerState<SellerStorefrontScreen>
             TextField(controller: _description, minLines: 3, maxLines: 5, maxLength: 500, decoration: const InputDecoration(labelText: '스토어 소개', hintText: '판매자 사이트에 보여 줄 소개를 입력하세요.')),
             const SizedBox(height: 8),
             FilledButton(onPressed: isBusy('save') ? null : _save, child: Text(isBusy('save') ? '저장 중…' : '판매자 사이트 저장')),
+            const SizedBox(height: 24),
+            PortalSection(
+              title: '상품 CSV 일괄 등록',
+              child: Padding(
+                padding: const EdgeInsets.all(14),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('내 판매자 사이트의 상품·가격·재고·상세 이미지·추천 진열을 한 번에 반영합니다. 카탈로그와 옵션은 먼저 관리자 카탈로그에 있어야 합니다.', style: Theme.of(context).textTheme.bodySmall),
+                  const SizedBox(height: 10),
+                  Wrap(spacing: 8, runSpacing: 8, children: [
+                    OutlinedButton.icon(onPressed: isBusy('csvCurrent') ? null : () => _downloadStorefrontProducts(template: false), icon: const Icon(Icons.download_outlined), label: const Text('현재 상품 다운로드')),
+                    OutlinedButton.icon(onPressed: isBusy('csvTemplate') ? null : () => _downloadStorefrontProducts(template: true), icon: const Icon(Icons.file_download_outlined), label: const Text('상품 템플릿 다운로드')),
+                    FilledButton.icon(onPressed: isBusy('csvImport') ? null : _importStorefrontProducts, icon: isBusy('csvImport') ? busyProgress() : const Icon(Icons.upload_file), label: const Text('상품 CSV 업로드')),
+                  ]),
+                ]),
+              ),
+            ),
             const SizedBox(height: 24),
             PortalSection(
               title: '상품 진열',
