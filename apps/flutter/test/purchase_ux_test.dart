@@ -20,6 +20,7 @@ import 'package:shopping_mall/shared/widgets/adaptive_shell.dart';
 final _seller = SellerSummaryModel(
   id: 's1',
   shopName: '공식 스토어',
+  slug: 'official',
   sellerType: 'platform',
 );
 

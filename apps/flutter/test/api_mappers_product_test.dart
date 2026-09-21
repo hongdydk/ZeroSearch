@@ -22,6 +22,7 @@ void main() {
             (s) => s
               ..id = 's1'
               ..shopName = '입점마트'
+              ..slug = 'ipjeom-mart'
               ..sellerType = gen.SellerSummarySellerTypeEnum.merchant,
           ),
         ),
@@ -35,5 +36,6 @@ void main() {
     expect(mapped.status, 'archived');
     expect(mapped.priceCredits, 12500);
     expect(mapped.stock, 40);
+    expect(mapped.seller.slug, 'ipjeom-mart');
   });
 }

@@ -142,6 +142,7 @@ class _Api extends ApiClient {
             seller: SellerSummaryModel(
               id: 's-official',
               shopName: '공식 스토어',
+              slug: 'official',
               sellerType: 'platform',
             ),
           ),
@@ -155,6 +156,7 @@ class _Api extends ApiClient {
             seller: SellerSummaryModel(
               id: 's-mart',
               shopName: '면사랑마트',
+              slug: 'myeon-sarang',
               sellerType: 'merchant',
             ),
           ),

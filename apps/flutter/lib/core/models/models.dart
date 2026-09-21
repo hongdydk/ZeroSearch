@@ -642,12 +642,8 @@ class CatalogOfferBrowseModel {
       stock: json['stock'] as int? ?? 0,
       imageUrl: json['imageUrl'] as String?,
       seller: sellerRaw is Map
-          ? SellerSummaryModel(
-              id: sellerRaw['id'] as String? ?? '',
-              shopName: sellerRaw['shopName'] as String? ?? '',
-              sellerType: sellerRaw['sellerType'] as String? ?? 'merchant',
-            )
-          : SellerSummaryModel(id: '', shopName: '', sellerType: 'merchant'),
+          ? SellerSummaryModel.fromJson(Map<String, dynamic>.from(sellerRaw))
+          : SellerSummaryModel(id: '', shopName: '', slug: '', sellerType: 'merchant'),
     );
   }
 

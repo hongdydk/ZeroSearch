@@ -13,6 +13,7 @@ import 'package:shopping_mall/features/seller/seller_products_screen.dart';
 final _seller = SellerSummaryModel(
   id: 's1',
   shopName: '입점마트',
+  slug: 'ipjeom-mart',
   sellerType: 'merchant',
 );
 

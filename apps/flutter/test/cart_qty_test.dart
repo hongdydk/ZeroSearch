@@ -16,6 +16,7 @@ import 'package:shopping_mall/features/cart/cart_screen.dart';
 final _seller = SellerSummaryModel(
   id: 's1',
   shopName: '공식 스토어',
+  slug: 'official',
   sellerType: 'platform',
 );
 
