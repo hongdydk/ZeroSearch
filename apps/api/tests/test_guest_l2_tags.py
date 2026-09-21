@@ -85,6 +85,10 @@ def test_spam_l2_is_meat_can():
     assert TAG_CAN in infer_l1_tags(title="스팸 클래식", manufacturer="CJ제일제당").tags
 
 
+def test_fanta_l2_is_sparkling_drink():
+    assert "탄산·이온·스포츠" in _l2(title="환타", manufacturer="코카콜라", category="음료")
+
+
 def test_curry_l2_is_curry():
     assert "카레" in _l2(title="오뚜기 카레 약간매운맛", manufacturer="오뚜기")
     assert TAG_CUTLET in infer_l1_tags(title="오뚜기 카레 약간매운맛", manufacturer="오뚜기").tags

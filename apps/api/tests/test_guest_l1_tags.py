@@ -87,6 +87,10 @@ def test_seoul_milk_is_dairy():
     assert result.storage == "냉장"
 
 
+def test_coca_cola_is_a_drink_card():
+    assert _tags(title="코카콜라", manufacturer="코카콜라", category="음료") == [TAG_WATER]
+
+
 def test_swingchip_gochujang_flavor_is_snack_not_sauce():
     tags = _tags(
         title="오리온 스윙칩 볶음고추장맛",

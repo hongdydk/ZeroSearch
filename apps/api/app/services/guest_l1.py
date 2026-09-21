@@ -37,7 +37,7 @@ GUEST_L1_TAGS: tuple[str, ...] = (
 GUEST_L1_SET = frozenset(GUEST_L1_TAGS)
 
 # 자동 태거 규칙 버전. 배포 시 강제 backfill 마커와 맞춘다. v3부터 L2 포함.
-TAGGER_VERSION = "v3"
+TAGGER_VERSION = "v4"
 
 DEFAULT_AXIS: dict[str, Axis] = {
     "생수/음료": "brand",
@@ -105,6 +105,12 @@ _HIGH: dict[str, tuple[str, ...]] = {
         "생수",
         "먹는샘물",
         "탄산수",
+        "탄산음료",
+        "탄산",
+        "콜라",
+        "사이다",
+        "환타",
+        "스프라이트",
         "이온음료",
         "스포츠음료",
         "주스",
