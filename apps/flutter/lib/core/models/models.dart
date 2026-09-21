@@ -261,18 +261,21 @@ class SellerSummaryModel {
     required this.id,
     required this.shopName,
     required this.sellerType,
+    this.slug = '',
   });
 
   factory SellerSummaryModel.fromJson(Map<String, dynamic> json) {
     return SellerSummaryModel(
       id: json['id'] as String? ?? '',
       shopName: json['shopName'] as String? ?? '',
+      slug: json['slug'] as String? ?? '',
       sellerType: json['sellerType'] as String? ?? 'merchant',
     );
   }
 
   final String id;
   final String shopName;
+  final String slug;
   final String sellerType;
 }
 
@@ -639,12 +642,8 @@ class CatalogOfferBrowseModel {
       stock: json['stock'] as int? ?? 0,
       imageUrl: json['imageUrl'] as String?,
       seller: sellerRaw is Map
-          ? SellerSummaryModel(
-              id: sellerRaw['id'] as String? ?? '',
-              shopName: sellerRaw['shopName'] as String? ?? '',
-              sellerType: sellerRaw['sellerType'] as String? ?? 'merchant',
-            )
-          : SellerSummaryModel(id: '', shopName: '', sellerType: 'merchant'),
+          ? SellerSummaryModel.fromJson(Map<String, dynamic>.from(sellerRaw))
+          : SellerSummaryModel(id: '', shopName: '', slug: '', sellerType: 'merchant'),
     );
   }
 
@@ -1416,7 +1415,6 @@ class StorefrontModel {
     required this.id,
     required this.shopName,
     required this.slug,
-    required this.slug,
     required this.sellerType,
     required this.productCount,
     this.storeDescription,
@@ -1426,8 +1424,7 @@ class StorefrontModel {
 
   factory StorefrontModel.fromJson(Map<String, dynamic> json) => StorefrontModel(
         id: json['id'] as String? ?? '',
-      shopName: json['shopName'] as String? ?? '',
-      slug: json['slug'] as String? ?? '',
+        shopName: json['shopName'] as String? ?? '',
         slug: json['slug'] as String? ?? '',
         sellerType: json['sellerType'] as String? ?? 'merchant',
         productCount: json['productCount'] as int? ?? 0,
@@ -1438,7 +1435,6 @@ class StorefrontModel {
 
   final String id;
   final String shopName;
-  final String slug;
   final String slug;
   final String sellerType;
   final String? storeDescription;
