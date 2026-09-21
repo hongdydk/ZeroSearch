@@ -1304,6 +1304,7 @@ class AdminCatalogProductModel {
     this.displayPriceLabel = '원',
     this.imageUrl,
     this.l1Tags = const [],
+    this.variants = const [],
   });
 
   factory AdminCatalogProductModel.fromJson(Map<String, dynamic> json) {
@@ -1324,6 +1325,10 @@ class AdminCatalogProductModel {
       l1Tags: (json['l1Tags'] as List<dynamic>? ?? [])
           .map((e) => e.toString())
           .toList(),
+      variants: (json['variants'] as List<dynamic>? ?? [])
+          .whereType<Map>()
+          .map((e) => CatalogVariantModel.fromJson(Map<String, dynamic>.from(e)))
+          .toList(),
     );
   }
 
@@ -1341,6 +1346,7 @@ class AdminCatalogProductModel {
   final String displayPriceLabel;
   final String? imageUrl;
   final List<String> l1Tags;
+  final List<CatalogVariantModel> variants;
 
   bool get isRetired => status == 'retired';
 

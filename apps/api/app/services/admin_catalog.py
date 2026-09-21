@@ -4,13 +4,13 @@ from uuid import UUID
 from fastapi import HTTPException, status
 from sqlalchemy import delete, func, select, update
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.models import CartItem, CatalogProduct, Product
 from app.schemas.admin import AdminCatalogCreateRequest, AdminCatalogProductItem
 from app.services.catalog_l1 import apply_auto_l1_tags, set_l1_tags
 from app.services.catalog_products import _aggregate_offers, _catalog_search_filter
-from app.services.catalog_variants import add_catalog_variant
+from app.services.catalog_variants import add_catalog_variant, variant_to_item
 from app.services.catalog_remerge import resolve_catalog_product
 
 
@@ -40,6 +40,7 @@ def _catalog_item(
         display_price_label=display_price_label,
         image_url=catalog.image_url,
         l1_tags=list(catalog.l1_tags or []),
+        variants=[variant_to_item(variant) for variant in catalog.variants],
         created_at=catalog.created_at,
     )
 
@@ -88,6 +89,7 @@ def list_admin_catalog_products(
     catalogs = list(
         db.scalars(
             list_stmt.order_by(CatalogProduct.manufacturer, CatalogProduct.title)
+            .options(selectinload(CatalogProduct.variants))
             .offset(offset)
             .limit(limit)
         ).all()

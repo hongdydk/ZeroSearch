@@ -5,7 +5,7 @@ from uuid import UUID
 from pydantic import BaseModel, Field, field_validator
 
 from app.schemas.catalog_product import PriceUnit
-from app.schemas.catalog_variant import CatalogVariantCreateRequest
+from app.schemas.catalog_variant import CatalogVariantCreateRequest, CatalogVariantItem
 from app.schemas.seller import DailySalesItem
 
 
@@ -198,6 +198,7 @@ class AdminCatalogProductItem(BaseModel):
     display_price_label: str = Field(default="원", alias="displayPriceLabel")
     image_url: str | None = Field(default=None, alias="imageUrl")
     l1_tags: list[str] = Field(default_factory=list, alias="l1Tags")
+    variants: list[CatalogVariantItem] = Field(default_factory=list)
     created_at: datetime | None = Field(default=None, alias="createdAt")
 
     model_config = {"populate_by_name": True, "ser_json_by_alias": True}

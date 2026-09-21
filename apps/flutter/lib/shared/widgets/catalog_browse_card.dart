@@ -18,6 +18,7 @@ class CatalogBrowseCard extends StatelessWidget {
     this.medianPriceCredits,
     this.shopCount,
     this.statusLabel,
+    this.optionSummary,
     this.onTap,
     this.action,
   });
@@ -32,6 +33,7 @@ class CatalogBrowseCard extends StatelessWidget {
   final int? medianPriceCredits;
   final int? shopCount;
   final String? statusLabel;
+  final String? optionSummary;
   final VoidCallback? onTap;
   final Widget? action;
 
@@ -89,6 +91,17 @@ class CatalogBrowseCard extends StatelessWidget {
                           color: Theme.of(context).colorScheme.onSurfaceVariant,
                         ),
                   ),
+                  if (optionSummary != null && optionSummary!.isNotEmpty) ...[
+                    const SizedBox(height: 2),
+                    Text(
+                      '옵션: $optionSummary',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                            color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          ),
+                    ),
+                  ],
                   if (meta.isNotEmpty) ...[
                     const SizedBox(height: 2),
                     Text(

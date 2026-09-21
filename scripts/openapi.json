@@ -231,6 +231,13 @@
           "title": {
             "title": "Title",
             "type": "string"
+          },
+          "variants": {
+            "items": {
+              "$ref": "#/components/schemas/CatalogVariantItem"
+            },
+            "title": "Variants",
+            "type": "array"
           }
         },
         "required": [

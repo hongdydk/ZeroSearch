@@ -1787,6 +1787,10 @@ class AdminCatalogItemsPanel extends StatelessWidget {
                         medianUnitPrice: item.medianUnitPrice,
                         medianPriceCredits: item.medianPriceCredits,
                         shopCount: item.shopCount,
+                        optionSummary: item.variants
+                            .map((variant) => variant.optionLabel)
+                            .toSet()
+                            .join(' · '),
                         statusLabel: item.isRetired ? '삭제됨' : null,
                         action: Wrap(
                           spacing: 4,

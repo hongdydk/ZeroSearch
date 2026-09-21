@@ -678,6 +678,10 @@ class _CatalogProductGridState extends State<_CatalogProductGrid> {
                   imageUrl: item.imageUrl,
                   medianUnitPrice: item.medianUnitPrice,
                   medianPriceCredits: item.medianPriceCredits,
+                  optionSummary: item.variants
+                      .map((variant) => variant.optionLabel)
+                      .toSet()
+                      .join(' · '),
                   onTap: () => openDetailRoute(context, '/catalog/${item.id}'),
                 );
               },
