@@ -645,9 +645,15 @@ class CatalogOfferBrowseModel {
           ? SellerSummaryModel(
               id: sellerRaw['id'] as String? ?? '',
               shopName: sellerRaw['shopName'] as String? ?? '',
+              slug: sellerRaw['slug'] as String? ?? '',
               sellerType: sellerRaw['sellerType'] as String? ?? 'merchant',
             )
-          : SellerSummaryModel(id: '', shopName: '', sellerType: 'merchant'),
+          : SellerSummaryModel(
+              id: '',
+              shopName: '',
+              slug: '',
+              sellerType: 'merchant',
+            ),
     );
   }
 
