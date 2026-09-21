@@ -11,7 +11,7 @@ String formatWon(int amount, {bool fromPrice = false}) {
   return fromPrice ? '${buf.toString()}원~' : '${buf.toString()}원';
 }
 
-/// 대표 상품 카드 — L당 median 또는 원 median (보통). 최저가·「~」 없음.
+/// 대표 상품 카드 — 단위당 중앙값 또는 원화 중앙값. 최저가·「~」 없음.
 String formatCatalogRepresentativePrice({
   required String priceUnit,
   required String displayPriceLabel,
@@ -20,10 +20,10 @@ String formatCatalogRepresentativePrice({
 }) {
   if (priceUnit == 'ml' && medianUnitPrice != null) {
     final perLiter = (medianUnitPrice * 1000).round();
-    return '$displayPriceLabel ${formatWon(perLiter)}(보통)';
+    return '$displayPriceLabel ${formatWon(perLiter)}(중앙값)';
   }
   if (medianPriceCredits != null) {
-    return '${formatWon(medianPriceCredits)}(보통)';
+    return '${formatWon(medianPriceCredits)}(중앙값)';
   }
   // 공개 오퍼가 없으면 카드는 유지하고 가격만 숨긴다.
   return '가격 정보 없음';

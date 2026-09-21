@@ -120,7 +120,7 @@ def _aggregate_offers(offers: list[Product]) -> tuple[int, float | None, int | N
         return 0, None, None, "credits", "원"
 
     unit_prices = [
-        offer.price_credits / offer.volume_ml
+        offer.price_credits / (offer.volume_ml * max(offer.pack_count or 1, 1))
         for offer in offers
         if offer.volume_ml is not None and offer.volume_ml > 0
     ]

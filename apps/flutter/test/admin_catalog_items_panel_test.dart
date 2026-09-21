@@ -60,7 +60,7 @@ void main() {
 
     expect(find.text('대표 카드 1건'), findsOneWidget);
     expect(find.text('농심 백산수'), findsOneWidget);
-    expect(find.text('L당 600원(보통)'), findsOneWidget);
+    expect(find.text('L당 600원(중앙값)'), findsOneWidget);
     expect(find.text('오퍼 2'), findsOneWidget);
     expect(find.text('가게 2'), findsOneWidget);
     expect(find.text('카드 추가'), findsOneWidget);
@@ -134,7 +134,7 @@ void main() {
     expect(find.text('25–25 / 80건'), findsOneWidget);
     expect(find.text('오퍼 1'), findsOneWidget);
     expect(find.text('가게 1'), findsOneWidget);
-    expect(find.text('1,200원(보통)'), findsOneWidget);
+    expect(find.text('1,200원(중앙값)'), findsOneWidget);
 
     await tester.tap(find.text('다음'));
     await tester.pump();

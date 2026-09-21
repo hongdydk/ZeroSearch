@@ -56,6 +56,7 @@ def _sample_offer(
     volume_ml: int | None = None,
     flavor: str | None = None,
     option_label: str | None = None,
+    pack_count: int = 1,
 ) -> Product:
     offer = Product(
         id=uuid.uuid4(),
@@ -69,6 +70,7 @@ def _sample_offer(
         volume_ml=volume_ml,
         flavor=flavor,
         option_label=option_label,
+        pack_count=pack_count,
     )
     offer.created_at = datetime.now(UTC)
     offer.seller = seller
@@ -89,6 +91,19 @@ def test_aggregate_median_unit_price():
     assert median_credits is None
     assert price_unit == "ml"
     assert label == "L당"
+
+
+def test_aggregate_unit_price_includes_pack_count():
+    catalog = _sample_catalog()
+    seller = _sample_seller()
+    offer = _sample_offer(
+        catalog, seller, price_credits=12000, volume_ml=2000, pack_count=12,
+    )
+
+    _count, median_unit, _median_credits, price_unit, _label = _aggregate_offers([offer])
+
+    assert median_unit == pytest.approx(0.5)
+    assert price_unit == "ml"
 
 
 def test_aggregate_median_credits_fallback():
