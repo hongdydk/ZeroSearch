@@ -34,6 +34,7 @@ ProductModel productModelFromGenerated(gen.ProductResponse product) => ProductMo
 SellerSummaryModel sellerSummaryFromGenerated(gen.SellerSummary seller) => SellerSummaryModel(
       id: seller.id,
       shopName: seller.shopName,
+      slug: seller.slug,
       sellerType: gen.serializers.serialize(
             seller.sellerType,
             specifiedType: const FullType(gen.SellerSummarySellerTypeEnum),
