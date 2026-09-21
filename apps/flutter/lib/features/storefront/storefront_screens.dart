@@ -213,6 +213,17 @@ class _StoreProductGrid extends StatelessWidget {
   final List<ProductModel> products;
   final String slug;
 
+  List<_StoreProductGroup> get _groups {
+    final grouped = <String, List<ProductModel>>{};
+    for (final product in products) {
+      final key = product.catalogProductId?.isNotEmpty == true
+          ? product.catalogProductId!
+          : product.id;
+      (grouped[key] ??= []).add(product);
+    }
+    return grouped.values.map(_StoreProductGroup.new).toList();
+  }
+
   @override
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, constraints) {
     final columns = constraints.maxWidth >= 700 ? 3 : constraints.maxWidth >= 470 ? 2 : 1;
@@ -224,10 +235,10 @@ class _StoreProductGrid extends StatelessWidget {
       shrinkWrap: true,
       physics: const NeverScrollableScrollPhysics(),
       children: [
-        for (final product in products)
+        for (final product in _groups)
           _StoreProductTile(
             product: product,
-            onTap: () => context.push('/stores/$slug/products/${product.id}'),
+            onTap: () => context.push('/stores/$slug/products/${product.primary.id}'),
           ),
       ],
     );
@@ -236,7 +247,7 @@ class _StoreProductGrid extends StatelessWidget {
 
 class _StoreProductTile extends StatelessWidget {
   const _StoreProductTile({required this.product, required this.onTap});
-  final ProductModel product;
+  final _StoreProductGroup product;
   final VoidCallback onTap;
 
   @override
@@ -245,23 +256,40 @@ class _StoreProductTile extends StatelessWidget {
     child: InkWell(
       onTap: onTap,
       child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Expanded(flex: 5, child: ProductImage(imageUrl: product.imageUrl, title: product.title)),
+        Expanded(flex: 5, child: ProductImage(imageUrl: product.primary.imageUrl, title: product.title)),
         Expanded(
           flex: 4,
           child: Padding(
             padding: const EdgeInsets.all(12),
             child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
               Text(product.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+              if (product.options.isNotEmpty) ...[
+                const SizedBox(height: 5),
+                Text(product.options.join(' · '), maxLines: 1, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.bodySmall),
+              ],
               const Spacer(),
-              Text('${product.priceCredits}원', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: AppTheme.brandTeal)),
+              Text('${product.minPrice}원부터', style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700, color: AppTheme.brandTeal)),
               const SizedBox(height: 2),
-              Text(product.stock > 0 ? '판매 중' : '품절', style: Theme.of(context).textTheme.bodySmall),
+              Text(product.hasStock ? '판매 중' : '품절', style: Theme.of(context).textTheme.bodySmall),
             ]),
           ),
         ),
       ]),
     ),
   );
+}
+
+class _StoreProductGroup {
+  _StoreProductGroup(this.products);
+  final List<ProductModel> products;
+  ProductModel get primary => products.first;
+  String get title => primary.title.split(' · ').first;
+  List<String> get options => {
+        for (final product in products)
+          if ((product.optionLabel ?? '').trim().isNotEmpty) product.optionLabel!.trim(),
+      }.toList();
+  int get minPrice => products.map((product) => product.priceCredits).reduce((a, b) => a < b ? a : b);
+  bool get hasStock => products.any((product) => product.stock > 0);
 }
 
 class _MessageState extends StatelessWidget {
