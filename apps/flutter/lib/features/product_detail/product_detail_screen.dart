@@ -152,6 +152,12 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                     shippingOwnerLabel(product.seller.sellerType),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
+                  if (product.seller.slug.isNotEmpty)
+                    TextButton.icon(
+                      onPressed: () => context.push('/stores/${product.seller.slug}'),
+                      icon: const Icon(Icons.storefront_outlined, size: 17),
+                      label: const Text('판매자 사이트'),
+                    ),
                 ],
               ),
               const SizedBox(height: 8),
@@ -183,12 +189,6 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen>
                     borderRadius: BorderRadius.circular(12),
                     child: ProductImage(imageUrl: url, title: '${product.title} 상세 이미지'),
                   ),
-                  if (product.seller.slug.isNotEmpty)
-                    TextButton.icon(
-                      onPressed: () => context.push('/stores/${product.seller.slug}'),
-                      icon: const Icon(Icons.storefront_outlined, size: 17),
-                      label: const Text('판매자 사이트'),
-                    ),
                 )),
               ],
               const SizedBox(height: 24),

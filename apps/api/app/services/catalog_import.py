@@ -280,6 +280,10 @@ def import_admin_catalog_csv(db: Session, content: bytes) -> dict[str, int]:
                 catalog.description = first["카드설명"]
             if first["카드사진URL"]:
                 catalog.image_url = first["카드사진URL"]
+        # CSV re-imports must refresh browse tags too. Otherwise a card updated
+        # through the admin portal can be visible to sellers but be filtered out
+        # of the buyer's L1/L2 catalogue.
+        apply_auto_l1_tags(catalog, only_if_empty=False)
 
         for row in card_rows:
             if not row["옵션명"]:

@@ -260,6 +260,7 @@ class SellerSummaryModel {
   SellerSummaryModel({
     required this.id,
     required this.shopName,
+    required this.slug,
     required this.sellerType,
   });
 
@@ -267,12 +268,14 @@ class SellerSummaryModel {
     return SellerSummaryModel(
       id: json['id'] as String? ?? '',
       shopName: json['shopName'] as String? ?? '',
+      slug: json['slug'] as String? ?? '',
       sellerType: json['sellerType'] as String? ?? 'merchant',
     );
   }
 
   final String id;
   final String shopName;
+  final String slug;
   final String sellerType;
 }
 
@@ -1416,7 +1419,6 @@ class StorefrontModel {
     required this.id,
     required this.shopName,
     required this.slug,
-    required this.slug,
     required this.sellerType,
     required this.productCount,
     this.storeDescription,
@@ -1426,9 +1428,8 @@ class StorefrontModel {
 
   factory StorefrontModel.fromJson(Map<String, dynamic> json) => StorefrontModel(
         id: json['id'] as String? ?? '',
-      shopName: json['shopName'] as String? ?? '',
+        shopName: json['shopName'] as String? ?? '',
       slug: json['slug'] as String? ?? '',
-        slug: json['slug'] as String? ?? '',
         sellerType: json['sellerType'] as String? ?? 'merchant',
         productCount: json['productCount'] as int? ?? 0,
         storeDescription: json['storeDescription'] as String?,
@@ -1438,7 +1439,6 @@ class StorefrontModel {
 
   final String id;
   final String shopName;
-  final String slug;
   final String slug;
   final String sellerType;
   final String? storeDescription;
